@@ -27,10 +27,10 @@ Não é preciso instalar Maven: use o wrapper (`mvnw` / `mvnw.cmd`).
 2. Suba a infraestrutura na raiz do repositório:
 
    ```bash
-   docker compose up -d
+   docker compose up -d --wait
    ```
 
-   Na primeira execução o Oracle leva alguns minutos para ficar `healthy`. Detalhes de Keycloak, HTTPS e usuários de teste estão em [infra/README.md](infra/README.md).
+   O `--wait` só retorna quando Oracle, RabbitMQ, Keycloak e MailHog estão `healthy`. Na primeira execução o Oracle leva alguns minutos. Detalhes de Keycloak, HTTPS e usuários de teste estão em [infra/README.md](infra/README.md).
 
 3. Rode a API:
 

@@ -1,5 +1,8 @@
 # Ponto de entrada da infraestrutura local: `docker compose up -d` na raiz.
 # A definição dos serviços fica em infra/docker-compose.yml (Oracle, RabbitMQ, Keycloak, MailHog).
+# Nome fixo do projeto: volumes e rede ficam como familhas_*, independente da pasta.
+name: familhas
+
 include:
   - infra/docker-compose.yml
 

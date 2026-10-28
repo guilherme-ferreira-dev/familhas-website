@@ -20,9 +20,5 @@ if [ ! -f "$KEYSTORE_PATH" ]; then
     -dname "CN=localhost, OU=Familhas, O=Familhas, L=Local, S=Local, C=BR"
 fi
 
-if [ ! -f "/opt/keycloak/data/.build-done" ]; then
-  /opt/keycloak/bin/kc.sh build --db=oracle
-  touch /opt/keycloak/data/.build-done
-fi
-
+# O build (KC_DB, health) já foi feito na imagem; ver infra/keycloak/Dockerfile.
 exec /opt/keycloak/bin/kc.sh start --optimized --import-realm --hostname-strict=false

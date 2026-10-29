@@ -3,6 +3,7 @@ package br.com.familhas.rating;
 import java.util.UUID;
 
 import br.com.familhas.client.ClientEntity;
+import br.com.familhas.common.AuditableEntity;
 import br.com.familhas.travelPackage.TravelPackageEntity;
 
 import jakarta.persistence.Column;
@@ -27,7 +28,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RatingEntity {
+public class RatingEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

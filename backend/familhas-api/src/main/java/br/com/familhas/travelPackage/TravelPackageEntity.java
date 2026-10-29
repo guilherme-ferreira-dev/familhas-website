@@ -7,10 +7,13 @@ import java.util.UUID;
 
 import br.com.familhas.category.CategoryEntity;
 import br.com.familhas.city.CityEntity;
+import br.com.familhas.common.AuditableEntity;
+import br.com.familhas.common.Currencies;
 import br.com.familhas.enums.EntityStatus;
 import br.com.familhas.flight.FlightEntity;
 import br.com.familhas.rating.RatingEntity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -36,7 +39,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class TravelPackageEntity {
+public class TravelPackageEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -50,6 +53,11 @@ public class TravelPackageEntity {
 
     @Column(precision = 12, scale = 2)
     private BigDecimal pricePromotion;
+
+    /** ISO 4217, vale para price e pricePromotion. */
+    @Column(nullable = false, length = 3)
+    @Builder.Default
+    private String currency = Currencies.DEFAULT;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -77,4 +85,12 @@ public class TravelPackageEntity {
     @OneToMany(mappedBy = "travelPackage")
     @Builder.Default
     private List<RatingEntity> ratings = new ArrayList<>();
+
+    /**
+     * Hotel e carro opcionais. Ciclo de vida preso ao pacote: removidos junto com ele.
+     * Substituir sempre com clear() + add(), nunca com setComponents (orphanRemoval).
+     */
+    @OneToMany(mappedBy = "travelPackage", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<TravelPackageComponentEntity> components = new ArrayList<>();
 }

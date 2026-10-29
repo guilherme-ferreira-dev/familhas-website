@@ -1,9 +1,15 @@
 package br.com.familhas.client;
 
+import br.com.familhas.client.dto.ClientFilter;
 import br.com.familhas.client.dto.ClientRequest;
 import br.com.familhas.client.dto.ClientResponse;
+import br.com.familhas.common.PageResponse;
+import br.com.familhas.common.Pagination;
+import br.com.familhas.common.Specs;
 import br.com.familhas.travelPackage.TravelPackageEntity;
 import jakarta.persistence.EntityManager;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,12 +17,16 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 
 @Service
 @Transactional
 public class ClientService {
+
+    /** Lista branca: password nunca é ordenável nem filtrável. */
+    static final Set<String> SORTABLE = Set.of("name", "email", "createdAt", "updatedAt");
 
     private final ClientRepository clientRepository;
     private final EntityManager entityManager;
@@ -26,9 +36,28 @@ public class ClientService {
         this.entityManager = entityManager;
     }
 
+    /**
+     * favorites/myFlights são LAZY e carregados em lote (default_batch_fetch_size),
+     * então a página custa poucas queries em vez de 1 + 2 por cliente.
+     */
     @Transactional(readOnly = true)
-    public List<ClientResponse> findAll() {
-        return clientRepository.findAll().stream().map(this::toResponse).toList();
+    public PageResponse<ClientResponse> findAll(ClientFilter filter, Pageable pageable) {
+        Pagination.validateSort(pageable, SORTABLE);
+        return PageResponse.of(clientRepository.findAll(toSpecification(filter), pageable), this::toResponse);
+    }
+
+    private static Specification<ClientEntity> toSpecification(ClientFilter filter) {
+        List<Specification<ClientEntity>> specs = new ArrayList<>();
+        if (filter.status() != null) {
+            specs.add((root, query, cb) -> cb.equal(root.get("status"), filter.status()));
+        }
+        if (Specs.hasText(filter.q())) {
+            String pattern = Specs.likePattern(filter.q());
+            specs.add((root, query, cb) -> cb.or(
+                    cb.like(cb.lower(root.<String>get("name")), pattern, Specs.escapeChar()),
+                    cb.like(cb.lower(root.<String>get("email")), pattern, Specs.escapeChar())));
+        }
+        return Specification.allOf(specs);
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +82,7 @@ public class ClientService {
     public void delete(UUID id) {
         ClientEntity client = getClientOrThrow(id);
         clientRepository.delete(client);
+        clientRepository.flush();
     }
 
     private void validateEmailUnique(String email, UUID excludeClientId) {

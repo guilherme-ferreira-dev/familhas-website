@@ -1,5 +1,6 @@
 package br.com.familhas.client;
 
+import br.com.familhas.common.AuditableEntity;
 import br.com.familhas.enums.EntityStatus;
 import br.com.familhas.rating.RatingEntity;
 import br.com.familhas.travelPackage.TravelPackageEntity;
@@ -17,7 +18,7 @@ import java.util.UUID;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class ClientEntity {
+public class ClientEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

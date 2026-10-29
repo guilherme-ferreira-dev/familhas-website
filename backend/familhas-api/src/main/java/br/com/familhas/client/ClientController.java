@@ -1,13 +1,17 @@
 package br.com.familhas.client;
 
+import br.com.familhas.client.dto.ClientFilter;
 import br.com.familhas.client.dto.ClientRequest;
 import br.com.familhas.client.dto.ClientResponse;
+import br.com.familhas.common.PageResponse;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -20,9 +24,12 @@ public class ClientController {
         this.clientService = clientService;
     }
 
+    /** Filtros: status, q (nome ou e-mail). Ordenação: name, email, createdAt, updatedAt. */
     @GetMapping
-    public List<ClientResponse> findAll() {
-        return clientService.findAll();
+    public PageResponse<ClientResponse> findAll(
+            @Valid @ModelAttribute ClientFilter filter,
+            @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
+        return clientService.findAll(filter, pageable);
     }
 
     @GetMapping("/{id}")

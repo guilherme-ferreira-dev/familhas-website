@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import br.com.familhas.common.AuditableEntity;
 import br.com.familhas.enums.EntityStatus;
 import br.com.familhas.travelPackage.TravelPackageEntity;
 
@@ -29,7 +30,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CategoryEntity {
+public class CategoryEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

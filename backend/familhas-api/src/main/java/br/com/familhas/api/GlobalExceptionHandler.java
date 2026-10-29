@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -33,5 +34,16 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = new HashMap<>();
         body.put("message", ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString());
         return ResponseEntity.status(ex.getStatusCode()).body(body);
+    }
+
+    /**
+     * Exclusão bloqueada por chave estrangeira (ex.: pacote com avaliações, hotel com quartos).
+     * Não expõe detalhes do SQL na resposta.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrity(DataIntegrityViolationException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("message", "Operation conflicts with related records");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 }

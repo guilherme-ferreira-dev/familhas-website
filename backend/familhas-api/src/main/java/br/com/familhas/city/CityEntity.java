@@ -2,6 +2,7 @@ package br.com.familhas.city;
 
 import java.util.UUID;
 
+import br.com.familhas.common.AuditableEntity;
 import br.com.familhas.enums.CityType;
 import br.com.familhas.enums.EntityStatus;
 
@@ -26,7 +27,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CityEntity {
+public class CityEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

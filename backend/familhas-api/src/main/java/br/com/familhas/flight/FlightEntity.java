@@ -3,6 +3,8 @@ package br.com.familhas.flight;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import br.com.familhas.common.AuditableEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -22,7 +24,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FlightEntity {
+public class FlightEntity extends AuditableEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

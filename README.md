@@ -54,8 +54,31 @@ cd backend/familhas-api
 | Teste | O que cobre | Requer Docker |
 |---|---|---|
 | `FamilhasApiApplicationTests` | Contexto Spring com profile `test` (H2) | Não |
-| `CityControllerTests` | Controller com IDs UUID e segurança | Não |
-| `OracleMigrationIntegrationTests` | Migrations V1..V4, mapeamento JPA e seed em Oracle real (Testcontainers) | Sim (é pulado sem Docker) |
+| `*ControllerTests` | Controllers (WebMvcTest): filtros, paginação, validação, 401/403/409 | Não |
+| `*ServiceTests`, `CommonUtilitiesTests` | Regras de serviço com Mockito, moeda, ordenação | Não |
+| `OracleMigrationIntegrationTests` | Migrations V1..V6, mapeamento JPA, seed, filtros, N+1 e exclusão em Oracle real (Testcontainers) | Sim (é pulado sem Docker) |
+
+## API: listas paginadas
+
+Todo `GET` de lista é paginado e aceita filtros opcionais ([ADR 0003](docs/adr/0003-catalogo-paginacao-auditoria.md)):
+
+```
+GET /travel-packages?destinationCityId=...&maxPrice=3000&q=resort&page=0&size=20&sort=price,asc
+```
+
+A resposta tem o formato `{ "content": [...], "page": 0, "size": 20, "totalElements": 2, "totalPages": 1 }`. O `size` máximo é 100. Campo de ordenação fora da lista branca do recurso retorna 400.
+
+| Recurso | Filtros | Ordenação |
+|---|---|---|
+| `/travel-packages` | originCityId, destinationCityId, categoryId, status, minPrice, maxPrice, q | title, price, createdAt, updatedAt |
+| `/hotels` | cityId, minStars, status, q | name, stars, createdAt, updatedAt |
+| `/room-offers` | hotelId, cityId, boardType, guests, maxPricePerNight, status | pricePerNight, maxGuests, roomType, createdAt, updatedAt |
+| `/car-rental-offers` | cityId, carCategory, transmission, minSeats, maxPricePerDay, status | pricePerDay, seats, companyName, createdAt, updatedAt |
+| `/cities` | cityType, status, q | name, country, createdAt, updatedAt |
+| `/categories` | status, q | title, createdAt, updatedAt |
+| `/flights` | departureFrom, departureTo (ISO), q | boardingDate, returnDate, companyName, createdAt, updatedAt |
+| `/clients` (ADMIN) | status, q (nome ou e-mail) | name, email, createdAt, updatedAt |
+| `/ratings` | clientId, travelPackageId | rating, createdAt, updatedAt |
 
 ## IDs
 

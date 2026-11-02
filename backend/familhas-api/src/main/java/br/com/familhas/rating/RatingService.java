@@ -1,14 +1,21 @@
 package br.com.familhas.rating;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import br.com.familhas.client.ClientEntity;
+import br.com.familhas.common.PageResponse;
+import br.com.familhas.common.Pagination;
+import br.com.familhas.rating.dto.RatingFilter;
 import br.com.familhas.rating.dto.RatingRequest;
 import br.com.familhas.rating.dto.RatingResponse;
 import br.com.familhas.travelPackage.TravelPackageEntity;
@@ -19,6 +26,8 @@ import jakarta.persistence.EntityManager;
 @Transactional
 public class RatingService {
 
+    static final Set<String> SORTABLE = Set.of("rating", "createdAt", "updatedAt");
+
     private final RatingRepository ratingRepository;
     private final EntityManager entityManager;
 
@@ -28,8 +37,20 @@ public class RatingService {
     }
 
     @Transactional(readOnly = true)
-    public List<RatingResponse> findAll() {
-        return ratingRepository.findAll().stream().map(this::toResponse).toList();
+    public PageResponse<RatingResponse> findAll(RatingFilter filter, Pageable pageable) {
+        Pagination.validateSort(pageable, SORTABLE);
+        return PageResponse.of(ratingRepository.findAll(toSpecification(filter), pageable), this::toResponse);
+    }
+
+    private static Specification<RatingEntity> toSpecification(RatingFilter filter) {
+        List<Specification<RatingEntity>> specs = new ArrayList<>();
+        if (filter.clientId() != null) {
+            specs.add((root, query, cb) -> cb.equal(root.get("client").get("id"), filter.clientId()));
+        }
+        if (filter.travelPackageId() != null) {
+            specs.add((root, query, cb) -> cb.equal(root.get("travelPackage").get("id"), filter.travelPackageId()));
+        }
+        return Specification.allOf(specs);
     }
 
     @Transactional(readOnly = true)

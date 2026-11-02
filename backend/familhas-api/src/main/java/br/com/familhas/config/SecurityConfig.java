@@ -34,25 +34,37 @@ public class SecurityConfig {
                                 "/travel-packages/**",
                                 "/categories/**",
                                 "/cities/**",
-                                "/flights/**")
+                                "/flights/**",
+                                "/hotels/**",
+                                "/room-offers/**",
+                                "/car-rental-offers/**")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/travel-packages/**",
                                 "/categories/**",
                                 "/cities/**",
-                                "/flights/**")
+                                "/flights/**",
+                                "/hotels/**",
+                                "/room-offers/**",
+                                "/car-rental-offers/**")
                         .hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PUT,
                                 "/travel-packages/**",
                                 "/categories/**",
                                 "/cities/**",
-                                "/flights/**")
+                                "/flights/**",
+                                "/hotels/**",
+                                "/room-offers/**",
+                                "/car-rental-offers/**")
                         .hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE,
                                 "/travel-packages/**",
                                 "/categories/**",
                                 "/cities/**",
-                                "/flights/**")
+                                "/flights/**",
+                                "/hotels/**",
+                                "/room-offers/**",
+                                "/car-rental-offers/**")
                         .hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/clients/**")
                         .hasAuthority("ROLE_ADMIN")

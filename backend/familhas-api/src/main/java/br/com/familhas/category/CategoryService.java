@@ -1,19 +1,29 @@
 package br.com.familhas.category;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import br.com.familhas.category.dto.CategoryFilter;
 import br.com.familhas.category.dto.CategoryRequest;
 import br.com.familhas.category.dto.CategoryResponse;
+import br.com.familhas.common.PageResponse;
+import br.com.familhas.common.Pagination;
+import br.com.familhas.common.Specs;
 
 @Service
 @Transactional
 public class CategoryService {
+
+    static final Set<String> SORTABLE = Set.of("title", "createdAt", "updatedAt");
 
     private final CategoryRepository categoryRepository;
 
@@ -22,8 +32,20 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoryResponse> findAll() {
-        return categoryRepository.findAll().stream().map(this::toResponse).toList();
+    public PageResponse<CategoryResponse> findAll(CategoryFilter filter, Pageable pageable) {
+        Pagination.validateSort(pageable, SORTABLE);
+        return PageResponse.of(categoryRepository.findAll(toSpecification(filter), pageable), this::toResponse);
+    }
+
+    private static Specification<CategoryEntity> toSpecification(CategoryFilter filter) {
+        List<Specification<CategoryEntity>> specs = new ArrayList<>();
+        if (filter.status() != null) {
+            specs.add((root, query, cb) -> cb.equal(root.get("status"), filter.status()));
+        }
+        if (Specs.hasText(filter.q())) {
+            specs.add(Specs.containsIgnoreCase("title", filter.q()));
+        }
+        return Specification.allOf(specs);
     }
 
     @Transactional(readOnly = true)
@@ -46,6 +68,7 @@ public class CategoryService {
     public void delete(UUID id) {
         CategoryEntity category = getCategoryOrThrow(id);
         categoryRepository.delete(category);
+        categoryRepository.flush();
     }
 
     private CategoryEntity getCategoryOrThrow(UUID id) {

@@ -25,7 +25,7 @@ import br.com.familhas.flight.dto.FlightResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/flights")
+@RequestMapping("/api/admin/flights")
 public class FlightController {
 
     private final FlightService flightService;

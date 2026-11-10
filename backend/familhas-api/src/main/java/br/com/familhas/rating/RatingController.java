@@ -25,7 +25,7 @@ import br.com.familhas.rating.dto.RatingResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/ratings")
+@RequestMapping("/api/admin/ratings")
 public class RatingController {
 
     private final RatingService ratingService;

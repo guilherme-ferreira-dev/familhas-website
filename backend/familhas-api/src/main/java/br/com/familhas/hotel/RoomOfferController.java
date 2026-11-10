@@ -25,7 +25,7 @@ import br.com.familhas.hotel.dto.RoomOfferResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/room-offers")
+@RequestMapping("/api/admin/room-offers")
 public class RoomOfferController {
 
     private final RoomOfferService roomOfferService;

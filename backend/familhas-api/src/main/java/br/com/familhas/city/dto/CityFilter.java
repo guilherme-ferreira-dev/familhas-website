@@ -14,4 +14,9 @@ public record CityFilter(
     public static CityFilter empty() {
         return new CityFilter(null, null, null);
     }
+
+    /** Catalogo publico: mantem os filtros pedidos e forca somente itens ATIVOS. */
+    public CityFilter activeOnly() {
+        return new CityFilter(cityType, EntityStatus.ACTIVE, q);
+    }
 }

@@ -25,7 +25,7 @@ import br.com.familhas.common.PageResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/categories")
+@RequestMapping("/api/admin/categories")
 public class CategoryController {
 
     private final CategoryService categoryService;

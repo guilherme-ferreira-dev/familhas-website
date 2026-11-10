@@ -33,13 +33,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import br.com.familhas.common.PageResponse;
+import br.com.familhas.config.RestAccessDeniedHandler;
+import br.com.familhas.config.RestAuthenticationEntryPoint;
 import br.com.familhas.config.SecurityConfig;
 import br.com.familhas.enums.EntityStatus;
 import br.com.familhas.travelPackage.dto.TravelPackageFilter;
 import br.com.familhas.travelPackage.dto.TravelPackageResponse;
 
 @WebMvcTest(TravelPackageController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
 class TravelPackageControllerTests {
 
     private static final UUID ID = UUID.fromString("bac00000-0000-4000-8000-000000000001");
@@ -59,7 +61,8 @@ class TravelPackageControllerTests {
         when(travelPackageService.findAll(any(), any())).thenReturn(new PageResponse<>(
                 List.of(response()), 1, 5, 6, 2));
 
-        mockMvc.perform(get("/travel-packages")
+        mockMvc.perform(get("/api/admin/travel-packages")
+                        .with(admin())
                         .param("destinationCityId", DESTINATION.toString())
                         .param("maxPrice", "3000")
                         .param("q", "resort")
@@ -88,7 +91,7 @@ class TravelPackageControllerTests {
     void findAllCapsPageSizeAtConfiguredMaximum() throws Exception {
         when(travelPackageService.findAll(any(), any())).thenReturn(new PageResponse<>(List.of(), 0, 100, 0, 0));
 
-        mockMvc.perform(get("/travel-packages").param("size", "500")).andExpect(status().isOk());
+        mockMvc.perform(get("/api/admin/travel-packages").with(admin()).param("size", "500")).andExpect(status().isOk());
 
         ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
         verify(travelPackageService).findAll(any(), pageable.capture());
@@ -97,7 +100,7 @@ class TravelPackageControllerTests {
 
     @Test
     void findAllRejectsNegativePriceFilter() throws Exception {
-        mockMvc.perform(get("/travel-packages").param("maxPrice", "-1"))
+        mockMvc.perform(get("/api/admin/travel-packages").with(admin()).param("maxPrice", "-1"))
                 .andExpect(status().isBadRequest());
 
         verify(travelPackageService, never()).findAll(any(), any());
@@ -105,14 +108,14 @@ class TravelPackageControllerTests {
 
     @Test
     void deleteWithoutTokenReturns401() throws Exception {
-        mockMvc.perform(delete("/travel-packages/{id}", ID)).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/admin/travel-packages/{id}", ID)).andExpect(status().isUnauthorized());
 
         verify(travelPackageService, never()).delete(any());
     }
 
     @Test
     void deleteAsUserReturns403() throws Exception {
-        mockMvc.perform(delete("/travel-packages/{id}", ID)
+        mockMvc.perform(delete("/api/admin/travel-packages/{id}", ID)
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
                 .andExpect(status().isForbidden());
 
@@ -121,7 +124,7 @@ class TravelPackageControllerTests {
 
     @Test
     void deleteAsAdminCallsServiceAndReturns204() throws Exception {
-        mockMvc.perform(delete("/travel-packages/{id}", ID)
+        mockMvc.perform(delete("/api/admin/travel-packages/{id}", ID)
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isNoContent());
 
@@ -133,10 +136,10 @@ class TravelPackageControllerTests {
         doThrow(new DataIntegrityViolationException("ORA-02292: integrity constraint violated"))
                 .when(travelPackageService).delete(ID);
 
-        mockMvc.perform(delete("/travel-packages/{id}", ID)
+        mockMvc.perform(delete("/api/admin/travel-packages/{id}", ID)
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.message").value("Operation conflicts with related records"));
+                .andExpect(jsonPath("$.detail").value("Operation conflicts with related records"));
     }
 
     @Test
@@ -156,7 +159,7 @@ class TravelPackageControllerTests {
                 }
                 """;
 
-        mockMvc.perform(post("/travel-packages")
+        mockMvc.perform(post("/api/admin/travel-packages")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
@@ -181,12 +184,16 @@ class TravelPackageControllerTests {
                 }
                 """;
 
-        mockMvc.perform(post("/travel-packages")
+        mockMvc.perform(post("/api/admin/travel-packages")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.currency").exists());
+    }
+
+    private static org.springframework.test.web.servlet.request.RequestPostProcessor admin() {
+        return jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"));
     }
 
     private static TravelPackageResponse response() {

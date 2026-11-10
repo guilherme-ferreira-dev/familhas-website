@@ -24,4 +24,10 @@ public record TravelPackageFilter(
     public static TravelPackageFilter empty() {
         return new TravelPackageFilter(null, null, null, null, null, null, null);
     }
+
+    /** Catalogo publico: mantem os filtros pedidos e forca somente pacotes ATIVOS. */
+    public TravelPackageFilter activeOnly() {
+        return new TravelPackageFilter(originCityId, destinationCityId, categoryId, EntityStatus.ACTIVE,
+                minPrice, maxPrice, q);
+    }
 }

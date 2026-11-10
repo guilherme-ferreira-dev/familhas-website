@@ -25,7 +25,7 @@ import br.com.familhas.hotel.dto.HotelResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/hotels")
+@RequestMapping("/api/admin/hotels")
 public class HotelController {
 
     private final HotelService hotelService;

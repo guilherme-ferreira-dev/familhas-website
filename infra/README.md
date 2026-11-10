@@ -33,14 +33,29 @@ Para parar sem perder dados: `docker compose down`. Para zerar tudo, incluindo o
 
 ## O que sobe automaticamente no Keycloak
 
-- Realm `familhas` importado de `infra/keycloak/data/import/familhas-realm.json` (versionado no Git). A importação ignora o realm se ele já existir.
-- Roles: `ROLE_USER`, `ROLE_ADMIN`
+Realm `familhas` importado de `infra/keycloak/data/import/familhas-realm.json` (versionado no Git). Detalhes em [ADR 0004](../docs/adr/0004-seguranca-keycloak-rotas-problem-details.md).
+
+- Papéis: `ROLE_USER` (todo usuário recebe pelo papel padrão do realm) e `ROLE_ADMIN`.
 - Clients:
-  - `familhas-api` (confidential)
-  - `familhas-web` (public)
+  - `familhas-web`: Loja, público, PKCE S256, `http://localhost:4200`.
+  - `familhas-admin`: Admin, público, PKCE S256, `http://localhost:4300`. O fluxo de login nega quem não tem `ROLE_ADMIN`.
+  - `familhas-api`: só a audiência dos tokens (bearer-only, sem segredo).
+- Verificação de e-mail ligada, com e-mails enviados pelo MailHog (`http://localhost:8025`).
+- Política de senha: no mínimo 8 caracteres e diferente do usuário. Proteção contra força bruta ligada.
 - Usuários de teste:
-  - `admin.familhas` / `admin123`
-  - `user.familhas` / `user123`
+  - `admin.familhas` / `admin1234`
+  - `user.familhas` / `user12345`
+
+### Aplicar mudanças do realm em um Keycloak já criado
+
+O `--import-realm` só importa quando o realm não existe. Depois de alterar o JSON, recrie o realm local. Isso apaga os usuários criados à mão nesse realm:
+
+1. Abra `https://localhost:8443`, entre no console com `admin` / `admin`, selecione o realm `familhas` e use **Realm settings > Action > Delete**.
+2. Rode `docker compose restart keycloak`. Na subida, o realm é importado de novo a partir do JSON.
+
+### Token para testes manuais (sem frontend)
+
+Os clients usam só authorization code + PKCE. Para testar com curl ou Postman, ligue temporariamente **Direct access grants** no `familhas-web` (console admin > Clients > familhas-web > Settings) e desligue ao terminar. Nunca faça isso em produção.
 
 ## Imagem do Keycloak
 

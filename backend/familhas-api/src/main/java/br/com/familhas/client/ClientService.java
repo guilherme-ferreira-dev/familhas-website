@@ -3,6 +3,7 @@ package br.com.familhas.client;
 import br.com.familhas.client.dto.ClientFilter;
 import br.com.familhas.client.dto.ClientRequest;
 import br.com.familhas.client.dto.ClientResponse;
+import br.com.familhas.client.dto.MeUpdateRequest;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.common.Pagination;
 import br.com.familhas.common.Specs;
@@ -85,6 +86,13 @@ public class ClientService {
         clientRepository.flush();
     }
 
+    /** Atualização do próprio perfil: só nome e telefone. E-mail e status não passam por aqui. */
+    public void updateProfile(UUID clientId, MeUpdateRequest request) {
+        ClientEntity client = getClientOrThrow(clientId);
+        client.setName(request.name().trim());
+        client.setPhoneNumber(blankToNull(request.phoneNumber()));
+    }
+
     private void validateEmailUnique(String email, UUID excludeClientId) {
         String normalized = email.trim().toLowerCase();
         boolean conflict;
@@ -124,12 +132,33 @@ public class ClientService {
 
     private void apply(ClientEntity client, ClientRequest request) {
         client.setName(request.name().trim());
-        client.setEmail(request.email().trim().toLowerCase());
+        setEmail(client, request.email());
         client.setPhoneNumber(blankToNull(request.phoneNumber()));
-        client.setPassword(request.password());
         client.setStatus(request.status());
-        client.setFavorites(mapTravelPackages(request.favoriteIds()));
-        client.setMyFlights(mapTravelPackages(request.myFlightIds()));
+        if (request.favoriteIds() != null) {
+            client.getFavorites().clear();
+            client.getFavorites().addAll(mapTravelPackages(request.favoriteIds()));
+        }
+        if (request.myFlightIds() != null) {
+            client.getMyFlights().clear();
+            client.getMyFlights().addAll(mapTravelPackages(request.myFlightIds()));
+        }
+    }
+
+    /**
+     * O e-mail é a chave do vínculo com o Keycloak. Depois do primeiro login, só o Keycloak
+     * pode alterá-lo: mudar aqui criaria uma conta que não corresponde ao usuário autenticado.
+     */
+    void setEmail(ClientEntity client, String email) {
+        String normalized = email.trim().toLowerCase();
+        if (client.getKeycloakId() != null) {
+            if (!normalized.equalsIgnoreCase(client.getEmail())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Email is managed by Keycloak for accounts with login; change it there");
+            }
+            return;
+        }
+        client.setEmail(normalized);
     }
 
     private static String blankToNull(String s) {
@@ -146,6 +175,7 @@ public class ClientService {
                 client.getEmail(),
                 client.getPhoneNumber(),
                 client.getStatus(),
+                client.getKeycloakId() != null,
                 client.getFavorites().stream().map(TravelPackageEntity::getId).toList(),
                 client.getMyFlights().stream().map(TravelPackageEntity::getId).toList());
     }

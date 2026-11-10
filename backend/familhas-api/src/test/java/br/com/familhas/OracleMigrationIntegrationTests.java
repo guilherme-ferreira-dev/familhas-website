@@ -31,6 +31,7 @@ import br.com.familhas.city.CityService;
 import br.com.familhas.city.dto.CityFilter;
 import br.com.familhas.client.ClientService;
 import br.com.familhas.client.ClientRepository;
+import br.com.familhas.client.KeycloakClientSyncService;
 import br.com.familhas.client.dto.ClientFilter;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.enums.CityType;
@@ -86,6 +87,7 @@ class OracleMigrationIntegrationTests {
     @Autowired private TravelPackageService travelPackageService;
     @Autowired private CityService cityService;
     @Autowired private ClientService clientService;
+    @Autowired private KeycloakClientSyncService keycloakClientSyncService;
     @Autowired private EntityManager entityManager;
     @Autowired private EntityManagerFactory entityManagerFactory;
 
@@ -200,6 +202,45 @@ class OracleMigrationIntegrationTests {
     void deletingPackageWithRatingsIsBlockedByForeignKey() {
         assertThatThrownBy(() -> travelPackageService.delete(PACKAGE_MACEIO))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void passwordColumnWasDroppedAndKeycloakIdIsUnique() {
+        // V7: clients nao tem mais password e keycloak_id e UNIQUE (varios NULL permitidos).
+        Number passwordColumns = (Number) entityManager.createNativeQuery(
+                "SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'CLIENTS' AND column_name = 'PASSWORD'")
+                .getSingleResult();
+        Number keycloakColumns = (Number) entityManager.createNativeQuery(
+                "SELECT COUNT(*) FROM user_tab_columns WHERE table_name = 'CLIENTS' AND column_name = 'KEYCLOAK_ID'")
+                .getSingleResult();
+        Number uniqueIndexes = (Number) entityManager.createNativeQuery(
+                "SELECT COUNT(*) FROM user_constraints WHERE table_name = 'CLIENTS' "
+                        + "AND constraint_type = 'U' AND constraint_name = 'UK_CLIENTS_KEYCLOAK_ID'")
+                .getSingleResult();
+
+        assertThat(passwordColumns.intValue()).isZero();
+        assertThat(keycloakColumns.intValue()).isEqualTo(1);
+        assertThat(uniqueIndexes.intValue()).isEqualTo(1);
+    }
+
+    /**
+     * Primeiro login: vincula o Client local pelo e-mail verificado do Keycloak, sem duplicar.
+     * O sync usa REQUIRES_NEW (commit próprio), por isso este teste não depende do rollback.
+     */
+    @Test
+    void firstLoginLinksExistingClientByVerifiedEmail() {
+        UUID first = keycloakClientSyncService.syncClientId(
+                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana"));
+        UUID second = keycloakClientSyncService.syncClientId(
+                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana"));
+
+        assertThat(first).isEqualTo(second);
+        assertThat(clientRepository.findByKeycloakId("sub-ana-teste"))
+                .get()
+                .satisfies(client -> {
+                    assertThat(client.getId()).isEqualTo(first);
+                    assertThat(client.getEmail()).isEqualTo("ana.souza@familhas.com");
+                });
     }
 
     @Test

@@ -23,10 +23,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import br.com.familhas.common.PageResponse;
+import br.com.familhas.config.RestAccessDeniedHandler;
+import br.com.familhas.config.RestAuthenticationEntryPoint;
 import br.com.familhas.config.SecurityConfig;
 
 @WebMvcTest(HotelController.class)
-@Import(SecurityConfig.class)
+@Import({SecurityConfig.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
 class HotelControllerTests {
 
     private static final String VALID_BODY = """
@@ -43,24 +45,37 @@ class HotelControllerTests {
     private JwtDecoder jwtDecoder;
 
     @Test
-    void listIsPublic() throws Exception {
+    void adminListRequiresAdmin() throws Exception {
+        mockMvc.perform(get("/api/admin/hotels")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/hotels")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                .andExpect(status().isForbidden());
+
+        verify(hotelService, never()).findAll(any(), any());
+    }
+
+    @Test
+    void adminListBindsFilters() throws Exception {
         when(hotelService.findAll(any(), any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
 
-        mockMvc.perform(get("/hotels").param("minStars", "4"))
+        mockMvc.perform(get("/api/admin/hotels").param("minStars", "4")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray());
     }
 
     @Test
-    void listRejectsStarsOutOfRange() throws Exception {
-        mockMvc.perform(get("/hotels").param("minStars", "6")).andExpect(status().isBadRequest());
+    void adminListRejectsStarsOutOfRange() throws Exception {
+        mockMvc.perform(get("/api/admin/hotels").param("minStars", "6")
+                        .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     void createRequiresAdmin() throws Exception {
-        mockMvc.perform(post("/hotels").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mockMvc.perform(post("/api/admin/hotels").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(post("/hotels")
+        mockMvc.perform(post("/api/admin/hotels")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER")))
                         .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isForbidden());
@@ -70,7 +85,7 @@ class HotelControllerTests {
 
     @Test
     void createValidatesStars() throws Exception {
-        mockMvc.perform(post("/hotels")
+        mockMvc.perform(post("/api/admin/hotels")
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_BODY.replace("\"stars\": 4", "\"stars\": 0")))

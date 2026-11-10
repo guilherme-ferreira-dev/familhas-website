@@ -24,4 +24,9 @@ public record RoomOfferFilter(
     public static RoomOfferFilter empty() {
         return new RoomOfferFilter(null, null, null, null, null, null);
     }
+
+    /** Catalogo publico: mantem os filtros pedidos e forca somente itens ATIVOS. */
+    public RoomOfferFilter activeOnly() {
+        return new RoomOfferFilter(hotelId, cityId, boardType, guests, maxPricePerNight, EntityStatus.ACTIVE);
+    }
 }

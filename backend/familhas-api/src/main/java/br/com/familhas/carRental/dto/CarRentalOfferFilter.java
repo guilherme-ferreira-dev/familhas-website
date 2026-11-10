@@ -25,4 +25,10 @@ public record CarRentalOfferFilter(
     public static CarRentalOfferFilter empty() {
         return new CarRentalOfferFilter(null, null, null, null, null, null);
     }
+
+    /** Catalogo publico: mantem os filtros pedidos e forca somente itens ATIVOS. */
+    public CarRentalOfferFilter activeOnly() {
+        return new CarRentalOfferFilter(cityId, carCategory, transmission, minSeats, maxPricePerDay,
+                EntityStatus.ACTIVE);
+    }
 }

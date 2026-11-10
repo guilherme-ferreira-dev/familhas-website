@@ -6,43 +6,81 @@
   "registrationAllowed": true,
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
+  "verifyEmail": true,
   "resetPasswordAllowed": true,
   "rememberMe": true,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "passwordPolicy": "length(8) and notUsername",
+  "smtpServer": {
+    "host": "mailhog",
+    "port": "1025",
+    "from": "no-reply@familhas.local",
+    "fromDisplayName": "Familhas",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
   "roles": {
     "realm": [
       {
         "name": "ROLE_ADMIN",
-        "description": "Acesso administrativo ao catalogo e configuracoes internas."
+        "description": "Acesso administrativo ao catalogo, clientes e configuracoes internas."
       },
       {
         "name": "ROLE_USER",
-        "description": "Acesso autenticado padrao para usuarios da aplicacao."
+        "description": "Cliente autenticado da Loja. Concedida a todo usuario pelo papel padrao."
+      },
+      {
+        "name": "offline_access",
+        "description": "${role_offline-access}"
+      },
+      {
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}"
+      },
+      {
+        "name": "default-roles-familhas",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": ["ROLE_USER", "offline_access", "uma_authorization"],
+          "client": {
+            "account": ["view-profile", "manage-account"]
+          }
+        }
       }
     ]
+  },
+  "defaultRole": {
+    "name": "default-roles-familhas"
   },
   "clients": [
     {
       "clientId": "familhas-api",
-      "name": "Familhas API",
+      "name": "Familhas API (resource server)",
+      "description": "Apenas audiencia dos tokens. Nao emite tokens nem possui segredo.",
       "enabled": true,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "familhas-api-secret",
-      "serviceAccountsEnabled": true,
-      "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "bearerOnly": true,
       "publicClient": false,
-      "protocol": "openid-connect",
-      "fullScopeAllowed": true
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
     },
     {
       "clientId": "familhas-web",
-      "name": "Familhas Web",
+      "name": "Familhas Loja",
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
       "redirectUris": [
         "http://localhost:4200/*",
         "https://localhost:4200/*"
@@ -51,11 +89,139 @@
         "http://localhost:4200",
         "https://localhost:4200"
       ],
-      "defaultClientScopes": [
-        "profile",
-        "email",
-        "roles"
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4200/*##https://localhost:4200/*"
+      },
+      "defaultClientScopes": ["profile", "email", "roles", "web-origins", "basic"],
+      "protocolMappers": [
+        {
+          "name": "familhas-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "familhas-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
       ]
+    },
+    {
+      "clientId": "familhas-admin",
+      "name": "Familhas Admin",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4300/*",
+        "https://localhost:4300/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4300",
+        "https://localhost:4300"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4300/*##https://localhost:4300/*"
+      },
+      "authenticationFlowBindingOverrides": {
+        "browser": "6a1d3b6e-2f0c-4a8e-9c1e-7d2f3a4b5c61"
+      },
+      "defaultClientScopes": ["profile", "email", "roles", "web-origins", "basic"],
+      "protocolMappers": [
+        {
+          "name": "familhas-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "familhas-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "id": "6a1d3b6e-2f0c-4a8e-9c1e-7d2f3a4b5c61",
+      "alias": "familhas admin browser",
+      "description": "Login do familhas-admin: igual ao browser padrao, mas nega quem nao tem ROLE_ADMIN.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "familhas admin role check",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "familhas admin role check",
+      "description": "Nega acesso quando o usuario nao possui ROLE_ADMIN.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "familhas-sem-role-admin",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "deny-access-authenticator",
+          "authenticatorConfig": "familhas-acesso-negado",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "familhas-sem-role-admin",
+      "config": {
+        "condUserRole": "ROLE_ADMIN",
+        "negate": "true"
+      }
+    },
+    {
+      "alias": "familhas-acesso-negado",
+      "config": {
+        "denyErrorMessage": "Acesso restrito a administradores."
+      }
     }
   ],
   "users": [
@@ -69,13 +235,13 @@
       "credentials": [
         {
           "type": "password",
-          "value": "admin123",
+          "value": "admin1234",
           "temporary": false
         }
       ],
       "realmRoles": [
-        "ROLE_ADMIN",
-        "ROLE_USER"
+        "default-roles-familhas",
+        "ROLE_ADMIN"
       ]
     },
     {
@@ -88,12 +254,12 @@
       "credentials": [
         {
           "type": "password",
-          "value": "user123",
+          "value": "user12345",
           "temporary": false
         }
       ],
       "realmRoles": [
-        "ROLE_USER"
+        "default-roles-familhas"
       ]
     }
   ]

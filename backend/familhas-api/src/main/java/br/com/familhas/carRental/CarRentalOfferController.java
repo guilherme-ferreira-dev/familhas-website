@@ -25,7 +25,7 @@ import br.com.familhas.common.PageResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/car-rental-offers")
+@RequestMapping("/api/admin/car-rental-offers")
 public class CarRentalOfferController {
 
     private final CarRentalOfferService carRentalOfferService;

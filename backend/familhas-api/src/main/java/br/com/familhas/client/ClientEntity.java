@@ -33,8 +33,9 @@ public class ClientEntity extends AuditableEntity {
     @Column(length = 40)
     private String phoneNumber;
 
-    @Column(nullable = false, length = 225)
-    private String password;
+    /** Claim "sub" do Keycloak. Nulo enquanto a conta não tiver login vinculado. */
+    @Column(name = "keycloak_id", unique = true, length = 64)
+    private String keycloakId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

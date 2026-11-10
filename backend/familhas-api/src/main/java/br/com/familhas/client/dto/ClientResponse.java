@@ -11,6 +11,8 @@ public record ClientResponse(
         String email,
         String phoneNumber,
         EntityStatus status,
+        /** true quando a conta já tem login vinculado no Keycloak. */
+        boolean hasLogin,
         List<UUID> favoriteIds,
         List<UUID> myFlightIds) {
 

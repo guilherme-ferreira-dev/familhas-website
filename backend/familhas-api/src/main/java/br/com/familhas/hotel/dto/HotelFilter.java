@@ -19,4 +19,9 @@ public record HotelFilter(
     public static HotelFilter empty() {
         return new HotelFilter(null, null, null, null);
     }
+
+    /** Catalogo publico: mantem os filtros pedidos e forca somente itens ATIVOS. */
+    public HotelFilter activeOnly() {
+        return new HotelFilter(cityId, minStars, EntityStatus.ACTIVE, q);
+    }
 }

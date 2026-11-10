@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import br.com.familhas.client.ClientEntity;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.common.Pagination;
+import br.com.familhas.rating.dto.ClientRatingRequest;
 import br.com.familhas.rating.dto.RatingFilter;
 import br.com.familhas.rating.dto.RatingRequest;
 import br.com.familhas.rating.dto.RatingResponse;
@@ -109,6 +110,34 @@ public class RatingService {
         rating.setClient(getReferenceOrThrow(ClientEntity.class, request.clientId(), "Client"));
         rating.setTravelPackage(
                 getReferenceOrThrow(TravelPackageEntity.class, request.travelPackageId(), "Travel package"));
+    }
+
+    /** Avaliações do próprio cliente autenticado (/api/me/ratings). */
+    @Transactional(readOnly = true)
+    public PageResponse<RatingResponse> findAllForClient(UUID clientId, Pageable pageable) {
+        return findAll(new RatingFilter(clientId, null), pageable);
+    }
+
+    public RatingResponse createForClient(UUID clientId, ClientRatingRequest request) {
+        return create(new RatingRequest(request.rating(), clientId, request.travelPackageId()));
+    }
+
+    /** 404 (e não 403) quando a avaliação é de outro cliente: não revela existência. */
+    public RatingResponse updateForClient(UUID clientId, UUID ratingId, ClientRatingRequest request) {
+        assertOwnedByClient(ratingId, clientId);
+        return update(ratingId, new RatingRequest(request.rating(), clientId, request.travelPackageId()));
+    }
+
+    public void deleteForClient(UUID clientId, UUID ratingId) {
+        assertOwnedByClient(ratingId, clientId);
+        delete(ratingId);
+    }
+
+    private void assertOwnedByClient(UUID ratingId, UUID clientId) {
+        RatingEntity rating = getRatingOrThrow(ratingId);
+        if (!rating.getClient().getId().equals(clientId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Rating not found: " + ratingId);
+        }
     }
 
     private RatingResponse toResponse(RatingEntity rating) {

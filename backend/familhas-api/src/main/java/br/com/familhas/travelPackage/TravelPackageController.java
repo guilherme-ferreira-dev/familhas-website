@@ -25,7 +25,7 @@ import br.com.familhas.travelPackage.dto.TravelPackageResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/travel-packages")
+@RequestMapping("/api/admin/travel-packages")
 public class TravelPackageController {
 
     private final TravelPackageService travelPackageService;

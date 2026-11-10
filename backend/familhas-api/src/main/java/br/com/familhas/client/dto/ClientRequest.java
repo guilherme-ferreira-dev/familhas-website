@@ -9,6 +9,10 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Cadastro/edição administrativa de cliente. Senha não existe mais aqui: quem autentica é o Keycloak.
+ * favoriteIds/myFlightIds ausentes (null) mantêm os atuais; lista vazia limpa.
+ */
 public record ClientRequest (
         @NotBlank
         @Size(max = 180)String name,
@@ -16,15 +20,7 @@ public record ClientRequest (
         @Email
         @Size(max = 180) String email,
         @Size(max = 40) String phoneNumber,
-        @NotBlank
-        @Size(min = 8, max = 255) String password,
         @NotNull EntityStatus status,
         List<UUID> favoriteIds,
         List<UUID> myFlightIds) {
-
-    public ClientRequest {
-        favoriteIds = favoriteIds == null ? List.of() : List.copyOf(favoriteIds);
-        myFlightIds = myFlightIds == null ? List.of() : List.copyOf(myFlightIds);
-
-    }
 }

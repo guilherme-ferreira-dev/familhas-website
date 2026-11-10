@@ -25,7 +25,7 @@ import br.com.familhas.common.PageResponse;
 import jakarta.validation.Valid;
 
 @RestController
-@RequestMapping("/cities")
+@RequestMapping("/api/admin/cities")
 public class CityController {
 
     private final CityService cityService;

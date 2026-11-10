@@ -56,19 +56,31 @@ cd backend/familhas-api
 | `FamilhasApiApplicationTests` | Contexto Spring com profile `test` (H2) | Não |
 | `*ControllerTests` | Controllers (WebMvcTest): filtros, paginação, validação, 401/403/409 | Não |
 | `*ServiceTests`, `CommonUtilitiesTests` | Regras de serviço com Mockito, moeda, ordenação | Não |
-| `OracleMigrationIntegrationTests` | Migrations V1..V6, mapeamento JPA, seed, filtros, N+1 e exclusão em Oracle real (Testcontainers) | Sim (é pulado sem Docker) |
+| `OracleMigrationIntegrationTests` | Migrations V1..V7, mapeamento JPA, seed, filtros, N+1, exclusão e vínculo com Keycloak em Oracle real (Testcontainers) | Sim (é pulado sem Docker) |
+
+## API: áreas e segurança
+
+Detalhes em [ADR 0004](docs/adr/0004-seguranca-keycloak-rotas-problem-details.md).
+
+| Área | Prefixo | Acesso |
+|---|---|---|
+| Catálogo da Loja | `/api/...` | Público, só GET, só itens ativos |
+| Área do cliente | `/api/me`, `/api/me/ratings` | Token com `ROLE_USER` ou `ROLE_ADMIN` |
+| Administração | `/api/admin/...` | Token com `ROLE_ADMIN` |
+
+Tokens são emitidos pelo Keycloak (realm `familhas`). A API valida assinatura, issuer e a audiência `familhas-api`. Sem token, a resposta é 401; sem permissão, 403. Todos os erros saem como Problem Details (`application/problem+json`), com `title`, `status` e `detail`.
 
 ## API: listas paginadas
 
 Todo `GET` de lista é paginado e aceita filtros opcionais ([ADR 0003](docs/adr/0003-catalogo-paginacao-auditoria.md)):
 
 ```
-GET /travel-packages?destinationCityId=...&maxPrice=3000&q=resort&page=0&size=20&sort=price,asc
+GET /api/travel-packages?destinationCityId=...&maxPrice=3000&q=resort&page=0&size=20&sort=price,asc
 ```
 
-A resposta tem o formato `{ "content": [...], "page": 0, "size": 20, "totalElements": 2, "totalPages": 1 }`. O `size` máximo é 100. Campo de ordenação fora da lista branca do recurso retorna 400.
+A resposta tem o formato `{ "content": [...], "page": 0, "size": 20, "totalElements": 2, "totalPages": 1 }`. O `size` máximo é 100. Campo de ordenação fora da lista branca do recurso retorna 400. No catálogo público o filtro `status` é ignorado: só aparecem itens ativos.
 
-| Recurso | Filtros | Ordenação |
+| Recurso (público em `/api`, admin em `/api/admin`) | Filtros | Ordenação |
 |---|---|---|
 | `/travel-packages` | originCityId, destinationCityId, categoryId, status, minPrice, maxPrice, q | title, price, createdAt, updatedAt |
 | `/hotels` | cityId, minStars, status, q | name, stars, createdAt, updatedAt |
@@ -77,8 +89,8 @@ A resposta tem o formato `{ "content": [...], "page": 0, "size": 20, "totalEleme
 | `/cities` | cityType, status, q | name, country, createdAt, updatedAt |
 | `/categories` | status, q | title, createdAt, updatedAt |
 | `/flights` | departureFrom, departureTo (ISO), q | boardingDate, returnDate, companyName, createdAt, updatedAt |
-| `/clients` (ADMIN) | status, q (nome ou e-mail) | name, email, createdAt, updatedAt |
-| `/ratings` | clientId, travelPackageId | rating, createdAt, updatedAt |
+| `/clients` (só admin) | status, q (nome ou e-mail) | name, email, createdAt, updatedAt |
+| `/ratings` (só admin) | clientId, travelPackageId | rating, createdAt, updatedAt |
 
 ## IDs
 

@@ -12,4 +12,9 @@ public record CategoryFilter(
     public static CategoryFilter empty() {
         return new CategoryFilter(null, null);
     }
+
+    /** Catalogo publico: mantem os filtros pedidos e forca somente itens ATIVOS. */
+    public CategoryFilter activeOnly() {
+        return new CategoryFilter(EntityStatus.ACTIVE, q);
+    }
 }

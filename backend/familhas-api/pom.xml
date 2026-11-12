@@ -31,6 +31,7 @@
 		<json-schema-validator.version>1.5.6</json-schema-validator.version>
 		<resilience4j.version>2.3.0</resilience4j.version>
 		<swagger-parser.version>2.1.22</swagger-parser.version>
+		<stripe-java.version>34.1.0</stripe-java.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -70,6 +71,12 @@
 		<dependency>
 			<groupId>com.github.ben-manes.caffeine</groupId>
 			<artifactId>caffeine</artifactId>
+		</dependency>
+		<!-- Pagamentos (ADR 0007): a versão do SDK fixa a versão da API do Stripe -->
+		<dependency>
+			<groupId>com.stripe</groupId>
+			<artifactId>stripe-java</artifactId>
+			<version>${stripe-java.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>

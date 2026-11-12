@@ -120,3 +120,32 @@ describe('PackageDetailPage', () => {
     expect(el.querySelector('a[href^="/busca"]')).not.toBeNull();
   });
 });
+
+describe('PackageDetailPage: SEO', () => {
+  useMockApi();
+
+  it('usa o nome do pacote no título e o caminho dele no canonical', async () => {
+    document.title = '';
+    document.head.querySelector('link[rel="canonical"]')?.remove();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter(
+          [{ path: 'pacotes/:id', component: PackageDetailPage }],
+          withComponentInputBinding(),
+        ),
+        provideHttpClient(),
+        provideTestConfig({ siteUrl: 'https://familhas.com.br' }),
+        { provide: AuthService, useValue: { isAuthenticated: signal(false), login: vi.fn() } },
+      ],
+    });
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl(`/pacotes/${pkg.id}?passageiros=2`);
+    await vi.waitFor(() => {
+      harness.detectChanges();
+      expect(document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.href).toBe(
+        `https://familhas.com.br/pacotes/${pkg.id}`,
+      );
+    });
+    expect(document.title).toBe(`${pkg.title} | Familhas`);
+  });
+});

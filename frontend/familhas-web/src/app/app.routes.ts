@@ -11,6 +11,7 @@ export const routes: Routes = [
   {
     path: 'busca',
     title: 'Buscar viagens | Familhas',
+    data: { description: 'Busque pacotes, voos, hotéis e carros para viajar em família.' },
     loadComponent: () => import('./pages/search/search.page').then((m) => m.SearchPage),
   },
   {
@@ -22,12 +23,14 @@ export const routes: Routes = [
   {
     path: 'cotacoes/:id',
     title: 'Sua cotação | Familhas',
+    data: { noindex: true },
     canActivate: [authGuard],
     loadComponent: () => import('./pages/quote/quote.page').then((m) => m.QuotePage),
   },
   {
     path: 'checkout/:id',
     title: 'Pagamento | Familhas',
+    data: { noindex: true },
     canActivate: [authGuard],
     loadComponent: () => import('./pages/checkout/checkout.page').then((m) => m.CheckoutPage),
   },
@@ -35,7 +38,7 @@ export const routes: Routes = [
     path: 'checkout/:id/sucesso',
     title: 'Confirmando pagamento | Familhas',
     canActivate: [authGuard],
-    data: { outcome: 'sucesso' },
+    data: { outcome: 'sucesso', noindex: true },
     loadComponent: () =>
       import('./pages/checkout/checkout-return.page').then((m) => m.CheckoutReturnPage),
   },
@@ -43,13 +46,14 @@ export const routes: Routes = [
     path: 'checkout/:id/cancelado',
     title: 'Pagamento não concluído | Familhas',
     canActivate: [authGuard],
-    data: { outcome: 'cancelado' },
+    data: { outcome: 'cancelado', noindex: true },
     loadComponent: () =>
       import('./pages/checkout/checkout-return.page').then((m) => m.CheckoutReturnPage),
   },
   {
     path: '**',
     title: 'Página não encontrada | Familhas',
+    data: { noindex: true },
     loadComponent: () => import('./pages/not-found/not-found.page').then((m) => m.NotFoundPage),
   },
 ];

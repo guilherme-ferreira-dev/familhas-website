@@ -26,6 +26,7 @@ import { CatalogApi } from '../../core/catalog/catalog-api';
 import { CityDirectory } from '../../core/catalog/city-directory';
 import { CheckoutApi } from '../../core/checkout/checkout-api';
 import { ApiError, errorMessage } from '../../core/errors/api-error';
+import { Seo } from '../../core/seo/seo';
 import { WhatsappContextService } from '../../core/whatsapp/whatsapp';
 import { LoadError } from '../../shared/load-error';
 import { BOARD_LABELS, CAR_LABELS } from '../search/search.page';
@@ -49,6 +50,7 @@ export class PackageDetailPage {
   private readonly checkout = inject(CheckoutApi);
   private readonly router = inject(Router);
   private readonly whatsapp = inject(WhatsappContextService);
+  private readonly seo = inject(Seo);
   protected readonly auth = inject(AuthService);
   protected readonly cities = inject(CityDirectory);
   protected readonly boardLabels = BOARD_LABELS;
@@ -119,6 +121,14 @@ export class PackageDetailPage {
       if (this.detail.hasValue()) {
         const { pkg } = this.detail.value();
         this.whatsapp.set({ kind: 'package', id: pkg.id, title: pkg.title });
+        const destination = this.cities.name(pkg.destinationCityId);
+        this.seo.apply({
+          title: `${pkg.title} | Familhas`,
+          description: `Pacote ${pkg.title}${destination ? ` para ${destination}` : ''} com voo${
+            pkg.components.length ? ', hospedagem e mais' : ''
+          }. Veja o que está incluído e o preço por pessoa.`,
+          path: `/pacotes/${pkg.id}`,
+        });
       }
     });
   }

@@ -1,0 +1,935 @@
+openapi: 3.1.0
+info:
+  title: Familhas API (Loja)
+  version: 0.7.0
+  summary: Contrato público e do cliente autenticado consumido pelo familhas-web.
+  description: |
+    Escrito à mão a partir dos controllers e DTOs reais da Fase 5 (o Springdoc só entra na Fase 11).
+    Rotas administrativas (`/api/admin/**`) ficam fora deste arquivo.
+
+    Donos dos trechos (Fases 6 e 7 rodam em paralelo):
+    - Fase 5 (implementado): catálogo, busca, `/api/me` e cotações. Fonte da verdade: o código em `backend/familhas-api`.
+    - Fase 6 (`x-status: provisional`): `/api/me/bookings/**`, `/api/webhooks/stripe` e os schemas `Booking*`,
+      `Payment*` e `Checkout*`. Proposto pela Fase 7 para os mocks; a Fase 6 fecha e edita esse trecho.
+
+    Convenções:
+    - Dinheiro: `BigDecimal` serializado como número JSON, sempre com `currency` (ISO 4217) ao lado, em campos planos.
+      O frontend só exibe valores; nunca calcula preço.
+    - Datas: `date` (AAAA-MM-DD); `LocalDateTime` sem fuso (horário local do voo); `Instant` em UTC (`date-time` com `Z`).
+    - Paginação: `page` começa em 0, `size` padrão 20 e máximo 100, `sort=campo,asc|desc`.
+    - Erros: Problem Details (RFC 9457) em `application/problem+json`.
+    - Segurança: GET em `/api/**` é público; `/api/me/**` exige JWT do realm `familhas` com audiência `familhas-api`
+      e `ROLE_USER` ou `ROLE_ADMIN`.
+servers:
+  - url: http://localhost:8080
+    description: Local
+tags:
+  - name: Catálogo
+    description: Leitura pública, só itens ativos
+  - name: Busca
+    description: Busca pública nos provedores (resultado parcial quando algum falha)
+  - name: Cliente
+    description: Perfil do dono do token
+  - name: Cotações
+    description: Cotações do dono do token
+  - name: Reservas
+    description: Fase 6 (provisório)
+  - name: Webhooks
+    description: Fase 6 (provisório)
+
+paths:
+  /api/cities:
+    get:
+      security: []
+      tags: [Catálogo]
+      operationId: listCities
+      summary: Cidades ativas (autocomplete da busca)
+      parameters:
+        - { name: cityType, in: query, schema: { $ref: '#/components/schemas/CityType' } }
+        - { name: q, in: query, description: Busca no nome, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de cidades (ordem padrão `name,asc`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CityPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/categories:
+    get:
+      security: []
+      tags: [Catálogo]
+      operationId: listCategories
+      summary: Categorias ativas
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Página de categorias (ordem padrão `title,asc`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CategoryPage' }
+
+  /api/travel-packages/{id}:
+    get:
+      security: []
+      tags: [Catálogo]
+      operationId: getTravelPackage
+      summary: Detalhe de um pacote ativo
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Pacote
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TravelPackage' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/flights/{id}:
+    get:
+      security: []
+      tags: [Catálogo]
+      operationId: getFlight
+      summary: Voo ativo (componente do pacote)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Voo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Flight' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/hotels/{id}:
+    get:
+      security: []
+      tags: [Catálogo]
+      operationId: getHotel
+      summary: Hotel ativo
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Hotel
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Hotel' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/room-offers/{id}:
+    get:
+      security: []
+      tags: [Catálogo]
+      operationId: getRoomOffer
+      summary: Oferta de quarto ativa (componente do pacote)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Oferta de quarto
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoomOffer' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/car-rental-offers/{id}:
+    get:
+      security: []
+      tags: [Catálogo]
+      operationId: getCarRentalOffer
+      summary: Oferta de carro ativa (componente do pacote)
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Oferta de carro
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CarRentalOffer' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/search/packages:
+    get:
+      security: []
+      tags: [Busca]
+      operationId: searchPackages
+      summary: Pacotes (todos os filtros opcionais; datas valem sobre o embarque)
+      parameters:
+        - { name: originCityId, in: query, schema: { type: string, format: uuid } }
+        - { name: destinationCityId, in: query, schema: { type: string, format: uuid } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: departureFrom, in: query, schema: { type: string, format: date } }
+        - { name: departureTo, in: query, schema: { type: string, format: date } }
+        - $ref: '#/components/parameters/Passengers'
+        - $ref: '#/components/parameters/MinPrice'
+        - $ref: '#/components/parameters/MaxPrice'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/SearchSort'
+      responses:
+        '200':
+          description: Resultado (ordem padrão `totalPrice,asc`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PackageSearchPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /api/search/flights:
+    get:
+      security: []
+      summary: Voos
+      tags: [Busca]
+      operationId: searchFlights
+      parameters:
+        - { name: originCityId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: destinationCityId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: departureDate, in: query, required: true, schema: { type: string, format: date } }
+        - { name: returnDate, in: query, schema: { type: string, format: date } }
+        - $ref: '#/components/parameters/Passengers'
+        - $ref: '#/components/parameters/MinPrice'
+        - $ref: '#/components/parameters/MaxPrice'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/SearchSort'
+      responses:
+        '200':
+          description: Resultado; `unavailableProviders` lista quem não respondeu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlightSearchPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/search/hotels:
+    get:
+      security: []
+      summary: Hotéis
+      tags: [Busca]
+      operationId: searchHotels
+      parameters:
+        - { name: cityId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: checkIn, in: query, required: true, schema: { type: string, format: date } }
+        - { name: checkOut, in: query, required: true, schema: { type: string, format: date } }
+        - { name: guests, in: query, schema: { type: integer, minimum: 1, maximum: 9, default: 1 } }
+        - { name: minStars, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
+        - $ref: '#/components/parameters/MinPrice'
+        - $ref: '#/components/parameters/MaxPrice'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/SearchSort'
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HotelSearchPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/search/cars:
+    get:
+      security: []
+      summary: Carros
+      tags: [Busca]
+      operationId: searchCars
+      parameters:
+        - { name: cityId, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: pickUpDate, in: query, required: true, schema: { type: string, format: date } }
+        - { name: dropOffDate, in: query, required: true, schema: { type: string, format: date } }
+        - $ref: '#/components/parameters/Passengers'
+        - { name: carCategory, in: query, schema: { $ref: '#/components/schemas/CarCategory' } }
+        - $ref: '#/components/parameters/MinPrice'
+        - $ref: '#/components/parameters/MaxPrice'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/SearchSort'
+      responses:
+        '200':
+          description: Resultado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CarSearchPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/me:
+    get:
+      tags: [Cliente]
+      operationId: getMe
+      summary: Perfil do cliente autenticado (cria o Client local no primeiro acesso)
+      security: [{ keycloak: [] }]
+      responses:
+        '200':
+          description: Perfil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/me/quotes:
+    post:
+      tags: [Cotações]
+      operationId: createQuote
+      summary: Cria uma cotação (pacote ou itens avulsos da busca). Preços são reconsultados no provedor.
+      security: [{ keycloak: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteRequest' }
+            examples:
+              pacote:
+                value: { travelPackageId: 7a1e7b2e-0000-4000-8000-000000000001, passengers: 2 }
+      responses:
+        '201':
+          description: Cotação criada (válida até `expiresAt`, padrão 24 h)
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    get:
+      summary: Cotações do cliente
+      tags: [Cotações]
+      operationId: listQuotes
+      security: [{ keycloak: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200':
+          description: Cotações do cliente (ordem padrão `createdAt,desc`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuoteSummaryPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /api/me/quotes/{id}:
+    get:
+      summary: Cotação do cliente
+      tags: [Cotações]
+      operationId: getQuote
+      security: [{ keycloak: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Cotação
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Quote' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Não existe ou é de outro cliente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/me/bookings:
+    post:
+      tags: [Reservas]
+      x-status: provisional
+      operationId: createBooking
+      summary: Cria a reserva PENDING_PAYMENT a partir de uma cotação aberta
+      description: |
+        Idempotente pelo domínio: uma reserva por cotação. Repetir o POST com a mesma cotação devolve 409
+        com a reserva existente em `bookingId` (sem header Idempotency-Key).
+      security: [{ keycloak: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingRequest' }
+      responses:
+        '201':
+          description: Reserva criada
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Cotação expirada ou já usada em outra reserva
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+        '422':
+          description: Moeda diferente de BRL ou assento indisponível
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/me/bookings/{id}:
+    get:
+      tags: [Reservas]
+      x-status: provisional
+      operationId: getBooking
+      summary: Reserva do cliente; o front faz polling dela depois de voltar do pagamento
+      security: [{ keycloak: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Reserva
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Booking' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Não existe ou é de outro cliente
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/me/bookings/{id}/checkout-session:
+    post:
+      tags: [Reservas]
+      x-status: provisional
+      operationId: createCheckoutSession
+      summary: Abre (ou reaproveita) a sessão do Stripe Checkout hospedado para a reserva
+      description: |
+        Uma sessão ativa por reserva: repetir o POST devolve a mesma sessão enquanto ela valer.
+        As URLs de sucesso e cancelamento são montadas pela API a partir de variável de ambiente
+        (`{FAMILHAS_WEB_BASE_URL}/checkout/{bookingId}/sucesso|cancelado`), nunca vindas do cliente.
+        Parcelamento fora da Fase 6 (sem validação da conta Stripe BR e ADR): pagamento à vista.
+      security: [{ keycloak: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutSessionRequest' }
+      responses:
+        '201':
+          description: Sessão aberta; o front redireciona para `checkoutUrl`
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckoutSession' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Reserva não está PENDING_PAYMENT
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+        '422':
+          description: Método de pagamento indisponível
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/webhooks/stripe:
+    post:
+      security: []
+      tags: [Webhooks]
+      x-status: provisional
+      operationId: stripeWebhook
+      summary: Webhook do Stripe (não é chamado pelo frontend)
+      description: Assinatura validada pelo header `Stripe-Signature`; processamento idempotente por `event.id`.
+      parameters:
+        - { name: Stripe-Signature, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200': { description: Evento aceito (ou já processado) }
+        '400': { description: Assinatura inválida }
+
+components:
+  securitySchemes:
+    keycloak:
+      type: openIdConnect
+      openIdConnectUrl: https://localhost:8443/realms/familhas/.well-known/openid-configuration
+      description: Client público `familhas-web`, Authorization Code + PKCE (S256), audiência `familhas-api`.
+
+  parameters:
+    IdPath: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    Sort:
+      name: sort
+      in: query
+      description: '`campo,asc|desc`; pode repetir'
+      schema: { type: array, items: { type: string } }
+      explode: true
+    SearchSort:
+      name: sort
+      in: query
+      description: '`totalPrice` (padrão) e, conforme o tipo, `departureAt`, `stars` ou `seats`; `,asc|desc`'
+      schema: { type: string, examples: ['totalPrice,asc'] }
+    Passengers: { name: passengers, in: query, schema: { type: integer, minimum: 1, maximum: 9, default: 1 } }
+    MinPrice: { name: minPrice, in: query, schema: { type: number, minimum: 0 } }
+    MaxPrice: { name: maxPrice, in: query, schema: { type: number, minimum: 0 } }
+
+  responses:
+    BadRequest:
+      description: Parâmetros ou corpo inválidos (`errors` traz campo -> mensagem)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Unauthorized:
+      description: Sem token ou token inválido
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Forbidden:
+      description: Token sem permissão
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    NotFound:
+      description: Não encontrado (itens inativos também respondem 404 na Loja)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Unprocessable:
+      description: 'Combinação que não pode ser precificada (ex.: moedas diferentes)'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    ServiceUnavailable:
+      description: Nenhum provedor respondeu (`provider` indica qual)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  schemas:
+    ProblemDetail:
+      type: object
+      required: [status, title]
+      properties:
+        type: { type: string, default: 'about:blank' }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        errors:
+          description: Só em 400 de validação
+          type: object
+          additionalProperties: { type: string }
+        provider:
+          description: Só em 503 de provedor
+          type: string
+
+    EntityStatus: { type: string, enum: [ACTIVE, INACTIVE] }
+    CityType: { type: string, enum: [ORIGIN, DESTINATION] }
+    CarCategory: { type: string, enum: [ECONOMY, COMPACT, SEDAN, SUV, MINIVAN, LUXURY] }
+    Transmission: { type: string, enum: [MANUAL, AUTOMATIC] }
+    BoardType: { type: string, enum: [ROOM_ONLY, BREAKFAST, HALF_BOARD, FULL_BOARD, ALL_INCLUSIVE] }
+    PriceItemType: { type: string, enum: [FLIGHT, HOTEL_STAY, CAR_RENTAL] }
+    PackageComponentType: { type: string, enum: [HOTEL_STAY, CAR_RENTAL] }
+    QuoteStatus: { type: string, enum: [OPEN, EXPIRED] }
+    Currency: { type: string, pattern: '^[A-Z]{3}$', examples: [BRL] }
+    Money: { type: number, description: 'BigDecimal, escala 2' }
+    LocalDateTime:
+      type: string
+      description: Sem fuso (horário local do voo)
+      examples: ['2027-03-10T08:00:00']
+
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+    SearchMeta:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [unavailableProviders]
+          properties:
+            unavailableProviders:
+              type: array
+              items: { type: string }
+
+    City:
+      type: object
+      required: [id, name, country, cityType, status]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        country: { type: string }
+        cityType: { $ref: '#/components/schemas/CityType' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    CityPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/City' } }
+
+    Category:
+      type: object
+      required: [id, title, status]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        imageUrl: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+    CategoryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Category' } }
+
+    TravelPackageComponent:
+      type: object
+      required: [id, type]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/PackageComponentType' }
+        roomOfferId: { type: [string, 'null'], format: uuid }
+        carRentalOfferId: { type: [string, 'null'], format: uuid }
+        quantity: { type: [integer, 'null'] }
+    TravelPackage:
+      type: object
+      required: [id, title, price, currency, status, flightId, categoryId, components]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        pricePromotion: { oneOf: [{ $ref: '#/components/schemas/Money' }, { type: 'null' }] }
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        imageUrl: { type: [string, 'null'] }
+        flightId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        originCityId: { type: [string, 'null'], format: uuid }
+        destinationCityId: { type: [string, 'null'], format: uuid }
+        components: { type: array, items: { $ref: '#/components/schemas/TravelPackageComponent' } }
+
+    Flight:
+      type: object
+      required: [id, companyName, boardingDate, originCityId, destinationCityId, pricePerPassenger, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        companyName: { type: string }
+        boardingDate: { $ref: '#/components/schemas/LocalDateTime' }
+        returnDate: { oneOf: [{ $ref: '#/components/schemas/LocalDateTime' }, { type: 'null' }] }
+        boardingAirport: { type: [string, 'null'] }
+        returnAirport: { type: [string, 'null'] }
+        originCityId: { type: string, format: uuid }
+        destinationCityId: { type: string, format: uuid }
+        pricePerPassenger: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        seatsAvailable: { type: [integer, 'null'] }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+
+    Hotel:
+      type: object
+      required: [id, name, cityId, status]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        cityId: { type: string, format: uuid }
+        address: { type: [string, 'null'] }
+        stars: { type: [integer, 'null'] }
+        description: { type: [string, 'null'] }
+        imageUrl: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+
+    RoomOffer:
+      type: object
+      required: [id, hotelId, roomType, boardType, pricePerNight, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        hotelId: { type: string, format: uuid }
+        roomType: { type: string }
+        boardType: { $ref: '#/components/schemas/BoardType' }
+        maxGuests: { type: [integer, 'null'] }
+        pricePerNight: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+
+    CarRentalOffer:
+      type: object
+      required: [id, cityId, companyName, carModel, carCategory, transmission, pricePerDay, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        cityId: { type: string, format: uuid }
+        companyName: { type: string }
+        carModel: { type: string }
+        carCategory: { $ref: '#/components/schemas/CarCategory' }
+        transmission: { $ref: '#/components/schemas/Transmission' }
+        seats: { type: [integer, 'null'] }
+        pricePerDay: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+
+    PackageSearchResult:
+      type: object
+      description: Vitrine. `pricePerPerson` é "a partir de"; o preço final sai da cotação.
+      required: [id, title, categoryId, flightId, departureAt, passengers, pricePerPerson, totalPrice, currency, seatsAvailable]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        imageUrl: { type: [string, 'null'] }
+        categoryId: { type: string, format: uuid }
+        originCityId: { type: [string, 'null'], format: uuid }
+        destinationCityId: { type: [string, 'null'], format: uuid }
+        flightId: { type: string, format: uuid }
+        departureAt: { $ref: '#/components/schemas/LocalDateTime' }
+        returnAt: { oneOf: [{ $ref: '#/components/schemas/LocalDateTime' }, { type: 'null' }] }
+        passengers: { type: integer }
+        pricePerPerson: { $ref: '#/components/schemas/Money' }
+        originalPricePerPerson:
+          description: Preço sem promoção; nulo quando não há promoção
+          oneOf: [{ $ref: '#/components/schemas/Money' }, { type: 'null' }]
+        totalPrice: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        seatsAvailable: { type: integer }
+    PackageSearchPage:
+      allOf:
+        - $ref: '#/components/schemas/SearchMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/PackageSearchResult' } }
+
+    FlightSearchResult:
+      type: object
+      description: Preços já com margem; taxa de serviço e promoção entram na cotação.
+      required: [offerId, provider, companyName, originCityId, destinationCityId, departureAt, passengers, pricePerPassenger, totalPrice, currency, seatsAvailable]
+      properties:
+        offerId: { type: string, maxLength: 500 }
+        provider: { type: string }
+        companyName: { type: string }
+        originCityId: { type: string, format: uuid }
+        destinationCityId: { type: string, format: uuid }
+        departureAt: { $ref: '#/components/schemas/LocalDateTime' }
+        returnAt: { oneOf: [{ $ref: '#/components/schemas/LocalDateTime' }, { type: 'null' }] }
+        boardingAirport: { type: [string, 'null'] }
+        returnAirport: { type: [string, 'null'] }
+        passengers: { type: integer }
+        pricePerPassenger: { $ref: '#/components/schemas/Money' }
+        totalPrice: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        seatsAvailable: { type: integer }
+    FlightSearchPage:
+      allOf:
+        - $ref: '#/components/schemas/SearchMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/FlightSearchResult' } }
+
+    HotelSearchResult:
+      type: object
+      description: '`totalPrice` = quartos x noites, com margem.'
+      required: [offerId, provider, hotelName, cityId, stars, roomType, boardType, maxGuests, rooms, nights, pricePerNight, totalPrice, currency]
+      properties:
+        offerId: { type: string, maxLength: 500 }
+        provider: { type: string }
+        hotelName: { type: string }
+        cityId: { type: string, format: uuid }
+        stars: { type: integer }
+        roomType: { type: string }
+        boardType: { $ref: '#/components/schemas/BoardType' }
+        maxGuests: { type: integer }
+        rooms: { type: integer }
+        nights: { type: integer }
+        pricePerNight: { $ref: '#/components/schemas/Money' }
+        totalPrice: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+    HotelSearchPage:
+      allOf:
+        - $ref: '#/components/schemas/SearchMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/HotelSearchResult' } }
+
+    CarSearchResult:
+      type: object
+      description: '`totalPrice` = dias, com margem.'
+      required: [offerId, provider, cityId, companyName, carModel, carCategory, transmission, seats, days, pricePerDay, totalPrice, currency]
+      properties:
+        offerId: { type: string, maxLength: 500 }
+        provider: { type: string }
+        cityId: { type: string, format: uuid }
+        companyName: { type: string }
+        carModel: { type: string }
+        carCategory: { $ref: '#/components/schemas/CarCategory' }
+        transmission: { $ref: '#/components/schemas/Transmission' }
+        seats: { type: integer }
+        days: { type: integer }
+        pricePerDay: { $ref: '#/components/schemas/Money' }
+        totalPrice: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+    CarSearchPage:
+      allOf:
+        - $ref: '#/components/schemas/SearchMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/CarSearchResult' } }
+
+    Me:
+      type: object
+      required: [id, name, email, status, roles, favoriteIds, myFlightIds]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        phoneNumber: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        roles: { type: array, items: { type: string }, examples: [[ROLE_USER]] }
+        favoriteIds: { type: array, items: { type: string, format: uuid } }
+        myFlightIds: { type: array, items: { type: string, format: uuid } }
+
+    QuoteRequest:
+      type: object
+      description: Ou `travelPackageId`, ou ao menos um item avulso (`offerId` vindo da busca).
+      required: [passengers]
+      properties:
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer, minimum: 1, maximum: 9 }
+        flight:
+          type: [object, 'null']
+          required: [offerId]
+          properties:
+            offerId: { type: string, minLength: 1, maxLength: 500 }
+        hotel:
+          type: [object, 'null']
+          required: [offerId, checkIn, checkOut]
+          properties:
+            offerId: { type: string, minLength: 1, maxLength: 500 }
+            checkIn: { type: string, format: date }
+            checkOut: { type: string, format: date }
+        car:
+          type: [object, 'null']
+          required: [offerId, pickUpDate, dropOffDate]
+          properties:
+            offerId: { type: string, minLength: 1, maxLength: 500 }
+            pickUpDate: { type: string, format: date }
+            dropOffDate: { type: string, format: date }
+    PriceItem:
+      type: object
+      required: [type, description, startDate, quantity]
+      properties:
+        type: { $ref: '#/components/schemas/PriceItemType' }
+        description: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: [string, 'null'], format: date }
+        quantity: { type: integer }
+    Quote:
+      type: object
+      description: '`subtotal` já inclui a margem; `total = subtotal - discount + serviceFee`.'
+      required: [id, status, passengers, items, currency, subtotal, discount, serviceFee, total, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/QuoteStatus' }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        items: { type: array, items: { $ref: '#/components/schemas/PriceItem' } }
+        currency: { $ref: '#/components/schemas/Currency' }
+        subtotal: { $ref: '#/components/schemas/Money' }
+        discount: { $ref: '#/components/schemas/Money' }
+        serviceFee: { $ref: '#/components/schemas/Money' }
+        total: { $ref: '#/components/schemas/Money' }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    QuoteSummary:
+      type: object
+      required: [id, status, passengers, currency, total, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/QuoteStatus' }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        currency: { $ref: '#/components/schemas/Currency' }
+        total: { $ref: '#/components/schemas/Money' }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    QuoteSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/QuoteSummary' } }
+
+    BookingStatus:
+      x-status: provisional
+      type: string
+      enum: [PENDING_PAYMENT, CONFIRMED, CANCELLED, COMPLETED]
+    PaymentMethod:
+      x-status: provisional
+      type: string
+      enum: [PIX, CREDIT_CARD]
+    PaymentStatus:
+      x-status: provisional
+      type: string
+      enum: [PENDING, SUCCEEDED, FAILED, REFUNDED]
+    BookingRequest:
+      x-status: provisional
+      type: object
+      required: [quoteId]
+      properties:
+        quoteId: { type: string, format: uuid }
+    BookingPayment:
+      x-status: provisional
+      type: object
+      required: [status, installments]
+      properties:
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        method: { oneOf: [{ $ref: '#/components/schemas/PaymentMethod' }, { type: 'null' }] }
+        installments: { type: integer, const: 1, description: 'Parcelamento fora da Fase 6 (ADR 0008)' }
+        paidAt: { type: [string, 'null'], format: date-time }
+    Booking:
+      x-status: provisional
+      type: object
+      required: [id, status, quoteId, passengers, items, currency, subtotal, discount, serviceFee, total, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        quoteId: { type: string, format: uuid }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        items: { type: array, items: { $ref: '#/components/schemas/PriceItem' } }
+        currency: { $ref: '#/components/schemas/Currency' }
+        subtotal: { $ref: '#/components/schemas/Money' }
+        discount: { $ref: '#/components/schemas/Money' }
+        serviceFee: { $ref: '#/components/schemas/Money' }
+        total: { $ref: '#/components/schemas/Money' }
+        payment: { oneOf: [{ $ref: '#/components/schemas/BookingPayment' }, { type: 'null' }] }
+        createdAt: { type: string, format: date-time }
+    CheckoutSessionRequest:
+      x-status: provisional
+      type: object
+      required: [paymentMethod]
+      properties:
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+    CheckoutSession:
+      x-status: provisional
+      type: object
+      required: [checkoutUrl, expiresAt]
+      properties:
+        checkoutUrl: { type: string, format: uri, description: 'Sempre em https://checkout.stripe.com' }
+        expiresAt: { type: string, format: date-time }

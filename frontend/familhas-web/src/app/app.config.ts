@@ -1,21 +1,12 @@
-import { registerLocaleData } from '@angular/common';
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import localePt from '@angular/common/locales/pt';
-import {
-  ApplicationConfig,
-  DEFAULT_CURRENCY_CODE,
-  ErrorHandler,
-  LOCALE_ID,
-  provideBrowserGlobalErrorListeners,
-} from '@angular/core';
+import { ApplicationConfig, ErrorHandler, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
 import { jwtInterceptor } from './core/auth/jwt.interceptor';
 import { provideAuthentication } from './core/auth/provide-authentication';
 import { errorInterceptor } from './core/errors/error.interceptor';
 import { GlobalErrorHandler } from './core/errors/global-error-handler';
-
-registerLocaleData(localePt);
+import { provideLocale } from './core/locale';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -24,7 +15,6 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch(), withInterceptors([jwtInterceptor, errorInterceptor])),
     provideAuthentication(),
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
-    { provide: LOCALE_ID, useValue: 'pt-BR' },
-    { provide: DEFAULT_CURRENCY_CODE, useValue: 'BRL' },
+    provideLocale(),
   ],
 };

@@ -1,0 +1,46 @@
+.hero {
+  background: linear-gradient(160deg, #0b5d5b 0%, #12807c 100%);
+  color: #fff;
+  padding-block: var(--space-5);
+}
+
+.hero-inner {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.hero p {
+  max-width: 40rem;
+  font-size: 1.125rem;
+}
+
+.quick-search {
+  display: grid;
+  gap: var(--space-3);
+  color: var(--color-text);
+}
+
+@media (min-width: 48rem) {
+  .quick-search {
+    grid-template-columns: 2fr 1fr auto;
+    align-items: end;
+  }
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

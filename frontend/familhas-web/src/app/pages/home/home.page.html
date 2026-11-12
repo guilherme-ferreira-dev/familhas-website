@@ -1,0 +1,74 @@
+<section class="hero">
+  <div class="container hero-inner">
+    <h1>Viagens em família, sem complicação</h1>
+    <p>Pacotes com voo, hotel e carro, preço fechado e atendimento humano quando você precisar.</p>
+
+    <form class="card quick-search" (ngSubmit)="search()" aria-label="Busca rápida de pacotes">
+      <div class="field">
+        <label for="home-destino">Para onde?</label>
+        <select
+          id="home-destino"
+          name="destino"
+          [ngModel]="destination()"
+          (ngModelChange)="destination.set($event)"
+        >
+          <option value="">Todos os destinos</option>
+          @for (city of cities.destinations(); track city.id) {
+            <option [value]="city.id">{{ city.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="home-passageiros">Pessoas</label>
+        <select
+          id="home-passageiros"
+          name="passageiros"
+          [ngModel]="passengers()"
+          (ngModelChange)="passengers.set(+$event)"
+        >
+          @for (n of passengerOptions; track n) {
+            <option [value]="n">{{ n }} {{ n === 1 ? 'pessoa' : 'pessoas' }}</option>
+          }
+        </select>
+      </div>
+      <button type="submit" class="button">Buscar pacotes</button>
+    </form>
+  </div>
+</section>
+
+<section class="container stack" aria-labelledby="ofertas-titulo">
+  <h2 id="ofertas-titulo">Ofertas da semana</h2>
+  @if (offers.error()) {
+    <app-load-error [error]="offers.error()" (retry)="offers.reload()" />
+  } @else if (offers.isLoading()) {
+    <p class="muted" aria-busy="true">Carregando ofertas…</p>
+  } @else if (offers.hasValue() && offers.value().length > 0) {
+    <ul class="grid">
+      @for (offer of offers.value(); track offer.id) {
+        <li><app-package-card [item]="offer" /></li>
+      }
+    </ul>
+  } @else {
+    <p class="muted">
+      Nenhuma oferta no momento. Fale com a gente no WhatsApp que montamos sua viagem.
+    </p>
+  }
+</section>
+
+@if (categories.hasValue() && categories.value().length > 0) {
+  <section class="container stack" aria-labelledby="categorias-titulo">
+    <h2 id="categorias-titulo">Escolha pelo estilo</h2>
+    <ul class="chips">
+      @for (category of categories.value(); track category.id) {
+        <li>
+          <a
+            class="button button--ghost"
+            routerLink="/busca"
+            [queryParams]="{ tipo: 'pacotes', categoria: category.id }"
+            >{{ category.title }}</a
+          >
+        </li>
+      }
+    </ul>
+  </section>
+}

@@ -28,7 +28,8 @@ import br.com.familhas.quote.dto.QuoteRequest;
 import br.com.familhas.quote.dto.QuoteRequest.HotelSelection;
 
 /** Reserva ponta a ponta no Oracle real (V11 + seed): snapshot, bloqueio de assentos, BRL e uma reserva por cotação. */
-@SpringBootTest(properties = "familhas.outbox.publisher-enabled=false")
+@SpringBootTest(properties = { "familhas.outbox.publisher-enabled=false",
+        "familhas.payments.reconciliation-enabled=false" })
 @Testcontainers(disabledWithoutDocker = true)
 class BookingIntegrationTests {
 

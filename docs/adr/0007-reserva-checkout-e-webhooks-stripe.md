@@ -72,9 +72,11 @@ Na primeira resposta da fase, cinco perguntas ficaram em aberto. As respostas do
 - Os estornos são feitos no Dashboard do Stripe até o Admin ganhar essa ação (Fase 10). O webhook mantém a API em dia.
 
 **D7. Reconciliação**
-- Um job agendado (`PAYMENTS_RECONCILIATION_FIXED_DELAY`, padrão 5 minutos) com `FOR UPDATE SKIP LOCKED`, seguro com mais de uma instância:
-  - pagamentos `PENDING` ou `PROCESSING` sem novidade há mais de 10 minutos: consulta a sessão no Stripe e aplica a mesma transição do webhook;
-  - reservas `PENDING_PAYMENT` vencidas e sem pagamento ativo: `CANCELLED` (`PAYMENT_EXPIRED`) e os assentos voltam.
+- Um job agendado (`PAYMENTS_RECONCILIATION_FIXED_DELAY`, padrão 5 minutos; `PAYMENTS_RECONCILIATION_ENABLED` liga e desliga):
+  - pagamentos `PENDING`, `PROCESSING` ou `FAILED` sem novidade há mais de 10 minutos (`PAYMENTS_RECONCILIATION_STALE_AFTER`): consulta a sessão no Stripe e aplica o mesmo processamento do webhook;
+  - reservas `PENDING_PAYMENT` vencidas: antes de cancelar, consulta no Stripe as tentativas ainda não encerradas (um pagamento do último segundo confirma a reserva em vez de virar estorno). Sem pagamento ativo, `CANCELLED` (`PAYMENT_EXPIRED`) e os assentos voltam.
+- Cada item roda na própria transação, com a reserva travada e o estado reavaliado depois do lock. Duas instâncias rodando ao mesmo tempo não causam efeito em dobro, e a falha de um item não interrompe os outros.
+- Sem `STRIPE_SECRET_KEY`, o job só expira reservas.
 - Cobre webhook perdido, Stripe CLI desligado no ambiente local e queda da API.
 
 **D8. Chaves e ambiente**

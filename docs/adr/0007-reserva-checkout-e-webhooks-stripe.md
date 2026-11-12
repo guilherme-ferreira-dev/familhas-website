@@ -39,10 +39,12 @@ Na primeira resposta da fase, cinco perguntas ficaram em aberto. As respostas do
 
 **D4. Máquinas de estado**
 - Reserva: `PENDING_PAYMENT → CONFIRMED → COMPLETED`; `PENDING_PAYMENT → CANCELLED` (prazo vencido); `CONFIRMED → CANCELLED` (estorno total). `COMPLETED` fica para quando a viagem termina (Fase 8).
-- Pagamento: `PENDING → PROCESSING → SUCCEEDED`; `PENDING|PROCESSING → FAILED`; `FAILED → PROCESSING|SUCCEEDED` (nova tentativa na mesma sessão); `PENDING|PROCESSING|FAILED → CANCELED`; `SUCCEEDED → PARTIALLY_REFUNDED|REFUNDED`; `PARTIALLY_REFUNDED → PARTIALLY_REFUNDED|REFUNDED`.
+- Pagamento: `PENDING → PROCESSING → SUCCEEDED`; `PENDING|PROCESSING → FAILED`; `FAILED → PROCESSING|SUCCEEDED` (nova tentativa na mesma sessão); `PENDING|PROCESSING|FAILED → CANCELED`; `CANCELED → SUCCEEDED` (o cliente concluiu a sessão no instante em que ela foi substituída: o dinheiro entrou e precisa ser registrado); `SUCCEEDED → PARTIALLY_REFUNDED|REFUNDED`; `PARTIALLY_REFUNDED → PARTIALLY_REFUNDED|REFUNDED`.
 - As transições ficam nos enums. Transição inválida vinda de webhook é ignorada e logada, sem erro: cobre eventos fora de ordem e repetidos com outro `event.id`.
 - Pagamento parado não prende a reserva para sempre: a sessão expira em 30 minutos (mínimo do Stripe), e o Pix também expira em 30 minutos. Enquanto houver sessão aberta ou Pix em processamento, a reserva não é cancelada. O bloqueio máximo é de cerca de 1 hora (30 minutos da reserva e mais 30 da última sessão aberta dentro do prazo).
-- Se um pagamento for aprovado com a reserva já cancelada (corrida rara entre expiração e pagamento), a API pede o estorno total automaticamente e registra um aviso no log.
+- Se um pagamento for aprovado com a reserva já cancelada (corrida rara entre expiração e pagamento) ou já paga por outra tentativa (cobrança em dobro), a API pede o estorno total automaticamente e registra um aviso no log. O estorno de uma tentativa duplicada não cancela a reserva paga pela outra.
+- Quando um pagamento confirma a reserva, as outras sessões ainda abertas da reserva são expiradas no Stripe.
+- Valor ou moeda do pagamento aprovado diferente do registrado: nada é confirmado e o log registra um erro para conferência no Dashboard.
 
 **D5. Checkout idempotente pelo domínio**
 - `POST /api/me/bookings/{id}/checkout-session`: se já houver sessão aberta com o mesmo método, devolve a mesma; com outro método, expira a anterior no Stripe e cria outra.

@@ -7,6 +7,9 @@ import java.util.Set;
  *
  * PENDING: sessão de checkout aberta. PROCESSING: Pix gerado, aguardando. FAILED: recusado, mas o cliente
  * ainda pode tentar de novo na mesma sessão. CANCELED: sessão expirou ou foi substituída.
+ *
+ * CANCELED -> SUCCEEDED existe porque o Stripe manda: o cliente pode concluir a sessão antiga no instante em
+ * que ela é substituída. O dinheiro entrou e precisa ser registrado (e estornado, se a reserva já estiver paga).
  */
 public enum PaymentStatus {
     PENDING,
@@ -28,7 +31,8 @@ public enum PaymentStatus {
             case FAILED -> Set.of(PROCESSING, SUCCEEDED, CANCELED);
             case SUCCEEDED -> Set.of(PARTIALLY_REFUNDED, REFUNDED);
             case PARTIALLY_REFUNDED -> Set.of(PARTIALLY_REFUNDED, REFUNDED);
-            case CANCELED, REFUNDED -> Set.of();
+            case CANCELED -> Set.of(SUCCEEDED);
+            case REFUNDED -> Set.of();
         };
     }
 }

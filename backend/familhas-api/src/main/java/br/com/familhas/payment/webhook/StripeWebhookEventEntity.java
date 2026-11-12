@@ -54,6 +54,10 @@ public class StripeWebhookEventEntity extends AuditableEntity implements Persist
         this.outcome = outcome;
     }
 
+    public void markProcessed() {
+        outcome = Outcome.PROCESSED;
+    }
+
     @Override
     public String getId() {
         return eventId;

@@ -35,7 +35,8 @@ class PaymentStateMachineTests {
             "PARTIALLY_REFUNDED, PARTIALLY_REFUNDED, true",
             "PARTIALLY_REFUNDED, REFUNDED, true",
             "REFUNDED, PARTIALLY_REFUNDED, false",
-            "CANCELED, SUCCEEDED, false" })
+            "CANCELED, SUCCEEDED, true",
+            "CANCELED, FAILED, false" })
     void transitions(PaymentStatus from, PaymentStatus to, boolean allowed) {
         assertThat(from.canTransitionTo(to)).isEqualTo(allowed);
     }

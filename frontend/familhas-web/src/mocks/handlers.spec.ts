@@ -83,3 +83,26 @@ describe('mocks da API', () => {
     expect(paid).toMatchObject({ status: 409, body: { code: 'BOOKING_NOT_PAYABLE' } });
   });
 });
+
+describe('estado do mock', () => {
+  it('sobrevive a um recarregamento (snapshot) e continua o fluxo', async () => {
+    let saved: Parameters<NonNullable<Parameters<typeof createMockState>[1]>>[0] | null = null;
+    server.resetHandlers(
+      ...createHandlers(
+        createMockState(null, (s) => (saved = s)),
+        0,
+      ),
+    );
+    const quote = await post<Quote>('/api/me/quotes', {
+      travelPackageId: travelPackages[0].id,
+      passengers: 1,
+    });
+    const booking = await post<Booking>('/api/me/bookings', { quoteId: quote.body.id });
+    expect(saved).not.toBeNull();
+
+    server.resetHandlers(...createHandlers(createMockState(saved), 0));
+    expect((await get<Booking>(`/api/me/bookings/${booking.body.id}`)).status).toBe(
+      'PENDING_PAYMENT',
+    );
+  });
+});

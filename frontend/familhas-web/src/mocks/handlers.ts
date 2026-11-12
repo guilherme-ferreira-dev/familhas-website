@@ -38,15 +38,37 @@ const SERVICE_FEE_RATE = 0.05;
 const QUOTE_VALIDITY_MS = 24 * 60 * 60 * 1000;
 const BOOKING_PAYMENT_WINDOW_MS = 30 * 60 * 1000;
 
-interface MockState {
+export interface MockState {
   quotes: Map<string, Quote>;
   bookings: Map<string, Booking>;
   /** Quantas vezes cada reserva com checkout aberto já foi consultada (simula o webhook). */
   polls: Map<string, number>;
+  /** Chamado depois de cada alteração (o build mock grava no sessionStorage). */
+  save: () => void;
 }
 
-export function createMockState(): MockState {
-  return { quotes: new Map(), bookings: new Map(), polls: new Map() };
+export interface MockSnapshot {
+  quotes: [string, Quote][];
+  bookings: [string, Booking][];
+  polls: [string, number][];
+}
+
+export function createMockState(
+  snapshot?: MockSnapshot | null,
+  onSave?: (snapshot: MockSnapshot) => void,
+): MockState {
+  const state: MockState = {
+    quotes: new Map(snapshot?.quotes ?? []),
+    bookings: new Map(snapshot?.bookings ?? []),
+    polls: new Map(snapshot?.polls ?? []),
+    save: () =>
+      onSave?.({
+        quotes: [...state.quotes],
+        bookings: [...state.bookings],
+        polls: [...state.polls],
+      }),
+  };
+  return state;
 }
 
 export function createHandlers(state: MockState = createMockState(), latencyMs = 300) {
@@ -269,6 +291,8 @@ export function createHandlers(state: MockState = createMockState(), latencyMs =
           return problem(request, 404, 'Not Found', 'Pacote ou oferta não encontrado.');
         }
         state.quotes.set(quote.id, quote);
+        state.save();
+        state.save();
         return HttpResponse.json(quote, {
           status: 201,
           headers: { Location: `/api/me/quotes/${quote.id}` },
@@ -322,6 +346,7 @@ export function createHandlers(state: MockState = createMockState(), latencyMs =
           createdAt: new Date().toISOString(),
         };
         state.bookings.set(booking.id, booking);
+        state.save();
         return HttpResponse.json(booking, {
           status: 201,
           headers: { Location: `/api/me/bookings/${booking.id}` },
@@ -346,6 +371,7 @@ export function createHandlers(state: MockState = createMockState(), latencyMs =
             booking.confirmedAt = now;
             booking.payment = { ...booking.payment, status: 'SUCCEEDED', paidAt: now };
           }
+          state.save();
         }
         return HttpResponse.json(booking);
       }),
@@ -386,6 +412,7 @@ export function createHandlers(state: MockState = createMockState(), latencyMs =
             };
         booking.payment = payment;
         state.polls.set(id, 0);
+        state.save();
         // No mock não há Stripe: a "página de pagamento" volta direto para a tela de sucesso.
         const session: CheckoutSession = {
           paymentId: payment.id,
@@ -425,7 +452,7 @@ function buildQuote(body: QuoteRequest): Quote | null {
     const end = flight.returnDate?.slice(0, 10) ?? start;
     items.push({
       type: 'FLIGHT',
-      description: `Voo ${flight.companyName} ${flight.boardingAirport} → ${flight.returnAirport}`,
+      description: `${flight.companyName} - ${flight.boardingAirport} / ${flight.returnAirport}`,
       startDate: start,
       endDate: end,
       quantity: pax,
@@ -460,7 +487,7 @@ function buildQuote(body: QuoteRequest): Quote | null {
       if (!flight) return null;
       items.push({
         type: 'FLIGHT',
-        description: `Voo ${flight.companyName}`,
+        description: flight.companyName,
         startDate: flight.boardingDate.slice(0, 10),
         endDate: (flight.returnDate ?? flight.boardingDate).slice(0, 10),
         quantity: pax,

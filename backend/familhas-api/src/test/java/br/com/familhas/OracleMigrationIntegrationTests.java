@@ -52,7 +52,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 
 /**
- * Sobe um Oracle real, aplica as migrations V1..V8 via Flyway e valida o
+ * Sobe um Oracle real, aplica as migrations V1..V10 via Flyway e valida o
  * mapeamento JPA (ddl-auto=validate no profile local). Pulado sem Docker.
  */
 @SpringBootTest(properties = {

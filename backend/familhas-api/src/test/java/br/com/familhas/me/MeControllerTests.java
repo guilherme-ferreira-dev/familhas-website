@@ -72,6 +72,24 @@ class MeControllerTests {
     }
 
     @Test
+    void meForwardsTokenClaimsUsedByOnboardingToSync() throws Exception {
+        when(keycloakClientSyncService.syncClientId(any())).thenReturn(CLIENT_ID);
+        when(clientService.findById(CLIENT_ID)).thenReturn(new ClientResponse(
+                CLIENT_ID, "Ana Souza", "ana@familhas.com", null, EntityStatus.ACTIVE, true, List.of(), List.of()));
+
+        mockMvc.perform(get("/api/me").with(jwt().jwt(j -> j.subject("sub-1")
+                                .claim("email", "ana@familhas.com")
+                                .claim("email_verified", true)
+                                .claim("name", "Ana Souza")
+                                .claim("given_name", "Ana"))
+                        .authorities(new SimpleGrantedAuthority("ROLE_USER"))))
+                .andExpect(status().isOk());
+
+        verify(keycloakClientSyncService).syncClientId(new KeycloakClientSyncService.KeycloakUser(
+                "sub-1", "ana@familhas.com", true, "Ana Souza", "Ana"));
+    }
+
+    @Test
     void clientRatingUsesClientIdFromTokenAndIgnoresBody() throws Exception {
         when(keycloakClientSyncService.syncClientId(any())).thenReturn(CLIENT_ID);
         when(ratingService.createForClient(eq(CLIENT_ID), any())).thenReturn(new RatingResponse(

@@ -29,6 +29,11 @@ import org.testcontainers.oracle.OracleContainer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import br.com.familhas.client.ClientRepository;
+import br.com.familhas.client.KeycloakClientSyncService;
+import br.com.familhas.client.KeycloakClientSyncService.KeycloakUser;
+import br.com.familhas.client.event.UserRegisteredEvent;
+
 /**
  * Fluxo real do outbox: Oracle (Flyway V8) + RabbitMQ. O agendamento fica desligado e o teste chama o
  * publisher, para não depender de tempo. Pulado sem Docker.
@@ -56,16 +61,21 @@ public class OutboxMessagingIntegrationTests {
     @Autowired private AmqpAdmin amqpAdmin;
     @Autowired private TopicExchange eventsExchange;
     @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired private KeycloakClientSyncService keycloakClientSyncService;
+    @Autowired private ClientRepository clientRepository;
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() {
         amqpAdmin.declareExchange(eventsExchange);
-        Queue queue = new Queue(TEST_QUEUE, false, false, true);
+        // Sem autoDelete: o receive() cancela o consumidor e a fila sumiria entre duas leituras.
+        Queue queue = new Queue(TEST_QUEUE, false, false, false);
         amqpAdmin.declareQueue(queue);
         Binding binding = BindingBuilder.bind(queue).to(eventsExchange).with(TEST_ROUTING_KEY);
         amqpAdmin.declareBinding(binding);
+        amqpAdmin.declareBinding(BindingBuilder.bind(queue).to(eventsExchange)
+                .with(UserRegisteredEvent.TYPE.routingKey()));
         amqpAdmin.purgeQueue(TEST_QUEUE, false);
         amqpAdmin.purgeQueue(MessagingTopology.UNROUTED_QUEUE, false);
         drainOutbox();
@@ -122,6 +132,43 @@ public class OutboxMessagingIntegrationTests {
         Message message = rabbitTemplate.receive(MessagingTopology.UNROUTED_QUEUE, 10_000);
         assertThat(message).isNotNull();
         assertThat(message.getMessageProperties().getMessageId()).isEqualTo(event.eventId().toString());
+    }
+
+    @Test
+    void firstLoginPublishesUserRegisteredEventOnlyOnce() throws Exception {
+        KeycloakUser user = new KeycloakUser("sub-onboarding-1", "Bia.Nova@Familhas.com", true, "Beatriz Nova",
+                "Beatriz");
+
+        java.util.UUID clientId = keycloakClientSyncService.syncClientId(user);
+        keycloakClientSyncService.syncClientId(user);
+
+        var rows = outboxEventRepository.findByAggregateTypeAndAggregateId("Client", clientId.toString());
+        assertThat(rows).hasSize(1);
+        assertThat(outboxPublisher.publishPending()).isEqualTo(1);
+
+        Message message = rabbitTemplate.receive(TEST_QUEUE, 10_000);
+        assertThat(message).isNotNull();
+        assertThat(message.getMessageProperties().getType()).isEqualTo("UserRegistered");
+        assertThat(message.getMessageProperties().getReceivedRoutingKey()).isEqualTo("client.user-registered.v1");
+        JsonNode body = mapper.readTree(new String(message.getBody(), StandardCharsets.UTF_8));
+        assertThat(body.get("eventId").asText()).isEqualTo(rows.get(0).getId().toString());
+        assertThat(body.get("userId").asText()).isEqualTo(clientId.toString());
+        assertThat(body.get("email").asText()).isEqualTo("bia.nova@familhas.com");
+        assertThat(body.get("firstName").asText()).isEqualTo("Beatriz");
+        assertThat(body.get("schemaVersion").asInt()).isEqualTo(1);
+        assertThat(rabbitTemplate.receive(TEST_QUEUE, 500)).as("segundo login não gera evento").isNull();
+    }
+
+    @Test
+    void linkingClientRegisteredByAdminDoesNotPublish() {
+        // Seed V2: cliente cadastrado pelo Enéas, ainda sem login.
+        var seeded = clientRepository.findByEmailIgnoreCase("ana.souza@familhas.com").orElseThrow();
+
+        keycloakClientSyncService.syncClientId(
+                new KeycloakUser("sub-ana-link", "ana.souza@familhas.com", true, "Ana Souza", "Ana"));
+
+        assertThat(outboxEventRepository.findByAggregateTypeAndAggregateId("Client", seeded.getId().toString()))
+                .isEmpty();
     }
 
     protected void inTransaction(Runnable action) {

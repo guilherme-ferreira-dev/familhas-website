@@ -233,9 +233,9 @@ class OracleMigrationIntegrationTests {
     @Test
     void firstLoginLinksExistingClientByVerifiedEmail() {
         UUID first = keycloakClientSyncService.syncClientId(
-                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana"));
+                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana", "Ana"));
         UUID second = keycloakClientSyncService.syncClientId(
-                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana"));
+                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana", "Ana"));
 
         assertThat(first).isEqualTo(second);
         assertThat(clientRepository.findByKeycloakId("sub-ana-teste"))

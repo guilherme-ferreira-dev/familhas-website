@@ -25,4 +25,6 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEventEntity, 
     List<OutboxEventEntity> lockNextBatch(@Param("now") Instant now, @Param("limit") int limit);
 
     long countByStatus(OutboxStatus status);
+
+    List<OutboxEventEntity> findByAggregateTypeAndAggregateId(String aggregateType, String aggregateId);
 }

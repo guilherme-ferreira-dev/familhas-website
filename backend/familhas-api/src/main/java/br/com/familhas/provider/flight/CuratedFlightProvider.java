@@ -61,6 +61,11 @@ public class CuratedFlightProvider implements FlightProvider {
         return ProviderOffer.id(NAME, flightId.toString());
     }
 
+    /** Id do voo na tabela flights, se a oferta for do catálogo curado. */
+    public static Optional<UUID> flightIdOf(String offerId) {
+        return parse(offerId);
+    }
+
     static Optional<UUID> parse(String offerId) {
         if (!NAME.equals(ProviderOffer.providerOf(offerId))) {
             return Optional.empty();

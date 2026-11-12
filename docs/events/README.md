@@ -9,8 +9,13 @@ O JSON Schema de cada evento é a fonte da verdade. Os dois serviços têm as pr
 | Evento | Versão | Routing key | Schema | Produtor | Consumidores |
 |---|---|---|---|---|---|
 | `UserRegistered` | 1 | `client.user-registered.v1` | [user-registered.v1.schema.json](user-registered.v1.schema.json) | familhas-api (primeiro login) | familhas-email (boas-vindas) |
+| `BookingCreated` | 1 | `booking.booking-created.v1` | [booking-created.v1.schema.json](booking-created.v1.schema.json) | familhas-api (reserva criada) | familhas-email (reserva aguardando pagamento) |
+| `PaymentConfirmed` | 1 | `payment.payment-confirmed.v1` | [payment-confirmed.v1.schema.json](payment-confirmed.v1.schema.json) | familhas-api (webhook ou reconciliação) | familhas-email (reserva confirmada); Admin na Fase 10 |
+| `PaymentFailed` | 1 | `payment.payment-failed.v1` | [payment-failed.v1.schema.json](payment-failed.v1.schema.json) | familhas-api (webhook ou reconciliação) | familhas-email (pagamento não aprovado); Admin na Fase 10 |
 
-`BookingConfirmed` e `PaymentConfirmed` entram nas Fases 6 e 10, seguindo as mesmas regras. Os nomes previstos são `booking.booking-confirmed.v1` e `payment.payment-confirmed.v1`.
+Decisões dos eventos de reserva e pagamento em [ADR 0007](../adr/0007-reserva-checkout-e-webhooks-stripe.md) (D10). `PaymentConfirmed` já implica reserva confirmada; um `BookingConfirmed` separado fica para a Fase 10, se o Admin precisar.
+
+Valores monetários vão em texto com 2 casas (`"7830.16"`) e moeda ISO 4217 em campo próprio: nenhum consumidor perde precisão convertendo para ponto flutuante.
 
 ## Corpo da mensagem
 
@@ -62,4 +67,4 @@ familhas.events.unrouted (fanout) ──► familhas.events.unrouted (fila): men
 
 ## LGPD
 
-`email` e `firstName` são dados pessoais. Eles vão no corpo porque o consumidor precisa deles para enviar o e-mail, mas nunca entram em log, header AMQP ou mensagem de erro. Os logs usam só `eventId` e `correlationId`.
+`email` e `firstName` são dados pessoais (em todos os eventos acima). Os eventos de pagamento nunca levam dados de cartão: só método, valor e o código de recusa do Stripe. Eles vão no corpo porque o consumidor precisa deles para enviar o e-mail, mas nunca entram em log, header AMQP ou mensagem de erro. Os logs usam só `eventId` e `correlationId`.

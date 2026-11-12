@@ -1,6 +1,8 @@
 package br.com.familhas.config;
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.aopalliance.aop.Advice;
@@ -9,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Declarable;
+import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.ExchangeBuilder;
 import org.springframework.amqp.core.Queue;
@@ -86,6 +90,31 @@ public class RabbitConfig {
     Binding userRegisteredDeadLetterBinding() {
         return BindingBuilder.bind(userRegisteredDeadLetterQueue()).to(deadLetterExchange())
                 .with(MessagingTopology.USER_REGISTERED_QUEUE);
+    }
+
+    /** Fila, DLQ e bindings dos e-mails de reserva e pagamento, no mesmo molde da fila de boas-vindas. */
+    @Bean
+    Declarables checkoutQueues() {
+        List<Declarable> declarables = new ArrayList<>();
+        addConsumerQueue(declarables, MessagingTopology.BOOKING_CREATED_QUEUE, MessagingTopology.BOOKING_CREATED_DLQ,
+                MessagingTopology.BOOKING_CREATED_ROUTING_KEY);
+        addConsumerQueue(declarables, MessagingTopology.PAYMENT_CONFIRMED_QUEUE,
+                MessagingTopology.PAYMENT_CONFIRMED_DLQ, MessagingTopology.PAYMENT_CONFIRMED_ROUTING_KEY);
+        addConsumerQueue(declarables, MessagingTopology.PAYMENT_FAILED_QUEUE, MessagingTopology.PAYMENT_FAILED_DLQ,
+                MessagingTopology.PAYMENT_FAILED_ROUTING_KEY);
+        return new Declarables(declarables);
+    }
+
+    private void addConsumerQueue(List<Declarable> declarables, String queueName, String dlqName, String routingKey) {
+        Queue queue = QueueBuilder.durable(queueName)
+                .deadLetterExchange(MessagingTopology.DEAD_LETTER_EXCHANGE)
+                .deadLetterRoutingKey(queueName)
+                .build();
+        Queue deadLetterQueue = QueueBuilder.durable(dlqName).build();
+        declarables.add(queue);
+        declarables.add(deadLetterQueue);
+        declarables.add(BindingBuilder.bind(queue).to(eventsExchange()).with(routingKey));
+        declarables.add(BindingBuilder.bind(deadLetterQueue).to(deadLetterExchange()).with(queueName));
     }
 
     @Bean

@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://familhas.com.br/schemas/events/payment-failed.v1.schema.json",
+  "title": "PaymentFailedEvent",
+  "description": "Pagamento recusado (cartão) ou não pago (Pix). A reserva segue aguardando pagamento enquanto houver prazo (ADR 0007). Exchange familhas.events, routing key payment.payment-failed.v1.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "paymentId",
+    "bookingId",
+    "clientId",
+    "email",
+    "method",
+    "amount",
+    "currency",
+    "occurredAt",
+    "schemaVersion"
+  ],
+  "properties": {
+    "eventId": {
+      "description": "Identificador único do evento. Chave de idempotência dos consumidores.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "paymentId": {
+      "description": "Id da tentativa de pagamento.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "bookingId": {
+      "description": "Id da reserva.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "clientId": {
+      "description": "Id do Client local na familhas-api.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "email": {
+      "description": "E-mail do cliente. Dado pessoal: não registrar em log.",
+      "type": "string",
+      "format": "email",
+      "minLength": 3,
+      "maxLength": 180
+    },
+    "firstName": {
+      "description": "Primeiro nome do cliente. Pode faltar. Dado pessoal.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100
+    },
+    "method": {
+      "description": "Método de pagamento.",
+      "type": "string",
+      "enum": [
+        "PIX",
+        "CREDIT_CARD"
+      ]
+    },
+    "amount": {
+      "description": "Valor com 2 casas decimais, em texto para não perder precisão (ex.: \"7830.16\").",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]{2}$"
+    },
+    "currency": {
+      "description": "Moeda ISO 4217. Hoje sempre BRL.",
+      "type": "string",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "failureCode": {
+      "description": "Código de recusa do Stripe (ex.: card_declined, insufficient_funds). Nunca dados do cartão.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 100
+    },
+    "occurredAt": {
+      "description": "Instante do fato no domínio, ISO-8601 em UTC.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "schemaVersion": {
+      "description": "Versão do contrato. Mudanças compatíveis aumentam este número; incompatíveis criam a routing key .v2.",
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": true
+}

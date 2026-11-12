@@ -22,7 +22,7 @@ A Fase 6 (reserva e pagamento) roda em paralelo, em outra branch. Por isso a Loj
 - `familhas-api.yaml` (Fase 7): catálogo, busca e `/api/me`, escrito a partir dos DTOs reais da Fase 5.
 - `checkout.yaml` (Fase 6): cotações, reservas, checkout e webhook. É de responsabilidade da Fase 6 e é combinado com ela.
 - Os tipos TypeScript são gerados dos dois arquivos (`npm run api:types`, com openapi-typescript) e versionados. O CI falha se ficarem desatualizados (`api:check`).
-- Enquanto a Fase 6 não estiver na branch, o `checkout-schema.d.ts` gerado a partir de `feat/fase-6-stripe` (commit `bba79e1`) é mantido como está.
+- Durante o desenvolvimento em paralelo, os tipos de checkout foram gerados do `checkout.yaml` da branch da Fase 6 (commit `bba79e1`). Depois do merge da Fase 6, eles passaram a ser conferidos contra o arquivo da `main`, que é idêntico.
 
 **D3. Configuração em runtime (`config.json`), validada antes do bootstrap.**
 - O arquivo carrega URL da API, URL pública, issuer e client do Keycloak e o número e a saudação do WhatsApp.

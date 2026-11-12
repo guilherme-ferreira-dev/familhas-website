@@ -7,20 +7,23 @@ Plataforma da agência de viagens Familhas: **Loja** (busca, cotação, compra e
 ```
 backend/familhas-api     API Spring Boot (Java 21), monólito modular, produtora de eventos (outbox)
 backend/familhas-email   Consumidor de eventos que envia e-mails transacionais (boas-vindas)
+frontend/familhas-web    Loja em Angular 22 (busca, pacote, cotação, checkout e WhatsApp)
 infra/                   Docker Compose: Oracle, RabbitMQ, Keycloak, MailHog e familhas-email
 docs/adr/                Registro de decisões de arquitetura
 docs/events/             Contratos versionados dos eventos (JSON Schema)
+docs/api/                Contratos HTTP (OpenAPI) consumidos pelos frontends
 docs/checklist.md        Checklist das fases
 .github/workflows/       CI (build e testes de cada aplicação)
 ```
 
-Entram em fases futuras: `frontend/familhas-web` (Fase 7) e `frontend/familhas-admin` (Fase 10).
+Entra em fase futura: `frontend/familhas-admin` (Fase 10).
 
 ## Pré-requisitos
 
 - Java 21
 - Docker Desktop (infraestrutura local e testes de integração com Oracle e stripe-mock)
 - [Stripe CLI](https://docs.stripe.com/stripe-cli), só para testar pagamentos com uma conta Stripe de teste (opcional)
+- Node 24 LTS (só para o `frontend/familhas-web`)
 
 Não é preciso instalar Maven: use o wrapper (`mvnw` / `mvnw.cmd`).
 
@@ -207,6 +210,22 @@ Reserva e pagamento seguem o mesmo caminho: `BookingCreated`, `PaymentConfirmed`
 ## IDs
 
 Todas as entidades usam UUID, armazenado como `RAW(16)` no Oracle ([ADR 0002](docs/adr/0002-ids-uuid-raw16.md)). Os registros de seed têm UUIDs fixos, por exemplo a cidade São Paulo é `c1770000-0000-4000-8000-000000000001`.
+
+## Loja (familhas-web)
+
+Detalhes em [ADR 0009](docs/adr/0009-frontend-da-loja.md) e no [README do familhas-web](frontend/familhas-web/README.md).
+
+```bash
+cd frontend/familhas-web
+npm ci
+npm run start:mock   # sem backend: mocks (MSW) e login simulado
+npm start            # com a API em 8080 e o Keycloak em 8443
+npm run lint && npm run test:ci && npm run build
+```
+
+- Login e logout pelo Keycloak (client `familhas-web`, Authorization Code + PKCE). O token só vai para a API.
+- URLs, Keycloak e número do WhatsApp ficam em `public/config.json`, por ambiente, sem rebuild.
+- Contratos em `docs/api`: `familhas-api.yaml` (catálogo e busca) e `checkout.yaml` (cotação, reserva e pagamento, Fase 6). Os tipos do front são gerados deles.
 
 ## Convenções
 

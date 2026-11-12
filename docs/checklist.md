@@ -153,3 +153,41 @@ Decisões em [ADR 0007](adr/0007-reserva-checkout-e-webhooks-stripe.md) e [ADR 0
 - [ ] Estoque por data de hotel e carro no catálogo curado (pendência da Fase 5)
 - [ ] Retenção de `stripe_webhook_events` e de reservas canceladas (Fase 11)
 - [ ] Chave live e conta em produção (novo ADR)
+
+## Fase 7: Frontend da Loja
+
+Decisões em [ADR 0009](adr/0009-frontend-da-loja.md). Rodou em paralelo à Fase 6.
+
+### Base
+- [x] `frontend/familhas-web` com Angular 22 (standalone, zoneless), ESLint (com regras de acessibilidade), Prettier e Vitest
+- [x] Configuração de runtime por ambiente (`config.json` validado): API, Keycloak e WhatsApp
+- [x] Contrato `docs/api/familhas-api.yaml` (catálogo, busca, `/api/me`) e tipos gerados dele e do `checkout.yaml` da Fase 6
+- [x] Mocks MSW seguindo os contratos, só no build `mock`
+
+### Autenticação e erros
+- [x] Login e logout com OIDC + PKCE no Keycloak (client `familhas-web`), refresh token sem iframe
+- [x] Interceptor JWT só para `{apiBaseUrl}/api/`; guard nas rotas do cliente com volta para a rota pedida (sem open redirect)
+- [x] CORS restrito: a API já libera só as origens da Loja (`CORS_ALLOWED_ORIGINS`, Fase 3); nada a mudar no backend
+- [x] Problem Details vira mensagem em português pelo `code`; 401 leva ao login; avisos em `aria-live`; página 404
+
+### Telas
+- [x] Home com busca rápida, ofertas e categorias
+- [x] Busca de pacotes, voos, hotéis e carros com filtros na URL, validação, ordenação, paginação e aviso de resultado parcial
+- [x] Detalhe do pacote (voo, hospedagem, carro) e cotação com total, taxas e validade
+- [x] Checkout: reserva, Pix ou cartão, Stripe Checkout hospedado e polling da confirmação
+- [x] Botão flutuante de WhatsApp em todas as telas, `wa.me` com contexto (pacote, cotação ou reserva) e número por ambiente
+
+### Qualidade
+- [x] Mobile-first (375 px sem rolagem horizontal), SEO básico (título, description, canonical, Open Graph, robots)
+- [x] Acessibilidade: pular para o conteúdo, foco na navegação, landmarks, erros de campo, contraste AA; axe sem violações no fluxo principal
+- [x] Testes: unitários (config, auth, interceptors, erros, WhatsApp, busca, polling, redirect) e de tela com MSW
+- [x] Job `familhas-web` no CI: contratos, tipos, lint, formatação, testes e builds
+
+### Pendências documentadas (fora da Fase 7)
+- [ ] Número oficial do WhatsApp Business do Enéas no `config.json` de cada ambiente (hoje placeholder `5500000000000`)
+- [ ] Domínios dos ambientes: `siteUrl`, redirect URIs do Keycloak e `CORS_ALLOWED_ORIGINS`
+- [ ] Validar login, checkout e webhook de ponta a ponta com o backend real (Keycloak e conta Stripe de teste)
+- [ ] Cotação de itens avulsos (voo, hotel ou carro) direto da busca
+- [ ] Minhas viagens e recomendação (Fase 8); chat (Fase 9)
+- [ ] SSR ou prerender para SEO, quando houver hospedagem definida
+- [ ] Imagens reais dos pacotes e categorias (hoje gradiente quando `imageUrl` é nulo)

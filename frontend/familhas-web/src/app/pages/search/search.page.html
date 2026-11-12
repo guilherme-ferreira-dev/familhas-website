@@ -1,0 +1,340 @@
+@let f = filters();
+@let d = draft();
+<div class="container stack">
+  <h1>Buscar viagens</h1>
+
+  <nav aria-label="Tipo de busca" class="tabs">
+    @for (kind of kinds; track kind) {
+      <a
+        routerLink="/busca"
+        [queryParams]="tabParams(kind)"
+        [class.active]="f.tipo === kind"
+        [attr.aria-current]="f.tipo === kind ? 'page' : null"
+        >{{ kindLabels[kind] }}</a
+      >
+    }
+  </nav>
+
+  <form
+    class="card filters"
+    (ngSubmit)="submit()"
+    novalidate
+    [attr.aria-label]="'Filtros de ' + kindLabels[f.tipo]"
+  >
+    @if (d.tipo === 'pacotes' || d.tipo === 'voos') {
+      <div class="field">
+        <label for="f-origem">Origem{{ d.tipo === 'voos' ? ' *' : '' }}</label>
+        <select
+          id="f-origem"
+          name="origem"
+          [ngModel]="d.origem"
+          (ngModelChange)="patch('origem', $event)"
+        >
+          <option value="">{{ d.tipo === 'voos' ? 'Selecione' : 'Qualquer origem' }}</option>
+          @for (city of cities.origins(); track city.id) {
+            <option [value]="city.id">{{ city.name }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="field">
+      <label for="f-destino"
+        >{{ d.tipo === 'hoteis' || d.tipo === 'carros' ? 'Cidade' : 'Destino'
+        }}{{ d.tipo === 'pacotes' ? '' : ' *' }}</label
+      >
+      <select
+        id="f-destino"
+        name="destino"
+        [ngModel]="d.destino"
+        (ngModelChange)="patch('destino', $event)"
+      >
+        <option value="">{{ d.tipo === 'pacotes' ? 'Qualquer destino' : 'Selecione' }}</option>
+        @for (city of cities.destinations(); track city.id) {
+          <option [value]="city.id">{{ city.name }}</option>
+        }
+      </select>
+    </div>
+
+    @if (d.tipo === 'pacotes' && categories.hasValue()) {
+      <div class="field">
+        <label for="f-categoria">Estilo</label>
+        <select
+          id="f-categoria"
+          name="categoria"
+          [ngModel]="d.categoria"
+          (ngModelChange)="patch('categoria', $event)"
+        >
+          <option value="">Todos</option>
+          @for (category of categories.value(); track category.id) {
+            <option [value]="category.id">{{ category.title }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="field">
+      <label for="f-ida">{{ dateLabels()[0] }}{{ d.tipo === 'pacotes' ? '' : ' *' }}</label>
+      <input
+        id="f-ida"
+        name="ida"
+        type="date"
+        [min]="today"
+        [ngModel]="d.ida"
+        (ngModelChange)="patch('ida', $event)"
+      />
+    </div>
+
+    <div class="field">
+      <label for="f-volta"
+        >{{ dateLabels()[1] }}{{ d.tipo === 'hoteis' || d.tipo === 'carros' ? ' *' : '' }}</label
+      >
+      <input
+        id="f-volta"
+        name="volta"
+        type="date"
+        [min]="d.ida || today"
+        [ngModel]="d.volta"
+        (ngModelChange)="patch('volta', $event)"
+        [attr.aria-invalid]="errors().volta ? true : null"
+        [attr.aria-describedby]="errors().volta ? 'f-volta-erro' : null"
+      />
+      @if (errors().volta; as message) {
+        <p id="f-volta-erro" class="field-error">{{ message }}</p>
+      }
+    </div>
+
+    <div class="field">
+      <label for="f-pessoas">{{ d.tipo === 'hoteis' ? 'Hóspedes' : 'Pessoas' }}</label>
+      <select
+        id="f-pessoas"
+        name="passageiros"
+        [ngModel]="d.passageiros"
+        (ngModelChange)="patch('passageiros', +$event)"
+      >
+        @for (n of passengerOptions; track n) {
+          <option [value]="n">{{ n }}</option>
+        }
+      </select>
+    </div>
+
+    @if (d.tipo === 'hoteis') {
+      <div class="field">
+        <label for="f-estrelas">Estrelas</label>
+        <select
+          id="f-estrelas"
+          name="estrelas"
+          [ngModel]="d.estrelas"
+          (ngModelChange)="patch('estrelas', $event)"
+        >
+          <option value="">Qualquer</option>
+          @for (n of [3, 4, 5]; track n) {
+            <option [value]="'' + n">{{ n }} ou mais</option>
+          }
+        </select>
+      </div>
+    }
+
+    @if (d.tipo === 'carros') {
+      <div class="field">
+        <label for="f-cat-carro">Categoria</label>
+        <select
+          id="f-cat-carro"
+          name="categoriaCarro"
+          [ngModel]="d.categoriaCarro"
+          (ngModelChange)="patch('categoriaCarro', $event)"
+        >
+          <option value="">Qualquer</option>
+          @for (cat of carCategories; track cat) {
+            <option [value]="cat">{{ carLabels[cat] }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <fieldset class="price">
+      <legend>Preço total (R$)</legend>
+      <div class="field">
+        <label for="f-min">Mínimo</label>
+        <input
+          id="f-min"
+          name="precoMin"
+          type="number"
+          inputmode="numeric"
+          min="0"
+          step="1"
+          [ngModel]="d.precoMin"
+          (ngModelChange)="patch('precoMin', $event === null ? '' : '' + $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="f-max">Máximo</label>
+        <input
+          id="f-max"
+          name="precoMax"
+          type="number"
+          inputmode="numeric"
+          min="0"
+          step="1"
+          [ngModel]="d.precoMax"
+          (ngModelChange)="patch('precoMax', $event === null ? '' : '' + $event)"
+          [attr.aria-invalid]="errors().precoMax ? true : null"
+          [attr.aria-describedby]="errors().precoMax ? 'f-max-erro' : null"
+        />
+      </div>
+      @if (errors().precoMax; as message) {
+        <p id="f-max-erro" class="field-error">{{ message }}</p>
+      }
+    </fieldset>
+
+    <div class="field">
+      <label for="f-ordem">Ordenar por</label>
+      <select
+        id="f-ordem"
+        name="ordem"
+        [ngModel]="d.ordem"
+        (ngModelChange)="patch('ordem', $event)"
+      >
+        <option value="preco">Menor preço</option>
+        <option value="preco-desc">Maior preço</option>
+      </select>
+    </div>
+
+    <p class="muted hint">* obrigatório</p>
+    <button type="submit" class="button">Buscar</button>
+  </form>
+
+  <section class="results" aria-labelledby="resultados-titulo">
+    <h2 id="resultados-titulo" tabindex="-1" #resultsHeading>Resultados</h2>
+    <p class="visually-hidden" aria-live="polite">{{ summary() }}</p>
+
+    @if (missing().length > 0) {
+      <p class="muted">Preencha {{ missing().join(', ') }} para ver os resultados.</p>
+    } @else if (results.error()) {
+      <app-load-error [error]="results.error()" (retry)="results.reload()" />
+    } @else if (results.isLoading()) {
+      <p class="muted" aria-busy="true">Buscando as melhores opções…</p>
+    } @else if (results.hasValue()) {
+      @let r = results.value();
+      @if (r.page.unavailableProviders.length > 0) {
+        <p class="notice" role="status">
+          Alguns fornecedores não responderam agora. Os resultados podem estar incompletos.
+        </p>
+      }
+      <p class="muted" aria-hidden="true">{{ summary() }}</p>
+
+      @if (r.page.content.length > 0) {
+        <ul class="grid">
+          @switch (r.kind) {
+            @case ('pacotes') {
+              @for (item of r.page.content; track item.id) {
+                <li><app-package-card [item]="item" /></li>
+              }
+            }
+            @case ('voos') {
+              @for (item of r.page.content; track item.offerId) {
+                <li>
+                  <article class="card offer">
+                    <h3>{{ item.companyName }}</h3>
+                    <p>
+                      {{ cities.name(item.originCityId) }} ({{ item.boardingAirport }}) →
+                      {{ cities.name(item.destinationCityId) }}
+                    </p>
+                    <p class="muted">
+                      Ida {{ item.departureAt | date: "dd/MM/yyyy 'às' HH:mm" }}
+                      @if (item.returnAt) {
+                        · Volta {{ item.returnAt | date: "dd/MM/yyyy 'às' HH:mm" }}
+                      }
+                    </p>
+                    <p class="price-line">
+                      <strong>{{ item.totalPrice | currency: item.currency }}</strong>
+                      <span class="muted"
+                        >{{ item.passengers }} {{ item.passengers === 1 ? 'pessoa' : 'pessoas' }} ·
+                        {{ item.pricePerPassenger | currency: item.currency }} cada</span
+                      >
+                    </p>
+                  </article>
+                </li>
+              }
+            }
+            @case ('hoteis') {
+              @for (item of r.page.content; track item.offerId) {
+                <li>
+                  <article class="card offer">
+                    <h3>{{ item.hotelName }}</h3>
+                    <p>
+                      <span aria-label="{{ item.stars }} estrelas">{{
+                        '★'.repeat(item.stars)
+                      }}</span>
+                      · {{ cities.name(item.cityId) }}
+                    </p>
+                    <p class="muted">
+                      {{ item.roomType }} · {{ boardLabels[item.boardType] }} · {{ item.rooms }}
+                      {{ item.rooms === 1 ? 'quarto' : 'quartos' }} · {{ item.nights }}
+                      {{ item.nights === 1 ? 'diária' : 'diárias' }}
+                    </p>
+                    <p class="price-line">
+                      <strong>{{ item.totalPrice | currency: item.currency }}</strong>
+                      <span class="muted"
+                        >{{ item.pricePerNight | currency: item.currency }} por noite</span
+                      >
+                    </p>
+                  </article>
+                </li>
+              }
+            }
+            @case ('carros') {
+              @for (item of r.page.content; track item.offerId) {
+                <li>
+                  <article class="card offer">
+                    <h3>{{ item.carModel }}</h3>
+                    <p>{{ item.companyName }} · {{ cities.name(item.cityId) }}</p>
+                    <p class="muted">
+                      {{ carLabels[item.carCategory] }} ·
+                      {{ item.transmission === 'AUTOMATIC' ? 'Automático' : 'Manual' }} ·
+                      {{ item.seats }} lugares · {{ item.days }}
+                      {{ item.days === 1 ? 'dia' : 'dias' }}
+                    </p>
+                    <p class="price-line">
+                      <strong>{{ item.totalPrice | currency: item.currency }}</strong>
+                      <span class="muted"
+                        >{{ item.pricePerDay | currency: item.currency }} por dia</span
+                      >
+                    </p>
+                  </article>
+                </li>
+              }
+            }
+          }
+        </ul>
+
+        @if (r.page.totalPages > 1) {
+          <nav class="pager" aria-label="Paginação">
+            <button
+              type="button"
+              class="button button--ghost"
+              [disabled]="f.pagina <= 1"
+              (click)="goToPage(f.pagina - 1)"
+            >
+              Anterior
+            </button>
+            <span>Página {{ f.pagina }} de {{ r.page.totalPages }}</span>
+            <button
+              type="button"
+              class="button button--ghost"
+              [disabled]="f.pagina >= r.page.totalPages"
+              (click)="goToPage(f.pagina + 1)"
+            >
+              Próxima
+            </button>
+          </nav>
+        }
+      } @else {
+        <p>
+          Não achamos opções com esses filtros. Tente outras datas ou fale com a gente no WhatsApp:
+          a gente monta a viagem para você.
+        </p>
+      }
+    }
+  </section>
+</div>

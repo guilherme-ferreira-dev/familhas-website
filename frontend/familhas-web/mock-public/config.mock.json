@@ -1,0 +1,13 @@
+{
+  "apiBaseUrl": "http://localhost:8080",
+  "siteUrl": "http://localhost:4200",
+  "oidc": {
+    "authority": "https://localhost:8443/realms/familhas",
+    "clientId": "familhas-web",
+    "scope": "openid profile email"
+  },
+  "whatsapp": {
+    "phone": "5500000000000",
+    "defaultMessage": "Olá! Vim pelo site da Familhas e gostaria de ajuda."
+  }
+}

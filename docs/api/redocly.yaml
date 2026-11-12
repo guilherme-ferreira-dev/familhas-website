@@ -1,0 +1,7 @@
+# Lint do contrato: npx @redocly/cli lint docs/api/familhas-api.yaml --config docs/api/redocly.yaml
+extends:
+  - recommended
+rules:
+  info-license: off
+  no-server-example.com: off
+  operation-4xx-response: off

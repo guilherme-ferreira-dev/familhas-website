@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import br.com.familhas.payment.InvalidWebhookException;
+import br.com.familhas.payment.PaymentGatewayException;
 import br.com.familhas.provider.ProviderUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -70,6 +72,26 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "Fornecedor indisponivel no momento. Tente novamente em instantes.");
         problem.setTitle("Service Unavailable");
         problem.setProperty("provider", ex.provider());
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return problem;
+    }
+
+    /** Stripe fora do ar, lento ou sem chave configurada (ADR 0007). */
+    @ExceptionHandler(PaymentGatewayException.class)
+    public ProblemDetail handlePaymentGateway(PaymentGatewayException ex, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Pagamento indisponivel no momento. Tente novamente em instantes.");
+        problem.setTitle("Service Unavailable");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return problem;
+    }
+
+    /** Webhook sem assinatura válida: 400 sem detalhe, para não ajudar quem tenta forjar (ADR 0007, D6). */
+    @ExceptionHandler(InvalidWebhookException.class)
+    public ProblemDetail handleInvalidWebhook(InvalidWebhookException ex, HttpServletRequest request) {
+        log.warn("Webhook recusado: {} {}", request.getRequestURI(), ex.getMessage());
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Webhook invalido.");
+        problem.setTitle("Bad Request");
         problem.setInstance(URI.create(request.getRequestURI()));
         return problem;
     }

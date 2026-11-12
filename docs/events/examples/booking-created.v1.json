@@ -1,0 +1,12 @@
+{
+  "eventId": "5b2d7c1a-0f3e-4c8b-9a61-7e2f3d4c5b60",
+  "bookingId": "8d0e4c7a-31b2-4f0f-9c64-5b0a2e7d4f10",
+  "clientId": "c11e0000-0000-4000-8000-0000000000aa",
+  "email": "ana.exemplo@familhas.com.br",
+  "firstName": "Ana",
+  "totalAmount": "7830.16",
+  "currency": "BRL",
+  "expiresAt": "2026-11-12T15:30:00Z",
+  "occurredAt": "2026-11-12T15:00:00.123456Z",
+  "schemaVersion": 1
+}

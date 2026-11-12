@@ -99,5 +99,57 @@ Decisões em [ADR 0006](adr/0006-provedores-preco-e-cotacao.md).
 - [ ] Alinhar o preço de vitrine dos pacotes com os componentes (Admin, Fase 10)
 - [ ] Provedores reais de voos (Duffel ou Amadeus) e carros (Rentcars)
 - [ ] Disponibilidade por data no catálogo curado de hotéis e carros
-- [ ] Reserva de assento e reverificação de disponibilidade (Fase 6)
+- [x] Reserva de assento e reverificação de disponibilidade (feito na Fase 6)
 - [ ] Retenção de cotações expiradas (Fase 11)
+
+## Fase 6: Reserva, checkout e pagamento (Stripe)
+
+Decisões em [ADR 0007](adr/0007-reserva-checkout-e-webhooks-stripe.md) e [ADR 0008](adr/0008-parcelamento-no-cartao.md). Contrato HTTP em [docs/api/checkout.yaml](api/checkout.yaml).
+
+### Contrato e decisões
+- [x] OpenAPI de cotação, reserva, checkout e webhook em `docs/api/checkout.yaml`, publicado antes do código para a Fase 7 e validado por teste
+- [x] ADR 0007: Stripe Checkout hospedado, bloqueio de assentos, máquinas de estado, webhooks, reconciliação e eventos
+- [x] ADR 0008: parcelamento adiado até validar a conta Stripe Brasil
+
+### Reserva
+- [x] V11: `bookings` e `booking_items` com snapshot da cotação; cotação passa a `BOOKED`
+- [x] `POST/GET /api/me/bookings`: só cotação `OPEN`, em BRL e do próprio cliente; uma reserva por cotação
+- [x] Ofertas reconsultadas e assentos do voo curado bloqueados (update condicional) por 30 min
+- [x] Máquina de estados `PENDING_PAYMENT → CONFIRMED → COMPLETED` / `CANCELLED`
+- [x] Erros de negócio com `code` estável no Problem Details
+
+### Pagamento
+- [x] V12: `payments`, `installments` (sempre 1) e `stripe_webhook_events`
+- [x] `stripe-java` atrás de `PaymentGateway`; moeda BRL; valores em centavos sem arredondamento
+- [x] Stripe Checkout hospedado para cartão e Pix; dados de cartão nunca passam pela API
+- [x] Idempotency key em toda escrita no Stripe; checkout idempotente pelo domínio (200 reaproveita, 201 cria)
+- [x] Chaves só por variável de ambiente e só de teste; sem chave, checkout 503
+- [x] Máquina de estados do pagamento, incluindo nova tentativa na mesma sessão e pagamento tardio de sessão substituída
+- [ ] Parcelamento no cartão: depende da validação na conta Stripe Brasil (ADR 0008)
+
+### Webhooks e reconciliação
+- [x] `POST /api/webhooks/stripe` público, validado pela `Stripe-Signature` sobre o corpo cru, com tolerância contra replay
+- [x] Idempotência por `event.id` na mesma transação do efeito
+- [x] `checkout.session.*`, `payment_intent.processing/succeeded/payment_failed` e `charge.refunded`
+- [x] Estorno total cancela a reserva e devolve os assentos; parcial mantém `CONFIRMED`
+- [x] Estorno automático de pagamento aprovado com reserva cancelada ou já paga
+- [x] Reconciliação agendada: pagamentos parados e reservas vencidas
+
+### Eventos e e-mails
+- [x] `BookingCreated`, `PaymentConfirmed` e `PaymentFailed` pelo outbox, com JSON Schema e exemplos em `docs/events`
+- [x] `familhas-email`: um e-mail por evento, fila e DLQ próprias, idempotência por `eventId`
+- [x] Testes de contrato nos dois serviços
+
+### Testes e validação
+- [x] Unitários nos services, WebMvcTest nos controllers e webhooks assinados em teste
+- [x] Testcontainers: Oracle (reserva e fluxo completo), stripe-mock (adapter e fluxo), RabbitMQ + MailHog (e-mails)
+- [x] `./mvnw verify` passa em `backend/familhas-api` e `backend/familhas-email`
+- [ ] Validação manual com conta Stripe de teste (`stripe listen`), cartão `4242...` e Pix
+
+### Pendências documentadas (fora da Fase 6)
+- [ ] Conta Stripe Brasil: Pix habilitado, parcelamento, taxas e verificação da empresa (guia, seção 11)
+- [ ] Estorno pelo Admin e planilha de pagamentos alimentada pelos eventos (Fase 10)
+- [ ] `COMPLETED` quando a viagem termina e "Minhas viagens" (Fase 8)
+- [ ] Estoque por data de hotel e carro no catálogo curado (pendência da Fase 5)
+- [ ] Retenção de `stripe_webhook_events` e de reservas canceladas (Fase 11)
+- [ ] Chave live e conta em produção (novo ADR)

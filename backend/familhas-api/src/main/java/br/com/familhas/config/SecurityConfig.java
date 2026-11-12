@@ -34,6 +34,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *   /api/**          catalogo publico, somente leitura e somente itens ATIVOS
  *   /api/admin/**    CRUD completo do catalogo e clientes (ROLE_ADMIN)
  *   /api/me/**       area do cliente autenticado (ROLE_USER ou ROLE_ADMIN)
+ *   /api/webhooks/stripe POST publico, autenticado pela Stripe-Signature (ADR 0007)
  *   /actuator/health somente health e info, publico
  */
 @Configuration
@@ -71,6 +72,8 @@ public class SecurityConfig {
                         .requestMatchers("/actuator/health", "/actuator/info", "/error").permitAll()
                         // Preflight do navegador: sem CORS valido o browser nem envia o token.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Webhook do Stripe: sem JWT; a assinatura e validada no controller.
+                        .requestMatchers(HttpMethod.POST, "/api/webhooks/stripe").permitAll()
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/api/me/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()

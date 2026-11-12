@@ -1,0 +1,105 @@
+<div class="container stack narrow">
+  @if (booking.error()) {
+    <h1>Pagamento</h1>
+    <app-load-error [error]="booking.error()" (retry)="booking.reload()" />
+  } @else if (booking.isLoading() && !booking.hasValue()) {
+    <p class="muted" aria-busy="true">Carregando sua reserva…</p>
+  } @else if (booking.hasValue()) {
+    @let b = booking.value();
+    <h1>
+      Reserva <span class="code">{{ shortId(b.id) }}</span>
+    </h1>
+
+    <section class="card" aria-labelledby="resumo-titulo">
+      <h2 id="resumo-titulo">
+        Resumo · {{ b.passengers }} {{ b.passengers === 1 ? 'pessoa' : 'pessoas' }}
+      </h2>
+      <ul class="items">
+        @for (item of b.items; track $index) {
+          <li>
+            <strong>{{ itemLabels[item.type] }}:</strong> {{ item.description }}
+            <span class="muted">({{ item.startDate | date: 'dd/MM/yyyy' }})</span>
+          </li>
+        }
+      </ul>
+      <dl class="totals">
+        <dt>Subtotal</dt>
+        <dd>{{ b.subtotal | currency: b.currency }}</dd>
+        @if (b.discount > 0) {
+          <dt>Desconto</dt>
+          <dd>− {{ b.discount | currency: b.currency }}</dd>
+        }
+        <dt>Taxa de serviço</dt>
+        <dd>{{ b.serviceFee | currency: b.currency }}</dd>
+        <dt class="total">Total</dt>
+        <dd class="total">{{ b.total | currency: b.currency }}</dd>
+      </dl>
+    </section>
+
+    @switch (b.status) {
+      @case ('PENDING_PAYMENT') {
+        <form class="card pay" (ngSubmit)="pay()">
+          <p>
+            Seus lugares ficam guardados até
+            <strong>{{ b.expiresAt | date: "dd/MM/yyyy 'às' HH:mm" }}</strong>. Depois disso, a
+            reserva é cancelada se não houver pagamento.
+          </p>
+          <fieldset>
+            <legend>Como você quer pagar?</legend>
+            @for (m of methods; track m) {
+              <label class="option">
+                <input
+                  type="radio"
+                  [id]="'metodo-' + m"
+                  name="metodo"
+                  [value]="m"
+                  [ngModel]="method()"
+                  (ngModelChange)="method.set($event)"
+                />
+                <span>
+                  <strong>{{ methodLabels[m] }}</strong>
+                  <span class="muted">
+                    @if (m === 'PIX') {
+                      Aprovação na hora, na maioria dos casos.
+                    } @else {
+                      À vista. Parcelamento em breve.
+                    }
+                  </span>
+                </span>
+              </label>
+            }
+          </fieldset>
+          @if (payError(); as message) {
+            <p class="alert" role="alert">{{ message }}</p>
+          }
+          <button type="submit" class="button" [disabled]="paying()">
+            {{ paying() ? 'Abrindo o pagamento…' : 'Ir para o pagamento seguro' }}
+          </button>
+          <p class="muted small">
+            Você será levado à página do Stripe. Os dados do cartão são digitados lá e nunca passam
+            pela Familhas.
+          </p>
+        </form>
+      }
+      @case ('CONFIRMED') {
+        <p class="status status--ok" role="status">
+          Pagamento confirmado. Sua viagem está reservada!
+        </p>
+        <p><a class="button" routerLink="/">Voltar para o início</a></p>
+      }
+      @case ('COMPLETED') {
+        <p class="status status--ok" role="status">
+          Viagem concluída. Obrigado por viajar com a Familhas!
+        </p>
+      }
+      @case ('CANCELLED') {
+        <p class="status status--warn" role="status">{{ cancellationText(b) }}</p>
+        @if (b.travelPackageId) {
+          <p>
+            <a class="button" [routerLink]="['/pacotes', b.travelPackageId]">Gerar nova cotação</a>
+          </p>
+        }
+      }
+    }
+  }
+</div>

@@ -26,6 +26,28 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/quote/quote.page').then((m) => m.QuotePage),
   },
   {
+    path: 'checkout/:id',
+    title: 'Pagamento | Familhas',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/checkout/checkout.page').then((m) => m.CheckoutPage),
+  },
+  {
+    path: 'checkout/:id/sucesso',
+    title: 'Confirmando pagamento | Familhas',
+    canActivate: [authGuard],
+    data: { outcome: 'sucesso' },
+    loadComponent: () =>
+      import('./pages/checkout/checkout-return.page').then((m) => m.CheckoutReturnPage),
+  },
+  {
+    path: 'checkout/:id/cancelado',
+    title: 'Pagamento não concluído | Familhas',
+    canActivate: [authGuard],
+    data: { outcome: 'cancelado' },
+    loadComponent: () =>
+      import('./pages/checkout/checkout-return.page').then((m) => m.CheckoutReturnPage),
+  },
+  {
     path: '**',
     title: 'Página não encontrada | Familhas',
     loadComponent: () => import('./pages/not-found/not-found.page').then((m) => m.NotFoundPage),

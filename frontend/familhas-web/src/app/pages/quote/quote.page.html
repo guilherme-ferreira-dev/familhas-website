@@ -63,7 +63,20 @@
       </dl>
     </section>
 
+    @if (bookingError(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+
     <div class="actions">
+      @if (q.status === 'OPEN') {
+        <button type="button" class="button" (click)="reserve()" [disabled]="reserving()">
+          {{ reserving() ? 'Reservando…' : 'Reservar e pagar' }}
+        </button>
+      } @else if (q.status === 'BOOKED') {
+        <button type="button" class="button" (click)="reserve()" [disabled]="reserving()">
+          Ver minha reserva
+        </button>
+      }
       @if (q.travelPackageId) {
         <a class="button button--ghost" [routerLink]="['/pacotes', q.travelPackageId]"
           >Voltar ao pacote</a

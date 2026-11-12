@@ -101,7 +101,7 @@ services:
       context: ../backend/familhas-email
     image: familhas-email:local
     container_name: familhas-email
-    # Consumidor de eventos (ADR 0005): RabbitMQ -> idempotência no Oracle -> SMTP do MailHog.
+    # Consumidor de eventos (ADR 0005): RabbitMQ -> idempotência no Oracle -> SMTP (MailHog por padrão).
     environment:
       EMAIL_DB_URL: jdbc:oracle:thin:@//oracle:1521/${ORACLE_DATABASE:-FAMILHASPDB}
       EMAIL_DB_USERNAME: ${EMAIL_DB_USERNAME:-FAMILHAS_EMAIL}
@@ -110,10 +110,15 @@ services:
       RABBITMQ_PORT: 5672
       RABBITMQ_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
-      SMTP_HOST: mailhog
-      SMTP_PORT: 1025
+      # Padrão: MailHog. Para enviar de verdade (ex.: Gmail), preencha SMTP_* e EMAIL_FROM no .env da raiz
+      # e recrie o container: docker compose up -d --build familhas-email
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_AUTH: ${SMTP_AUTH:-false}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_DEBUG: ${SMTP_DEBUG:-false}
       EMAIL_FROM: ${EMAIL_FROM:-Familhas <nao-responda@familhas.com.br>}
     depends_on:
       oracle:

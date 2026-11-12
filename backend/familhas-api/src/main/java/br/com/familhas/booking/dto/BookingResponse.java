@@ -7,6 +7,8 @@ import java.util.UUID;
 
 import br.com.familhas.booking.BookingStatus;
 import br.com.familhas.booking.CancellationReason;
+import br.com.familhas.payment.PaymentMethod;
+import br.com.familhas.payment.PaymentStatus;
 import br.com.familhas.quote.dto.QuoteResponse;
 
 /**
@@ -35,8 +37,8 @@ public record BookingResponse(
     /** Pagamento mais recente da reserva. installments é sempre 1 (ADR 0008). */
     public record Payment(
             UUID id,
-            String method,
-            String status,
+            PaymentMethod method,
+            PaymentStatus status,
             int installments,
             BigDecimal amount,
             String currency,

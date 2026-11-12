@@ -4,6 +4,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Set;
 import java.util.UUID;
 
@@ -23,6 +25,8 @@ import br.com.familhas.common.Currencies;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.common.Pagination;
 import br.com.familhas.flight.FlightRepository;
+import br.com.familhas.payment.PaymentEntity;
+import br.com.familhas.payment.PaymentRepository;
 import br.com.familhas.provider.ProviderGateway;
 import br.com.familhas.provider.car.CarRentalProvider;
 import br.com.familhas.provider.flight.CuratedFlightProvider;
@@ -53,6 +57,7 @@ public class BookingService {
     private final QuoteRepository quoteRepository;
     private final BookingRepository bookingRepository;
     private final FlightRepository flightRepository;
+    private final PaymentRepository paymentRepository;
     private final ProviderGateway gateway;
     private final List<FlightProvider> flightProviders;
     private final List<HotelProvider> hotelProviders;
@@ -61,12 +66,14 @@ public class BookingService {
     private final Clock clock;
 
     public BookingService(QuoteRepository quoteRepository, BookingRepository bookingRepository,
-            FlightRepository flightRepository, ProviderGateway gateway, List<FlightProvider> flightProviders,
+            FlightRepository flightRepository, PaymentRepository paymentRepository, ProviderGateway gateway,
+            List<FlightProvider> flightProviders,
             List<HotelProvider> hotelProviders, List<CarRentalProvider> carProviders, BookingProperties properties,
             Clock clock) {
         this.quoteRepository = quoteRepository;
         this.bookingRepository = bookingRepository;
         this.flightRepository = flightRepository;
+        this.paymentRepository = paymentRepository;
         this.gateway = gateway;
         this.flightProviders = flightProviders;
         this.hotelProviders = hotelProviders;
@@ -123,15 +130,20 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public BookingResponse findForClient(UUID clientId, UUID bookingId) {
-        return bookingRepository.findByIdAndClientId(bookingId, clientId)
-                .map(BookingService::toResponse)
+        BookingEntity booking = bookingRepository.findByIdAndClientId(bookingId, clientId)
                 .orElseThrow(() -> notFound(bookingId));
+        return toResponse(booking, paymentRepository.findFirstByBookingIdOrderByCreatedAtDesc(bookingId)
+                .map(BookingService::toPayment).orElse(null));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<BookingSummaryResponse> findAllForClient(UUID clientId, Pageable pageable) {
         Pagination.validateSort(pageable, SORTABLE);
-        return PageResponse.of(bookingRepository.findByClientId(clientId, pageable), booking ->
+        var page = bookingRepository.findByClientId(clientId, pageable);
+        Map<UUID, PaymentEntity> latestPayments = page.isEmpty() ? Map.of()
+                : paymentRepository.findLatestByBookingIds(page.map(BookingEntity::getId).toList()).stream()
+                        .collect(Collectors.toMap(p -> p.getBooking().getId(), Function.identity(), (a, b) -> a));
+        return PageResponse.of(page, booking ->
                 new BookingSummaryResponse(
                         booking.getId(),
                         booking.getStatus(),
@@ -140,7 +152,8 @@ public class BookingService {
                         booking.getCurrency(),
                         booking.getTotalAmount(),
                         booking.getItems().isEmpty() ? null : booking.getItems().getFirst().getStartDate(),
-                        null,
+                        latestPayments.containsKey(booking.getId())
+                                ? latestPayments.get(booking.getId()).getStatus() : null,
                         booking.getCreatedAt()));
     }
 
@@ -208,6 +221,12 @@ public class BookingService {
                 booking.getCancellationReason(),
                 payment,
                 booking.getCreatedAt());
+    }
+
+    static BookingResponse.Payment toPayment(PaymentEntity payment) {
+        return new BookingResponse.Payment(payment.getId(), payment.getMethod(), payment.getStatus(),
+                payment.getInstallments(), payment.getAmount(), payment.getCurrency(), payment.getRefundedAmount(),
+                payment.getPaidAt());
     }
 
     static ResponseStatusException notFound(UUID bookingId) {

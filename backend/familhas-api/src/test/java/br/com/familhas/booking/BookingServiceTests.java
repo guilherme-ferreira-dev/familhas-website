@@ -32,6 +32,7 @@ import br.com.familhas.booking.dto.BookingResponse;
 import br.com.familhas.client.ClientEntity;
 import br.com.familhas.common.Money;
 import br.com.familhas.flight.FlightRepository;
+import br.com.familhas.payment.PaymentRepository;
 import br.com.familhas.pricing.PriceItemType;
 import br.com.familhas.provider.ProviderGateway;
 import br.com.familhas.provider.car.CarRentalProvider;
@@ -61,7 +62,7 @@ class BookingServiceTests {
 
     @BeforeEach
     void setUp() {
-        service = new BookingService(quotes, bookings, flights, gateway, flightProviders,
+        service = new BookingService(quotes, bookings, flights, mock(PaymentRepository.class), gateway, flightProviders,
                 List.of(mock(HotelProvider.class)), List.of(mock(CarRentalProvider.class)),
                 new BookingProperties(Duration.ofMinutes(30)), Clock.fixed(NOW, ZoneOffset.UTC));
         when(bookings.saveAndFlush(any(BookingEntity.class))).thenAnswer(i -> i.getArgument(0));

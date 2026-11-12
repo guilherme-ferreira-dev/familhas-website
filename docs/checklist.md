@@ -48,8 +48,8 @@ Decisões em [ADR 0005](adr/0005-mensageria-outbox-e-familhas-email.md).
 - [x] ADR 0005, README, infra/README e este checklist
 
 ### Critérios de aceite
-- [ ] `docker compose up` sobe toda a infraestrutura, incluindo o `familhas-email` (configurado; validação local em andamento)
-- [ ] Primeiro login cria o cliente, o evento sai pelo outbox e o e-mail de boas-vindas aparece no MailHog (coberto por Testcontainers nas duas pontas; validação manual com Keycloak real pendente)
+- [x] `docker compose up` sobe toda a infraestrutura, incluindo o `familhas-email`
+- [x] Primeiro login cria o cliente, o evento sai pelo outbox e o e-mail de boas-vindas aparece no MailHog (validado com Keycloak real; segundo login não gera outro e-mail)
 - [x] Reprocessar o mesmo `eventId` não envia o e-mail de novo
 - [x] Payload inválido ou falha permanente vai para a DLQ
 - [x] `./mvnw verify` passa em `backend/familhas-api` e `backend/familhas-email`
@@ -60,4 +60,4 @@ Decisões em [ADR 0005](adr/0005-mensageria-outbox-e-familhas-email.md).
 - [ ] Métricas de outbox e DLQ no Actuator (Fase 11)
 - [ ] Tela ou endpoint admin para reprocessar outbox `FAILED` e DLQ (Fase 10)
 - [ ] Listener de eventos do Keycloak via SPI (evolução, se necessário)
-- [ ] Confiança da API no certificado self-signed do Keycloak local (truststore), necessária para validar JWT fora dos testes; lacuna herdada da Fase 3
+- [ ] Confiança da API no certificado self-signed do Keycloak local (truststore). Hoje há só o contorno manual no infra/README; lacuna herdada da Fase 3

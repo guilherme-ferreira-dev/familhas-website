@@ -84,6 +84,16 @@ Topologia e contrato em [docs/events/README.md](../docs/events/README.md). Decis
 ### Validar o onboarding ponta a ponta
 
 1. Suba a infra (`docker compose up -d --wait`) e a API (`cd backend/familhas-api && ./mvnw spring-boot:run`).
+   A API busca as chaves do Keycloak em `https://localhost:8443`, que usa certificado self-signed. Se a validação do token falhar com erro de certificado, rode a API confiando nele por meio de um truststore local (fora do repositório):
+
+   ```bash
+   keytool -exportcert -rfc -alias keycloak-local -keystore infra/keycloak/keystore/keystore.p12 -storepass changeit -file /tmp/kc.pem
+   cp "$(/usr/libexec/java_home -v 21)/lib/security/cacerts" /tmp/familhas-truststore.jks && chmod u+w /tmp/familhas-truststore.jks
+   keytool -importcert -noprompt -alias familhas-keycloak-local -file /tmp/kc.pem -keystore /tmp/familhas-truststore.jks -storepass changeit
+   JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/tmp/familhas-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit" ./mvnw spring-boot:run
+   ```
+
+   No Linux, troque `$(/usr/libexec/java_home -v 21)` pelo `JAVA_HOME` do JDK 21.
 2. Crie um usuário novo no realm `familhas` com e-mail verificado (console admin > Users > Add user, com **Email verified** ligado e uma senha em Credentials).
 3. Obtenha um token desse usuário (veja "Token para testes manuais") e chame `GET http://localhost:8080/api/me` com `Authorization: Bearer <token>`.
 4. Em até alguns segundos o e-mail "Boas-vindas à Familhas" aparece em `http://localhost:8025`.

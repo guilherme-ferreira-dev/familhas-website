@@ -8,6 +8,8 @@ import java.util.UUID;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.testcontainers.containers.GenericContainer;
+
 import com.stripe.Stripe;
 
 /**
@@ -18,7 +20,15 @@ public final class StripeEvents {
 
     public static final String WEBHOOK_SECRET = "whsec_test_familhas";
 
+    /** stripe-mock em Testcontainers: valida as chamadas contra a especificação OpenAPI do Stripe. */
+    public static final String STRIPE_MOCK_IMAGE = "stripe/stripe-mock:v0.206.0";
+    public static final int STRIPE_MOCK_PORT = 12111;
+
     private StripeEvents() {
+    }
+
+    public static String apiBase(GenericContainer<?> stripeMock) {
+        return "http://" + stripeMock.getHost() + ":" + stripeMock.getMappedPort(STRIPE_MOCK_PORT);
     }
 
     public static String sign(String payload, String secret, Instant at) {

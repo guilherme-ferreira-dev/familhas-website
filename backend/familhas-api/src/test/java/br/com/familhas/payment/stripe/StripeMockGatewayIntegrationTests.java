@@ -28,11 +28,9 @@ import br.com.familhas.payment.PaymentProperties;
 @Testcontainers(disabledWithoutDocker = true)
 class StripeMockGatewayIntegrationTests {
 
-    public static final String STRIPE_MOCK_IMAGE = "stripe/stripe-mock:v0.206.0";
-
     @Container
-    static GenericContainer<?> stripeMock = new GenericContainer<>(STRIPE_MOCK_IMAGE)
-            .withExposedPorts(12111)
+    static GenericContainer<?> stripeMock = new GenericContainer<>(StripeEvents.STRIPE_MOCK_IMAGE)
+            .withExposedPorts(StripeEvents.STRIPE_MOCK_PORT)
             .waitingFor(Wait.forListeningPort())
             .withStartupTimeout(Duration.ofMinutes(2));
 
@@ -41,12 +39,9 @@ class StripeMockGatewayIntegrationTests {
     @BeforeAll
     static void setUp() {
         gateway = new StripePaymentGateway(
-                new StripeProperties("sk_test_123", StripeEvents.WEBHOOK_SECRET, apiBase(stripeMock), null, null, 0),
+                new StripeProperties("sk_test_123", StripeEvents.WEBHOOK_SECRET, StripeEvents.apiBase(stripeMock), null,
+                        null, 0),
                 new PaymentProperties(null, null, null, null, null, null, 0));
-    }
-
-    public static String apiBase(GenericContainer<?> container) {
-        return "http://" + container.getHost() + ":" + container.getMappedPort(12111);
     }
 
     @Test

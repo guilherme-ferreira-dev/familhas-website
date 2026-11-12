@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://familhas.com.br/schemas/events/user-registered.v1.schema.json",
+  "title": "UserRegisteredEvent",
+  "description": "Cliente criado no primeiro login (KeycloakClientSyncService). Exchange familhas.events, routing key client.user-registered.v1.",
+  "type": "object",
+  "required": ["eventId", "userId", "email", "occurredAt", "schemaVersion"],
+  "properties": {
+    "eventId": {
+      "description": "Identificador único do evento. Chave de idempotência dos consumidores.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "userId": {
+      "description": "Id (UUID) do Client local na familhas-api. O sub do Keycloak não sai da API.",
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "email": {
+      "description": "E-mail verificado no Keycloak, em minúsculas. Dado pessoal: não registrar em log.",
+      "type": "string",
+      "format": "email",
+      "minLength": 3,
+      "maxLength": 180
+    },
+    "firstName": {
+      "description": "Primeiro nome (claim given_name, ou primeiro termo do claim name). Pode faltar. Dado pessoal.",
+      "type": ["string", "null"],
+      "maxLength": 100
+    },
+    "occurredAt": {
+      "description": "Instante da criação do cliente, ISO-8601 em UTC.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "schemaVersion": {
+      "description": "Versão do contrato. Mudanças compatíveis aumentam este número; incompatíveis criam a routing key .v2.",
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "additionalProperties": true
+}

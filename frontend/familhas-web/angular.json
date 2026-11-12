@@ -69,6 +69,10 @@
                 {
                   "replace": "src/mocks/start-mock-api.ts",
                   "with": "src/mocks/start-mock-api.mock.ts"
+                },
+                {
+                  "replace": "src/app/core/auth/provide-authentication.ts",
+                  "with": "src/app/core/auth/provide-authentication.mock.ts"
                 }
               ],
               "assets": [

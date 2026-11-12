@@ -24,6 +24,7 @@ import {
   roomOffers,
   travelPackages,
 } from './fixtures';
+import { MOCK_TOKEN_PREFIX } from './mock-token';
 
 /**
  * Handlers do MSW seguindo docs/api/familhas-api.yaml. Valem para qualquer host (`*`),
@@ -33,7 +34,6 @@ import {
  * - busca de voos com passengers=9 -> 503 (provedor fora do ar)
  * - cotação com passengers=8 -> 422 (combinação não precificável)
  */
-export const MOCK_TOKEN_PREFIX = 'mock-';
 const SERVICE_FEE_RATE = 0.05;
 const QUOTE_VALIDITY_MS = 24 * 60 * 60 * 1000;
 const BOOKING_PAYMENT_WINDOW_MS = 30 * 60 * 1000;

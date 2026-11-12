@@ -24,6 +24,10 @@ import br.com.familhas.booking.BookingRepository;
 import br.com.familhas.booking.BookingService;
 import br.com.familhas.booking.BookingStatus;
 import br.com.familhas.booking.CancellationReason;
+import br.com.familhas.client.ClientEntity;
+import br.com.familhas.messaging.OutboxService;
+import br.com.familhas.payment.event.PaymentConfirmedEvent;
+import br.com.familhas.payment.event.PaymentFailedEvent;
 import br.com.familhas.payment.PaymentNotification.Kind;
 import jakarta.persistence.EntityManager;
 
@@ -35,6 +39,7 @@ class PaymentNotificationProcessorTests {
     private final BookingRepository bookings = mock(BookingRepository.class);
     private final BookingService bookingService = mock(BookingService.class);
     private final PaymentGateway gateway = mock(PaymentGateway.class);
+    private final OutboxService outbox = mock(OutboxService.class);
     private final List<PaymentEntity> attempts = new ArrayList<>();
     private PaymentNotificationProcessor processor;
     private BookingEntity booking;
@@ -42,9 +47,14 @@ class PaymentNotificationProcessorTests {
 
     @BeforeEach
     void setUp() {
-        processor = new PaymentNotificationProcessor(payments, bookings, bookingService, gateway,
+        processor = new PaymentNotificationProcessor(payments, bookings, bookingService, gateway, outbox,
                 mock(EntityManager.class), Clock.fixed(NOW, ZoneOffset.UTC));
+        ClientEntity client = new ClientEntity();
+        client.setId(UUID.randomUUID());
+        client.setEmail("ana@exemplo.com");
+        client.setName("Ana Souza");
         booking = new BookingEntity();
+        booking.setClient(client);
         booking.setId(UUID.randomUUID());
         booking.setTotalAmount(new BigDecimal("7830.16"));
         booking.setCurrency("BRL");
@@ -62,6 +72,7 @@ class PaymentNotificationProcessorTests {
         assertThat(payment.getStripePaymentIntentId()).isEqualTo("pi_1");
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
         verify(gateway, never()).refund(any(), any());
+        verify(outbox).append(any(PaymentConfirmedEvent.class));
     }
 
     @Test
@@ -91,6 +102,7 @@ class PaymentNotificationProcessorTests {
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
         assertThat(booking.getStatus()).isEqualTo(BookingStatus.CANCELLED);
         verify(gateway).refund("pi_1", "refund:" + payment.getId());
+        verify(outbox, never()).append(any());
     }
 
     @Test
@@ -115,6 +127,7 @@ class PaymentNotificationProcessorTests {
 
         assertThat(booking.getConfirmedAt()).isEqualTo(confirmedAt);
         verify(gateway, never()).refund(any(), any());
+        verify(outbox).append(any(PaymentConfirmedEvent.class));
     }
 
     @Test
@@ -125,6 +138,20 @@ class PaymentNotificationProcessorTests {
                 payment.getId(), null, "pi_1", null, null, "BRL", "card_declined"));
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCEEDED);
+        verify(outbox, never()).append(any(PaymentFailedEvent.class));
+    }
+
+    @Test
+    void declineIsPublishedOncePerFailure() {
+        PaymentNotification declined = new PaymentNotification("evt_d", "payment_intent.payment_failed",
+                Kind.FAILED, payment.getId(), null, "pi_1", null, null, "BRL", "card_declined");
+
+        processor.apply(declined);
+        processor.apply(declined);
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(payment.getFailureCode()).isEqualTo("card_declined");
+        verify(outbox).append(any(PaymentFailedEvent.class));
     }
 
     @Test

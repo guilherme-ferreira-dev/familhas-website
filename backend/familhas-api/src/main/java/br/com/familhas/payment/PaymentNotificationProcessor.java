@@ -17,6 +17,9 @@ import br.com.familhas.booking.BookingRepository;
 import br.com.familhas.booking.BookingService;
 import br.com.familhas.booking.BookingStatus;
 import br.com.familhas.booking.CancellationReason;
+import br.com.familhas.messaging.OutboxService;
+import br.com.familhas.payment.event.PaymentConfirmedEvent;
+import br.com.familhas.payment.event.PaymentFailedEvent;
 import jakarta.persistence.EntityManager;
 
 /**
@@ -38,15 +41,18 @@ public class PaymentNotificationProcessor {
     private final BookingRepository bookingRepository;
     private final BookingService bookingService;
     private final PaymentGateway gateway;
+    private final OutboxService outboxService;
     private final EntityManager entityManager;
     private final Clock clock;
 
     public PaymentNotificationProcessor(PaymentRepository paymentRepository, BookingRepository bookingRepository,
-            BookingService bookingService, PaymentGateway gateway, EntityManager entityManager, Clock clock) {
+            BookingService bookingService, PaymentGateway gateway, OutboxService outboxService,
+            EntityManager entityManager, Clock clock) {
         this.paymentRepository = paymentRepository;
         this.bookingRepository = bookingRepository;
         this.bookingService = bookingService;
         this.gateway = gateway;
+        this.outboxService = outboxService;
         this.entityManager = entityManager;
         this.clock = clock;
     }
@@ -75,7 +81,11 @@ public class PaymentNotificationProcessor {
         switch (notification.kind()) {
             case SUCCEEDED -> succeeded(payment, booking, notification, now);
             case PROCESSING -> payment.markProcessing();
-            case FAILED -> payment.markFailed(notification.failureCode());
+            case FAILED -> {
+                if (payment.markFailed(notification.failureCode())) {
+                    outboxService.append(PaymentFailedEvent.of(payment, now));
+                }
+            }
             case SESSION_EXPIRED -> payment.markCanceled();
             case REFUNDED -> refunded(payment, booking, notification, now);
             case IGNORED -> { }
@@ -96,6 +106,7 @@ public class PaymentNotificationProcessor {
             return;
         }
         if (booking.confirm(now)) {
+            outboxService.append(PaymentConfirmedEvent.of(payment, now));
             expireOtherOpenSessions(payment, booking, now);
             return;
         }

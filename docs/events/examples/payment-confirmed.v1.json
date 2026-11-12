@@ -1,0 +1,15 @@
+{
+  "eventId": "6c3e8d2b-1a4f-4d9c-8b72-8f3a4e5d6c71",
+  "paymentId": "9a7e0000-0000-4000-8000-000000000001",
+  "bookingId": "8d0e4c7a-31b2-4f0f-9c64-5b0a2e7d4f10",
+  "clientId": "c11e0000-0000-4000-8000-0000000000aa",
+  "email": "ana.exemplo@familhas.com.br",
+  "firstName": "Ana",
+  "method": "PIX",
+  "installments": 1,
+  "amount": "7830.16",
+  "currency": "BRL",
+  "paidAt": "2026-11-12T15:12:41Z",
+  "occurredAt": "2026-11-12T15:12:42.001Z",
+  "schemaVersion": 1
+}

@@ -21,10 +21,12 @@ import br.com.familhas.api.BusinessException;
 import br.com.familhas.booking.dto.BookingRequest;
 import br.com.familhas.booking.dto.BookingResponse;
 import br.com.familhas.booking.dto.BookingSummaryResponse;
+import br.com.familhas.booking.event.BookingCreatedEvent;
 import br.com.familhas.common.Currencies;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.common.Pagination;
 import br.com.familhas.flight.FlightRepository;
+import br.com.familhas.messaging.OutboxService;
 import br.com.familhas.payment.PaymentEntity;
 import br.com.familhas.payment.PaymentRepository;
 import br.com.familhas.provider.ProviderGateway;
@@ -62,14 +64,15 @@ public class BookingService {
     private final List<FlightProvider> flightProviders;
     private final List<HotelProvider> hotelProviders;
     private final List<CarRentalProvider> carProviders;
+    private final OutboxService outboxService;
     private final BookingProperties properties;
     private final Clock clock;
 
     public BookingService(QuoteRepository quoteRepository, BookingRepository bookingRepository,
             FlightRepository flightRepository, PaymentRepository paymentRepository, ProviderGateway gateway,
             List<FlightProvider> flightProviders,
-            List<HotelProvider> hotelProviders, List<CarRentalProvider> carProviders, BookingProperties properties,
-            Clock clock) {
+            List<HotelProvider> hotelProviders, List<CarRentalProvider> carProviders, OutboxService outboxService,
+            BookingProperties properties, Clock clock) {
         this.quoteRepository = quoteRepository;
         this.bookingRepository = bookingRepository;
         this.flightRepository = flightRepository;
@@ -78,6 +81,7 @@ public class BookingService {
         this.flightProviders = flightProviders;
         this.hotelProviders = hotelProviders;
         this.carProviders = carProviders;
+        this.outboxService = outboxService;
         this.properties = properties;
         this.clock = clock;
     }
@@ -123,6 +127,7 @@ public class BookingService {
 
         quote.setStatus(QuoteStatus.BOOKED);
         BookingEntity saved = bookingRepository.saveAndFlush(booking);
+        outboxService.append(BookingCreatedEvent.of(saved, now));
         log.info("Reserva criada: bookingId={} quoteId={} heldSeats={}", saved.getId(), quote.getId(),
                 saved.getHeldSeats());
         return toResponse(saved);

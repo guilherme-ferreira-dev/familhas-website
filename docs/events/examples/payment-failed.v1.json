@@ -1,0 +1,14 @@
+{
+  "eventId": "7d4f9e3c-2b5a-4eac-9c83-9a4b5f6e7d82",
+  "paymentId": "9a7e0000-0000-4000-8000-000000000002",
+  "bookingId": "8d0e4c7a-31b2-4f0f-9c64-5b0a2e7d4f10",
+  "clientId": "c11e0000-0000-4000-8000-0000000000aa",
+  "email": "ana.exemplo@familhas.com.br",
+  "firstName": "Ana",
+  "method": "CREDIT_CARD",
+  "amount": "7830.16",
+  "currency": "BRL",
+  "failureCode": "insufficient_funds",
+  "occurredAt": "2026-11-12T15:05:10Z",
+  "schemaVersion": 1
+}

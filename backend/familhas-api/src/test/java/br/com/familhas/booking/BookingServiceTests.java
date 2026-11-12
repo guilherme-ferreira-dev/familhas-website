@@ -31,7 +31,9 @@ import br.com.familhas.booking.dto.BookingRequest;
 import br.com.familhas.booking.dto.BookingResponse;
 import br.com.familhas.client.ClientEntity;
 import br.com.familhas.common.Money;
+import br.com.familhas.booking.event.BookingCreatedEvent;
 import br.com.familhas.flight.FlightRepository;
+import br.com.familhas.messaging.OutboxService;
 import br.com.familhas.payment.PaymentRepository;
 import br.com.familhas.pricing.PriceItemType;
 import br.com.familhas.provider.ProviderGateway;
@@ -58,14 +60,19 @@ class BookingServiceTests {
     private final FlightRepository flights = mock(FlightRepository.class);
     private final ProviderGateway gateway = mock(ProviderGateway.class);
     private final List<FlightProvider> flightProviders = List.of(mock(FlightProvider.class));
+    private final OutboxService outbox = mock(OutboxService.class);
     private BookingService service;
 
     @BeforeEach
     void setUp() {
         service = new BookingService(quotes, bookings, flights, mock(PaymentRepository.class), gateway, flightProviders,
-                List.of(mock(HotelProvider.class)), List.of(mock(CarRentalProvider.class)),
+                List.of(mock(HotelProvider.class)), List.of(mock(CarRentalProvider.class)), outbox,
                 new BookingProperties(Duration.ofMinutes(30)), Clock.fixed(NOW, ZoneOffset.UTC));
-        when(bookings.saveAndFlush(any(BookingEntity.class))).thenAnswer(i -> i.getArgument(0));
+        when(bookings.saveAndFlush(any(BookingEntity.class))).thenAnswer(i -> {
+            BookingEntity saved = i.getArgument(0);
+            saved.setId(UUID.randomUUID());
+            return saved;
+        });
         when(gateway.findOffer(eq(flightProviders), any())).thenReturn(Optional.of(flightOffer(CURATED_OFFER, 10)));
     }
 
@@ -84,6 +91,7 @@ class BookingServiceTests {
         assertThat(booking.items()).singleElement().satisfies(i -> assertThat(i.type()).isEqualTo(PriceItemType.FLIGHT));
         assertThat(quote.getStatus()).isEqualTo(QuoteStatus.BOOKED);
         verify(flights).holdSeats(FLIGHT_ID, 2);
+        verify(outbox).append(any(BookingCreatedEvent.class));
     }
 
     @Test
@@ -135,6 +143,7 @@ class BookingServiceTests {
                 .isInstanceOfSatisfying(BusinessException.class,
                         ex -> assertThat(ex.code()).isEqualTo("SEATS_UNAVAILABLE"));
         verify(bookings, never()).saveAndFlush(any());
+        verify(outbox, never()).append(any());
     }
 
     @Test
@@ -186,7 +195,11 @@ class BookingServiceTests {
     private static QuoteEntity quote(QuoteStatus status, String currency, Instant expiresAt, String flightOfferId) {
         QuoteEntity quote = new QuoteEntity();
         quote.setId(QUOTE_ID);
-        quote.setClient(new ClientEntity());
+        ClientEntity client = new ClientEntity();
+        client.setId(CLIENT);
+        client.setEmail("ana@exemplo.com");
+        client.setName("Ana Souza");
+        quote.setClient(client);
         quote.setStatus(status);
         quote.setPassengers(2);
         quote.setCurrency(currency);

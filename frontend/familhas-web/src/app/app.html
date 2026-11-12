@@ -1,3 +1,8 @@
-<main id="conteudo">
+<a class="skip-link" href="#conteudo" (click)="skipToContent($event)">Pular para o conteúdo</a>
+<app-site-header />
+<main id="conteudo" #main tabindex="-1">
   <router-outlet />
 </main>
+<app-site-footer />
+<app-whatsapp-button />
+<app-notification-region />

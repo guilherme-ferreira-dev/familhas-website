@@ -32,6 +32,7 @@ import br.com.familhas.config.RestAuthenticationEntryPoint;
 import br.com.familhas.config.SecurityConfig;
 import br.com.familhas.enums.EntityStatus;
 import br.com.familhas.flight.FlightService;
+import br.com.familhas.flight.dto.FlightFilter;
 import br.com.familhas.hotel.HotelService;
 import br.com.familhas.hotel.RoomOfferService;
 import br.com.familhas.hotel.dto.HotelResponse;
@@ -64,6 +65,20 @@ class CatalogControllerTests {
     private CarRentalOfferService carRentalOfferService;
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    @Test
+    void flightsArePublicFilteredByRouteAndAlwaysActive() throws Exception {
+        when(flightService.findAll(any(), any())).thenReturn(new PageResponse<>(List.of(), 0, 20, 0, 0));
+        UUID origin = UUID.fromString("c1770000-0000-4000-8000-000000000001");
+
+        mockMvc.perform(get("/api/flights").param("status", "INACTIVE").param("originCityId", origin.toString()))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<FlightFilter> filter = ArgumentCaptor.forClass(FlightFilter.class);
+        verify(flightService).findAll(filter.capture(), any(Pageable.class));
+        assertThat(filter.getValue().status()).isEqualTo(EntityStatus.ACTIVE);
+        assertThat(filter.getValue().originCityId()).isEqualTo(origin);
+    }
 
     @Test
     void packagesArePublicAndAlwaysFilteredByActive() throws Exception {

@@ -104,7 +104,7 @@ public class CatalogController {
     public PageResponse<FlightResponse> flights(
             @Valid @ModelAttribute FlightFilter filter,
             @PageableDefault(size = 20, sort = "boardingDate", direction = Sort.Direction.ASC) Pageable pageable) {
-        return flightService.findAll(filter, pageable);
+        return flightService.findAll(filter.activeOnly(), pageable);
     }
 
     @GetMapping("/hotels")

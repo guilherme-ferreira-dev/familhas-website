@@ -13,23 +13,29 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import br.com.familhas.city.CityEntity;
+import br.com.familhas.common.Currencies;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.common.Pagination;
 import br.com.familhas.common.Specs;
 import br.com.familhas.flight.dto.FlightFilter;
 import br.com.familhas.flight.dto.FlightRequest;
 import br.com.familhas.flight.dto.FlightResponse;
+import jakarta.persistence.EntityManager;
 
 @Service
 @Transactional
 public class FlightService {
 
-    static final Set<String> SORTABLE = Set.of("boardingDate", "returnDate", "companyName", "createdAt", "updatedAt");
+    static final Set<String> SORTABLE = Set.of("boardingDate", "returnDate", "companyName", "pricePerPassenger",
+            "createdAt", "updatedAt");
 
     private final FlightRepository flightRepository;
+    private final EntityManager entityManager;
 
-    public FlightService(FlightRepository flightRepository) {
+    public FlightService(FlightRepository flightRepository, EntityManager entityManager) {
         this.flightRepository = flightRepository;
+        this.entityManager = entityManager;
     }
 
     @Transactional(readOnly = true)
@@ -53,6 +59,15 @@ public class FlightService {
             // Fim do dia inclusivo: < dia seguinte 00:00
             LocalDateTime toExclusive = filter.departureTo().plusDays(1).atStartOfDay();
             specs.add((root, query, cb) -> cb.lessThan(root.<LocalDateTime>get("boardingDate"), toExclusive));
+        }
+        if (filter.originCityId() != null) {
+            specs.add((root, query, cb) -> cb.equal(root.get("origin").get("id"), filter.originCityId()));
+        }
+        if (filter.destinationCityId() != null) {
+            specs.add((root, query, cb) -> cb.equal(root.get("destination").get("id"), filter.destinationCityId()));
+        }
+        if (filter.status() != null) {
+            specs.add((root, query, cb) -> cb.equal(root.get("status"), filter.status()));
         }
         if (Specs.hasText(filter.q())) {
             specs.add(Specs.containsIgnoreCase("companyName", filter.q()));
@@ -90,6 +105,10 @@ public class FlightService {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST, "returnDate must be after boardingDate");
         }
+        if (request.originCityId().equals(request.destinationCityId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "originCityId and destinationCityId must be different");
+        }
     }
 
     private FlightEntity getFlightOrThrow(UUID id) {
@@ -103,6 +122,20 @@ public class FlightService {
         flight.setReturnDate(request.returnDate());
         flight.setBoardingAirport(request.boardingAirport().trim());
         flight.setReturnAirport(request.returnAirport().trim());
+        flight.setOrigin(findCity(request.originCityId()));
+        flight.setDestination(findCity(request.destinationCityId()));
+        flight.setPricePerPassenger(request.pricePerPassenger());
+        flight.setCurrency(Currencies.resolve(request.currency(), flight.getCurrency()));
+        flight.setSeatsAvailable(request.seatsAvailable());
+        flight.setStatus(request.status());
+    }
+
+    private CityEntity findCity(UUID id) {
+        CityEntity city = entityManager.find(CityEntity.class, id);
+        if (city == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "City not found: " + id);
+        }
+        return city;
     }
 
     private FlightResponse toResponse(FlightEntity flight) {
@@ -112,7 +145,13 @@ public class FlightService {
                 flight.getBoardingDate(),
                 flight.getReturnDate(),
                 flight.getBoardingAirport(),
-                flight.getReturnAirport());
+                flight.getReturnAirport(),
+                flight.getOrigin().getId(),
+                flight.getDestination().getId(),
+                flight.getPricePerPassenger(),
+                flight.getCurrency(),
+                flight.getSeatsAvailable(),
+                flight.getStatus());
     }
 }
 

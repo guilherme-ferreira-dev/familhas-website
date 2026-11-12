@@ -105,7 +105,7 @@ class OracleMigrationIntegrationTests {
     void seedIsAppliedWithUuidIds() {
         assertThat(categoryRepository.count()).isEqualTo(3);
         assertThat(cityRepository.count()).isEqualTo(6);
-        assertThat(flightRepository.count()).isEqualTo(3);
+        assertThat(flightRepository.count()).isEqualTo(4);
         assertThat(travelPackageRepository.count()).isEqualTo(2);
         assertThat(clientRepository.count()).isEqualTo(2);
         assertThat(ratingRepository.count()).isEqualTo(2);
@@ -205,6 +205,20 @@ class OracleMigrationIntegrationTests {
     void deletingPackageWithRatingsIsBlockedByForeignKey() {
         assertThatThrownBy(() -> travelPackageService.delete(PACKAGE_MACEIO))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void flightsHaveRoutePriceSeatsAndFutureDatesAfterV9() {
+        var gol = flightRepository.findById(FLIGHT_GOL).orElseThrow();
+
+        assertThat(gol.getOrigin().getId()).isEqualTo(CITY_SAO_PAULO);
+        assertThat(gol.getDestination().getId()).isEqualTo(CITY_MACEIO);
+        assertThat(gol.getPricePerPassenger()).isEqualByComparingTo("899.90");
+        assertThat(gol.getCurrency()).isEqualTo("BRL");
+        assertThat(gol.getSeatsAvailable()).isEqualTo(120);
+        assertThat(gol.getStatus()).isEqualTo(EntityStatus.ACTIVE);
+        assertThat(flightRepository.findAll()).allSatisfy(
+                flight -> assertThat(flight.getBoardingDate().getYear()).isGreaterThanOrEqualTo(2027));
     }
 
     @Test

@@ -52,10 +52,13 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 
 /**
- * Sobe um Oracle real, aplica as migrations V1..V6 via Flyway e valida o
+ * Sobe um Oracle real, aplica as migrations V1..V8 via Flyway e valida o
  * mapeamento JPA (ddl-auto=validate no profile local). Pulado sem Docker.
  */
-@SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
+@SpringBootTest(properties = {
+        "spring.jpa.properties.hibernate.generate_statistics=true",
+        // Sem RabbitMQ neste teste: o fluxo do outbox é coberto em OutboxMessagingIntegrationTests
+        "familhas.outbox.publisher-enabled=false" })
 @Testcontainers(disabledWithoutDocker = true)
 @Transactional
 class OracleMigrationIntegrationTests {
@@ -230,9 +233,9 @@ class OracleMigrationIntegrationTests {
     @Test
     void firstLoginLinksExistingClientByVerifiedEmail() {
         UUID first = keycloakClientSyncService.syncClientId(
-                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana"));
+                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana", "Ana"));
         UUID second = keycloakClientSyncService.syncClientId(
-                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana"));
+                new KeycloakClientSyncService.KeycloakUser("sub-ana-teste", "ana.souza@familhas.com", true, "Ana", "Ana"));
 
         assertThat(first).isEqualTo(second);
         assertThat(clientRepository.findByKeycloakId("sub-ana-teste"))

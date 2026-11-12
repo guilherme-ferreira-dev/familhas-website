@@ -1,5 +1,6 @@
 package br.com.familhas.client;
 
+import java.time.Clock;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -12,7 +13,9 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import br.com.familhas.client.event.UserRegisteredEvent;
 import br.com.familhas.enums.EntityStatus;
+import br.com.familhas.messaging.OutboxService;
 
 /**
  * Sincroniza o usuário do Keycloak com o Client local ("no primeiro login, criar o Client").
@@ -22,6 +25,9 @@ import br.com.familhas.enums.EntityStatus;
  * - sem conta local e com e-mail verificado, cria o Client;
  * - conta INACTIVE recebe 403.
  *
+ * Só a criação publica o UserRegisteredEvent (boas-vindas), gravado no outbox na mesma transação do Client:
+ * vincular um cadastro feito pelo Enéas não é um cadastro novo, e logins seguintes não geram evento.
+ *
  * Usa transação própria (REQUIRES_NEW) para o vínculo ficar gravado mesmo que a requisição falhe depois.
  */
 @Service
@@ -30,16 +36,22 @@ public class KeycloakClientSyncService {
     private static final Logger log = LoggerFactory.getLogger(KeycloakClientSyncService.class);
 
     private final ClientRepository clientRepository;
+    private final OutboxService outboxService;
+    private final Clock clock;
     private final TransactionTemplate transactionTemplate;
 
-    public KeycloakClientSyncService(ClientRepository clientRepository, PlatformTransactionManager transactionManager) {
+    public KeycloakClientSyncService(ClientRepository clientRepository, OutboxService outboxService, Clock clock,
+            PlatformTransactionManager transactionManager) {
         this.clientRepository = clientRepository;
+        this.outboxService = outboxService;
+        this.clock = clock;
         this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     /** Dados mínimos do token. Nada além disso é guardado (LGPD). */
-    public record KeycloakUser(String subject, String email, boolean emailVerified, String displayName) {
+    public record KeycloakUser(String subject, String email, boolean emailVerified, String displayName,
+            String givenName) {
     }
 
     /** Retorna o id do Client local vinculado ao usuário autenticado. */
@@ -94,6 +106,7 @@ public class KeycloakClientSyncService {
         created.setName(displayName(user.displayName(), email));
         created.setStatus(EntityStatus.ACTIVE);
         clientRepository.saveAndFlush(created);
+        outboxService.append(UserRegisteredEvent.of(created.getId(), email, firstName(user), clock.instant()));
         log.info("Cliente criado no primeiro login: clientId={}", created.getId());
         return created.getId();
     }
@@ -132,6 +145,17 @@ public class KeycloakClientSyncService {
             return null;
         }
         return email.trim().toLowerCase();
+    }
+
+    /** Claim given_name; sem ele, o primeiro termo do claim name. Pode ser nulo. */
+    static String firstName(KeycloakUser user) {
+        if (user.givenName() != null && !user.givenName().isBlank()) {
+            return user.givenName().trim();
+        }
+        if (user.displayName() != null && !user.displayName().isBlank()) {
+            return user.displayName().trim().split("\\s+")[0];
+        }
+        return null;
     }
 
     private static String displayName(String displayName, String email) {

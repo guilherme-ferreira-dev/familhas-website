@@ -1,6 +1,6 @@
 # Infra local
 
-Este diretório concentra o bootstrap da stack local da aplicação (`oracle`, `rabbitmq`, `keycloak` e `mailhog`) sem configuração manual no painel do Keycloak.
+Este diretório concentra o bootstrap da stack local da aplicação (`oracle`, `rabbitmq`, `keycloak`, `mailhog` e `familhas-email`) sem configuração manual no painel do Keycloak.
 
 ## Subida da infraestrutura
 
@@ -26,8 +26,9 @@ docker compose ps
 | RabbitMQ 3.13 | 5672 (AMQP), 15672 (painel) | `rabbitmq-diagnostics check_running` | volume `familhas_rabbitmq_data` |
 | Keycloak 26.4 | 8443 (HTTPS) | `GET /health/ready` na porta de gerenciamento 9000 | schema `KEYCLOAK` no Oracle |
 | MailHog | 1025 (SMTP), 8025 (UI) | `GET /` na UI | memória (descartável) |
+| familhas-email | 8081 (`/actuator/health`) | `GET /actuator/health` = `UP` (inclui banco, RabbitMQ e SMTP) | schema `FAMILHAS_EMAIL` no Oracle |
 
-O Keycloak depende do Oracle `healthy`. A porta 9000 do Keycloak não é publicada no host. Ela fica só na rede do Docker, em HTTP (`KC_HTTP_MANAGEMENT_SCHEME=http`), para o healthcheck funcionar sem curl na imagem.
+O Keycloak depende do Oracle `healthy`. O `familhas-email` depende de Oracle, RabbitMQ e MailHog `healthy`. A imagem dele é construída a partir de `backend/familhas-email/Dockerfile`; depois de mudar o código, rode `docker compose up -d --build familhas-email`. A porta 9000 do Keycloak não é publicada no host. Ela fica só na rede do Docker, em HTTP (`KC_HTTP_MANAGEMENT_SCHEME=http`), para o healthcheck funcionar sem curl na imagem.
 
 Para parar sem perder dados: `docker compose down`. Para zerar tudo, incluindo os bancos: `docker compose down -v`.
 
@@ -69,6 +70,52 @@ Os clients usam só authorization code + PKCE. Para testar com curl ou Postman, 
 - Se `infra/keycloak/keystore/keystore.p12` não existir, o script gera um keystore self-signed para uso local. O arquivo é ignorado pelo Git.
 - Porta exposta: `8443` (ou `KEYCLOAK_HTTPS_PORT` definida no `.env`).
 
+## Mensageria (Fase 4)
+
+Topologia e contrato em [docs/events/README.md](../docs/events/README.md). Decisões em [ADR 0005](../docs/adr/0005-mensageria-outbox-e-familhas-email.md).
+
+| Recurso no RabbitMQ | Declarado por | Para que serve |
+|---|---|---|
+| exchange `familhas.events` (topic) | API e familhas-email | eventos de integração |
+| exchange/fila `familhas.events.unrouted` | API | guarda o que foi publicado sem nenhuma fila ligada |
+| fila `familhas-email.user-registered` | familhas-email | boas-vindas (`client.user-registered.v1`) |
+| exchange `familhas.events.dlx` e fila `familhas-email.user-registered.dlq` | familhas-email | payload inválido, falha permanente ou retry esgotado |
+
+### Validar o onboarding ponta a ponta
+
+1. Suba a infra (`docker compose up -d --wait`) e a API (`cd backend/familhas-api && ./mvnw spring-boot:run`).
+   A API busca as chaves do Keycloak em `https://localhost:8443`, que usa certificado self-signed. Se a validação do token falhar com erro de certificado, rode a API confiando nele por meio de um truststore local (fora do repositório):
+
+   ```bash
+   keytool -exportcert -rfc -alias keycloak-local -keystore infra/keycloak/keystore/keystore.p12 -storepass changeit -file /tmp/kc.pem
+   cp "$(/usr/libexec/java_home -v 21)/lib/security/cacerts" /tmp/familhas-truststore.jks && chmod u+w /tmp/familhas-truststore.jks
+   keytool -importcert -noprompt -alias familhas-keycloak-local -file /tmp/kc.pem -keystore /tmp/familhas-truststore.jks -storepass changeit
+   JAVA_TOOL_OPTIONS="-Djavax.net.ssl.trustStore=/tmp/familhas-truststore.jks -Djavax.net.ssl.trustStorePassword=changeit" ./mvnw spring-boot:run
+   ```
+
+   No Linux, troque `$(/usr/libexec/java_home -v 21)` pelo `JAVA_HOME` do JDK 21.
+2. Crie um usuário novo no realm `familhas` com e-mail verificado (console admin > Users > Add user, com **Email verified** ligado e uma senha em Credentials).
+3. Obtenha um token desse usuário (veja "Token para testes manuais") e chame `GET http://localhost:8080/api/me` com `Authorization: Bearer <token>`.
+4. Em até alguns segundos o e-mail "Boas-vindas à Familhas" aparece em `http://localhost:8025`.
+5. Chamar `/api/me` de novo não gera outro e-mail.
+
+### Reprocessar
+
+- **Mensagem na DLQ:** corrija a causa e, no painel do RabbitMQ, abra a fila `familhas-email.user-registered.dlq` e use **Move messages** para `familhas-email.user-registered`. Um `eventId` que foi para a DLQ não fica marcado como processado, então o e-mail sai normalmente.
+- **Outbox `FAILED` na API** (broker fora por muito tempo): no schema da API, rode `UPDATE outbox_event SET status = 'PENDING', attempts = 0, available_at = SYSTIMESTAMP WHERE status = 'FAILED';` e faça `COMMIT`. O publisher retoma no próximo ciclo.
+
+### Volume do Oracle criado antes da Fase 4
+
+O usuário `FAMILHAS_EMAIL` é criado por `oracle/init/02-create-familhas-email-user.sh`, que só roda na criação do volume. Com um volume antigo, o `familhas-email` não sobe (falha de login no Oracle). Há duas opções:
+
+- zerar tudo: `docker compose down -v` e `docker compose up -d --wait` (apaga os dados locais);
+- ou criar o usuário no volume atual:
+
+  ```bash
+  docker compose exec oracle bash /container-entrypoint-initdb.d/02-create-familhas-email-user.sh
+  docker compose up -d familhas-email
+  ```
+
 ## Endpoints úteis para validação
 
 - Keycloak Admin Console: `https://localhost:8443`
@@ -76,9 +123,11 @@ Os clients usam só authorization code + PKCE. Para testar com curl ou Postman, 
 - Token endpoint: `https://localhost:8443/realms/familhas/protocol/openid-connect/token`
 - RabbitMQ: `http://localhost:15672` (guest/guest)
 - MailHog: `http://localhost:8025`
+- familhas-email: `http://localhost:8081/actuator/health`
 - API (com `mvnw spring-boot:run` em `backend/familhas-api`): `http://localhost:8080/actuator/health`
 
 ## Observação sobre Oracle
 
 - O Keycloak usa o mesmo Oracle, com usuário/schema dedicado (`KEYCLOAK` por padrão), criado via `infra/oracle/init/01-create-keycloak-user.sql`.
+- O `familhas-email` também tem usuário/schema dedicado (`FAMILHAS_EMAIL`), criado via `infra/oracle/init/02-create-familhas-email-user.sh` com a senha de `EMAIL_DB_PASSWORD`. Ele só tem permissão para criar as próprias tabelas.
 - Os scripts de `infra/oracle/init` só rodam na primeira criação do volume.

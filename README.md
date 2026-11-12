@@ -5,13 +5,16 @@ Plataforma da agência de viagens Familhas: **Loja** (busca, cotação, compra e
 ## Estrutura
 
 ```
-backend/familhas-api     API Spring Boot (Java 21), monólito modular
-infra/                   Docker Compose: Oracle, RabbitMQ, Keycloak, MailHog
+backend/familhas-api     API Spring Boot (Java 21), monólito modular, produtora de eventos (outbox)
+backend/familhas-email   Consumidor de eventos que envia e-mails transacionais (boas-vindas)
+infra/                   Docker Compose: Oracle, RabbitMQ, Keycloak, MailHog e familhas-email
 docs/adr/                Registro de decisões de arquitetura
-.github/workflows/       CI (build e testes)
+docs/events/             Contratos versionados dos eventos (JSON Schema)
+docs/checklist.md        Checklist das fases
+.github/workflows/       CI (build e testes de cada aplicação)
 ```
 
-Entram em fases futuras: `backend/familhas-email` (Fase 4), `frontend/familhas-web` (Fase 7) e `frontend/familhas-admin` (Fase 10).
+Entram em fases futuras: `frontend/familhas-web` (Fase 7) e `frontend/familhas-admin` (Fase 10).
 
 ## Pré-requisitos
 
@@ -22,7 +25,11 @@ Não é preciso instalar Maven: use o wrapper (`mvnw` / `mvnw.cmd`).
 
 ## Executando localmente
 
-1. Crie o arquivo `.env` na raiz a partir do `.env.example` e ajuste os valores. O `.env` é ignorado pelo Git.
+1. Crie o arquivo `.env` na raiz a partir do `.env.example`. O `.env` é ignorado pelo Git e nunca deve ser commitado. Variável vazia usa o padrão local do compose.
+
+   ```bash
+   cp .env.example .env
+   ```
 
 2. Suba a infraestrutura na raiz do repositório:
 
@@ -30,7 +37,9 @@ Não é preciso instalar Maven: use o wrapper (`mvnw` / `mvnw.cmd`).
    docker compose up -d --wait
    ```
 
-   O `--wait` só retorna quando Oracle, RabbitMQ, Keycloak e MailHog estão `healthy`. Na primeira execução o Oracle leva alguns minutos. Detalhes de Keycloak, HTTPS e usuários de teste estão em [infra/README.md](infra/README.md).
+   O `--wait` só retorna quando Oracle, RabbitMQ, Keycloak, MailHog e `familhas-email` estão `healthy`. Na primeira execução o Oracle leva alguns minutos e a imagem do `familhas-email` é construída a partir do código. Detalhes de Keycloak, HTTPS, filas e usuários de teste estão em [infra/README.md](infra/README.md).
+
+   Depois de mudar o código do `familhas-email`, reconstrua a imagem com `docker compose up -d --build familhas-email`.
 
 3. Rode a API:
 
@@ -46,17 +55,34 @@ Não é preciso instalar Maven: use o wrapper (`mvnw` / `mvnw.cmd`).
 
 ## Testes
 
+Cada aplicação tem o próprio build:
+
 ```bash
-cd backend/familhas-api
-./mvnw verify
+cd backend/familhas-api && ./mvnw verify
+cd backend/familhas-email && ./mvnw verify
 ```
+
+**familhas-api**
 
 | Teste | O que cobre | Requer Docker |
 |---|---|---|
 | `FamilhasApiApplicationTests` | Contexto Spring com profile `test` (H2) | Não |
-| `*ControllerTests` | Controllers (WebMvcTest): filtros, paginação, validação, 401/403/409 | Não |
-| `*ServiceTests`, `CommonUtilitiesTests` | Regras de serviço com Mockito, moeda, ordenação | Não |
-| `OracleMigrationIntegrationTests` | Migrations V1..V7, mapeamento JPA, seed, filtros, N+1, exclusão e vínculo com Keycloak em Oracle real (Testcontainers) | Sim (é pulado sem Docker) |
+| `*ControllerTests` | Controllers (WebMvcTest): filtros, paginação, validação, 401/403/409, claims do onboarding | Não |
+| `*ServiceTests`, `CommonUtilitiesTests` | Regras de serviço com Mockito, moeda, ordenação, evento no primeiro login | Não |
+| `Outbox*Tests` (unitários) | Gravação no outbox, publisher (lote, backoff, `FAILED`), propriedades AMQP | Não |
+| `UserRegisteredEventContractTests` | JSON publicado contra `docs/events/user-registered.v1.schema.json` | Não |
+| `OracleMigrationIntegrationTests` | Migrations V1..V8, mapeamento JPA, seed, filtros, N+1, exclusão e vínculo com Keycloak em Oracle real | Sim (é pulado sem Docker) |
+| `OutboxMessagingIntegrationTests` | Oracle + RabbitMQ: publicação com confirm, rollback, mensagem sem fila, evento só no primeiro login | Sim (é pulado sem Docker) |
+
+**familhas-email**
+
+| Teste | O que cobre | Requer Docker |
+|---|---|---|
+| `EmailSenderTests` | Envio UTF-8 e classificação de falhas SMTP (transitória x permanente) | Não |
+| `EventMessageReaderTests`, `IdempotentEventProcessorTests`, `WelcomeEmailServiceTests` | Validação do payload, idempotência e texto do e-mail | Não |
+| `UserRegisteredEventContractTests` | Consumidor contra o mesmo schema da API | Não |
+| `UserRegisteredFlowIntegrationTests` | Oracle + RabbitMQ + MailHog: e-mail entregue, reprocessamento sem duplicar, DLQ para payload inválido, logs sem dados pessoais | Sim (é pulado sem Docker) |
+| `EmailFailureHandlingIntegrationTests` | Retry com backoff, tentativas esgotadas e falha permanente indo para a DLQ, reprocessamento a partir da DLQ | Sim (é pulado sem Docker) |
 
 ## API: áreas e segurança
 
@@ -91,6 +117,17 @@ A resposta tem o formato `{ "content": [...], "page": 0, "size": 20, "totalEleme
 | `/flights` | departureFrom, departureTo (ISO), q | boardingDate, returnDate, companyName, createdAt, updatedAt |
 | `/clients` (só admin) | status, q (nome ou e-mail) | name, email, createdAt, updatedAt |
 | `/ratings` (só admin) | clientId, travelPackageId | rating, createdAt, updatedAt |
+
+## Mensageria e onboarding
+
+Detalhes em [ADR 0005](docs/adr/0005-mensageria-outbox-e-familhas-email.md) e contratos em [docs/events](docs/events/README.md).
+
+1. No primeiro acesso a `/api/me` de um usuário novo (e-mail verificado no Keycloak), a API cria o `Client` e grava o `UserRegisteredEvent` na tabela `outbox_event`, na mesma transação.
+2. O publisher do outbox envia o evento ao exchange `familhas.events` (routing key `client.user-registered.v1`) e só marca como publicado depois do confirm do RabbitMQ.
+3. O `familhas-email` consome a fila `familhas-email.user-registered`, valida o payload, registra o `eventId` em `processed_event` e envia as boas-vindas pelo SMTP (MailHog em `http://localhost:8025`).
+4. A mesma mensagem reentregue não gera um segundo e-mail. Payload inválido e falha permanente vão para `familhas-email.user-registered.dlq`.
+
+Vincular um cliente já cadastrado pelo Enéas e logins seguintes não geram evento. Os logs usam só `eventId` e `correlationId`, sem e-mail ou nome (LGPD).
 
 ## IDs
 

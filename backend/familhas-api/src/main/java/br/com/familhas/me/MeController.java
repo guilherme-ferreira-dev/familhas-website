@@ -105,6 +105,7 @@ public class MeController {
                 jwt.getSubject(),
                 jwt.getClaimAsString("email"),
                 emailVerified,
-                displayName));
+                displayName,
+                jwt.getClaimAsString("given_name")));
     }
 }

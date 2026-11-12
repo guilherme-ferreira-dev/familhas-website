@@ -38,3 +38,6 @@ build/
 *.jks
 infra/keycloak/keystore/*
 !infra/keycloak/keystore/.gitkeep
+
+### macOS ###
+.DS_Store

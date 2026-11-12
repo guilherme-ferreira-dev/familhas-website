@@ -7,6 +7,9 @@ services:
       ORACLE_DATABASE: ${ORACLE_DATABASE:-FAMILHASPDB}
       APP_USER: ${ORACLE_APP_USER:-familhas}
       APP_USER_PASSWORD: ${ORACLE_APP_USER_PASSWORD:-familhas123}
+      # Lidos por oracle/init/02-create-familhas-email-user.sh (schema próprio do familhas-email)
+      EMAIL_DB_USERNAME: ${EMAIL_DB_USERNAME:-FAMILHAS_EMAIL}
+      EMAIL_DB_PASSWORD: ${EMAIL_DB_PASSWORD:-familhas_email123}
     ports:
       - "${ORACLE_PORT:-1521}:1521"
     healthcheck:
@@ -93,6 +96,41 @@ services:
       interval: 20s
       timeout: 5s
       retries: 5
+  familhas-email:
+    build:
+      context: ../backend/familhas-email
+    image: familhas-email:local
+    container_name: familhas-email
+    # Consumidor de eventos (ADR 0005): RabbitMQ -> idempotência no Oracle -> SMTP do MailHog.
+    environment:
+      EMAIL_DB_URL: jdbc:oracle:thin:@//oracle:1521/${ORACLE_DATABASE:-FAMILHASPDB}
+      EMAIL_DB_USERNAME: ${EMAIL_DB_USERNAME:-FAMILHAS_EMAIL}
+      EMAIL_DB_PASSWORD: ${EMAIL_DB_PASSWORD:-familhas_email123}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+      SMTP_HOST: mailhog
+      SMTP_PORT: 1025
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Familhas <nao-responda@familhas.com.br>}
+    depends_on:
+      oracle:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailhog:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "${EMAIL_SERVER_PORT:-8081}:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/actuator/health | grep -q UP"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
 volumes:
   oracle_data:

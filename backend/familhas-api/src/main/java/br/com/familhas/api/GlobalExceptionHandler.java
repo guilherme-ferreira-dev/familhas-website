@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import br.com.familhas.provider.ProviderUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
@@ -58,6 +59,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "Operation conflicts with related records");
         problem.setTitle("Conflict");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return problem;
+    }
+
+    /** Provedor externo fora do ar, lento ou com circuito aberto (ADR 0006). */
+    @ExceptionHandler(ProviderUnavailableException.class)
+    public ProblemDetail handleProviderUnavailable(ProviderUnavailableException ex, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE,
+                "Fornecedor indisponivel no momento. Tente novamente em instantes.");
+        problem.setTitle("Service Unavailable");
+        problem.setProperty("provider", ex.provider());
         problem.setInstance(URI.create(request.getRequestURI()));
         return problem;
     }

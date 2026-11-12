@@ -61,3 +61,43 @@ Decisões em [ADR 0005](adr/0005-mensageria-outbox-e-familhas-email.md).
 - [ ] Tela ou endpoint admin para reprocessar outbox `FAILED` e DLQ (Fase 10)
 - [ ] Listener de eventos do Keycloak via SPI (evolução, se necessário)
 - [ ] Confiança da API no certificado self-signed do Keycloak local (truststore). Hoje há só o contorno manual no infra/README; lacuna herdada da Fase 3
+
+## Fase 5: Catálogo, busca e cálculo de pacote
+
+Decisões em [ADR 0006](adr/0006-provedores-preco-e-cotacao.md).
+
+### Voo e seed
+- [x] V9: origem, destino, preço por passageiro com moeda, assentos e status no voo
+- [x] Seed com datas futuras (2027) e voo Brasília -> Maceió
+- [x] CRUD admin e catálogo público de voos atualizados (só ativos na Loja)
+
+### Provedores
+- [x] Interfaces `FlightProvider`, `HotelProvider` e `CarRentalProvider`
+- [x] Adapters do catálogo curado e mock (desligado por padrão)
+- [x] Cache (Caffeine), timeout e circuit breaker (Resilience4j) por provedor, com resultado parcial
+- [ ] Adapter `HotelDoHotelProvider`: desenho no ADR 0006; depende de contrato, credenciais e documentação da HotelDO
+
+### Busca
+- [x] `/api/search/flights`, `/hotels`, `/cars` e `/packages` com origem, destino, datas, passageiros, faixa de preço e categoria
+- [x] Validação de datas (fuso de São Paulo), limites e Problem Details
+- [x] Ordenação e paginação com lista branca
+
+### Preço e cotação
+- [x] `PricingService`: soma dos componentes, margem configurável, promoção e taxa por passageiro
+- [x] Regras cobertas por testes parametrizados
+- [x] V10: `quotes` e `quote_items` com snapshot e validade
+- [x] `POST/GET /api/me/quotes` por pacote ou itens avulsos, só do próprio cliente
+- [x] Margem e custo por item não aparecem para o cliente
+
+### Testes e validação
+- [x] Unitários nos services, WebMvcTest nos controllers e Testcontainers (Oracle) em busca e cotação
+- [x] `./mvnw verify` passa em `backend/familhas-api`
+- [x] Migração V9 e V10 validada sobre o banco local existente (V8) e fluxo busca -> cotação validado com token real
+
+### Pendências documentadas (fora da Fase 5)
+- [ ] Margem e taxas reais definidas pelo Enéas (hoje 10% e R$ 0,00)
+- [ ] Alinhar o preço de vitrine dos pacotes com os componentes (Admin, Fase 10)
+- [ ] Provedores reais de voos (Duffel ou Amadeus) e carros (Rentcars)
+- [ ] Disponibilidade por data no catálogo curado de hotéis e carros
+- [ ] Reserva de assento e reverificação de disponibilidade (Fase 6)
+- [ ] Retenção de cotações expiradas (Fase 11)

@@ -65,6 +65,20 @@
                 {
                   "replace": "src/environments/environment.ts",
                   "with": "src/environments/environment.mock.ts"
+                },
+                {
+                  "replace": "src/mocks/start-mock-api.ts",
+                  "with": "src/mocks/start-mock-api.mock.ts"
+                }
+              ],
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "public"
+                },
+                {
+                  "glob": "**/*",
+                  "input": "mock-public"
                 }
               ]
             }

@@ -1,7 +1,6 @@
 package br.com.familhas.me;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
@@ -97,15 +96,6 @@ public class MeController {
     }
 
     private UUID syncClient(Jwt jwt) {
-        Map<String, Object> claims = jwt.getClaims();
-        Object verified = claims.get("email_verified");
-        boolean emailVerified = Boolean.TRUE.equals(verified) || "true".equals(String.valueOf(verified));
-        String displayName = jwt.getClaimAsString("name");
-        return keycloakClientSyncService.syncClientId(new KeycloakClientSyncService.KeycloakUser(
-                jwt.getSubject(),
-                jwt.getClaimAsString("email"),
-                emailVerified,
-                displayName,
-                jwt.getClaimAsString("given_name")));
+        return keycloakClientSyncService.syncClientId(KeycloakClientSyncService.KeycloakUser.fromJwt(jwt));
     }
 }

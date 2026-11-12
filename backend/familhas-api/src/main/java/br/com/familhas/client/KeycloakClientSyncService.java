@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -52,6 +53,14 @@ public class KeycloakClientSyncService {
     /** Dados mínimos do token. Nada além disso é guardado (LGPD). */
     public record KeycloakUser(String subject, String email, boolean emailVerified, String displayName,
             String givenName) {
+
+        /** Claims usados na sincronização: sub, email, email_verified, name e given_name. */
+        public static KeycloakUser fromJwt(Jwt jwt) {
+            Object verified = jwt.getClaims().get("email_verified");
+            boolean emailVerified = Boolean.TRUE.equals(verified) || "true".equals(String.valueOf(verified));
+            return new KeycloakUser(jwt.getSubject(), jwt.getClaimAsString("email"), emailVerified,
+                    jwt.getClaimAsString("name"), jwt.getClaimAsString("given_name"));
+        }
     }
 
     /** Retorna o id do Client local vinculado ao usuário autenticado. */

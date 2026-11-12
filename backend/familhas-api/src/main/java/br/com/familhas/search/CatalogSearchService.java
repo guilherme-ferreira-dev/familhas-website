@@ -165,7 +165,7 @@ public class CatalogSearchService {
     }
 
     /** Diárias de carro: devolução no mesmo dia conta 1 diária. */
-    static int rentalDays(LocalDate pickUp, LocalDate dropOff) {
+    public static int rentalDays(LocalDate pickUp, LocalDate dropOff) {
         int days = (int) Math.max(1, ChronoUnit.DAYS.between(pickUp, dropOff));
         if (days > MAX_RENTAL_DAYS) {
             throw badRequest("Rental cannot exceed " + MAX_RENTAL_DAYS + " days");
@@ -174,7 +174,7 @@ public class CatalogSearchService {
     }
 
     /** Quartos necessários para o grupo, arredondando para cima. */
-    static int roomsFor(int guests, int maxGuests) {
+    public static int roomsFor(int guests, int maxGuests) {
         return (guests + maxGuests - 1) / Math.max(1, maxGuests);
     }
 

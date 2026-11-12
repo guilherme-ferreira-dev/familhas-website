@@ -1,0 +1,632 @@
+openapi: 3.1.0
+info:
+  title: Familhas API - cotação, reserva e pagamento
+  version: 0.6.0
+  description: |
+    Contrato da Fase 6 (guia, seção 8; ADR 0007): cotação -> reserva (PENDING_PAYMENT) -> Stripe Checkout
+    hospedado -> webhook -> reserva CONFIRMED.
+
+    - As cotações (`/api/me/quotes`) já existem desde a Fase 5. Reserva, checkout e webhook entram na Fase 6.
+    - Este arquivo é da Fase 6. O catálogo e a busca ficam em `familhas-api.yaml`, mantido pela Fase 7.
+    - Dados de cartão nunca passam pela API: o cliente paga na página hospedada do Stripe.
+    - Dinheiro sempre em decimal com 2 casas e moeda ISO 4217 explícita. O pagamento só aceita BRL.
+    - Todo erro sai como Problem Details (RFC 7807, `application/problem+json`).
+
+    Fluxo na Loja:
+    1. `POST /api/me/quotes`: cotação com validade.
+    2. `POST /api/me/bookings` com `quoteId`: reserva `PENDING_PAYMENT`. Os assentos do voo ficam
+       bloqueados até `expiresAt` (30 min).
+    3. `POST /api/me/bookings/{id}/checkout-session` com o método: a API devolve `checkoutUrl` e o front redireciona.
+    4. O Stripe volta para `{FAMILHAS_WEB_BASE_URL}/checkout/{bookingId}/sucesso` ou `/cancelado`.
+       A volta não confirma nada: a confirmação chega por webhook, e o Pix é assíncrono.
+    5. O front consulta `GET /api/me/bookings/{id}` (polling, ex.: a cada 3 s por até 2 min, depois a cada 15 s)
+       até a reserva sair de `PENDING_PAYMENT`.
+servers:
+  - url: http://localhost:8080
+    description: familhas-api local
+tags:
+  - name: quotes
+    description: Cotações do cliente autenticado (Fase 5).
+  - name: bookings
+    description: Reservas e checkout do cliente autenticado (Fase 6).
+  - name: webhooks
+    description: Chamado só pelo Stripe. Não é usado pelo frontend.
+security:
+  - bearerAuth: []
+
+paths:
+  /api/me/quotes:
+    post:
+      tags: [quotes]
+      operationId: createQuote
+      summary: Cria uma cotação
+      description: |
+        Ou `travelPackageId` (o pacote define voo, hotel, carro e promoção), ou itens avulsos vindos da busca
+        (`offerId`). Os preços nunca vêm do cliente: são reconsultados no provedor.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteRequest' }
+      responses:
+        '201':
+          description: Cotação criada.
+          headers:
+            Location:
+              schema: { type: string, example: /api/me/quotes/3f6c2a1e-7b1d-4c55-9a0e-2d8b1f0c9e11 }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuoteResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    get:
+      tags: [quotes]
+      operationId: listQuotes
+      summary: Lista as cotações do cliente
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: sort
+          in: query
+          description: 'Campos: createdAt, expiresAt, totalAmount. Padrão: createdAt,desc.'
+          schema: { type: string, example: 'createdAt,desc' }
+      responses:
+        '200':
+          description: Página de cotações.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuoteSummaryPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/me/quotes/{id}:
+    get:
+      tags: [quotes]
+      operationId: getQuote
+      summary: Detalhe de uma cotação do cliente
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Cotação. O status vira EXPIRED quando passa de expiresAt.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuoteResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/me/bookings:
+    post:
+      tags: [bookings]
+      operationId: createBooking
+      summary: Cria a reserva a partir de uma cotação
+      description: |
+        Converte uma cotação `OPEN`, em BRL e do próprio cliente, numa reserva `PENDING_PAYMENT` com o snapshot
+        de preços da cotação. Reconsulta as ofertas no provedor e bloqueia os assentos do voo até `expiresAt`.
+
+        Uma cotação vira no máximo uma reserva. Repetir o POST com a mesma cotação devolve 409 com o
+        `bookingId` existente, que o front pode abrir em vez de criar outra.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BookingRequest' }
+      responses:
+        '201':
+          description: Reserva criada.
+          headers:
+            Location:
+              schema: { type: string, example: /api/me/bookings/8d0e4c7a-31b2-4f0f-9c64-5b0a2e7d4f10 }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Cotação inexistente ou de outro cliente.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '409':
+          description: |
+            Cotação expirada (`code` = QUOTE_EXPIRED) ou já convertida em reserva (`code` = QUOTE_ALREADY_BOOKED,
+            com `bookingId`).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/BookingConflictProblem' }
+              examples:
+                expired:
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    detail: A cotacao expirou. Gere uma nova cotacao.
+                    instance: /api/me/bookings
+                    code: QUOTE_EXPIRED
+                alreadyBooked:
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    detail: Esta cotacao ja virou reserva.
+                    instance: /api/me/bookings
+                    code: QUOTE_ALREADY_BOOKED
+                    bookingId: 8d0e4c7a-31b2-4f0f-9c64-5b0a2e7d4f10
+        '422':
+          description: |
+            Moeda diferente de BRL (`code` = CURRENCY_NOT_SUPPORTED), assentos insuficientes
+            (`code` = SEATS_UNAVAILABLE) ou oferta que não está mais disponível (`code` = OFFER_UNAVAILABLE).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/CodedProblem' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    get:
+      tags: [bookings]
+      operationId: listBookings
+      summary: Lista as reservas do cliente
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: sort
+          in: query
+          description: 'Campos: createdAt, totalAmount. Padrão: createdAt,desc.'
+          schema: { type: string, example: 'createdAt,desc' }
+      responses:
+        '200':
+          description: Página de reservas.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingSummaryPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/me/bookings/{id}:
+    get:
+      tags: [bookings]
+      operationId: getBooking
+      summary: Detalhe da reserva, com o pagamento mais recente
+      description: Endpoint de polling depois da volta do Stripe Checkout.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Reserva.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BookingResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/me/bookings/{id}/checkout-session:
+    post:
+      tags: [bookings]
+      operationId: createCheckoutSession
+      summary: Abre o Stripe Checkout para pagar a reserva
+      description: |
+        Só para reserva `PENDING_PAYMENT` dentro do prazo. Idempotente pelo domínio:
+
+        - já existe sessão aberta com o mesmo método: devolve a mesma (200);
+        - existe sessão aberta com outro método: a anterior é expirada no Stripe e uma nova é criada (201);
+        - o pagamento anterior falhou ou expirou: uma nova sessão é criada (201).
+
+        A sessão expira em 30 min (mínimo do Stripe). Enquanto houver sessão aberta ou Pix em processamento,
+        a reserva e os assentos continuam bloqueados, mesmo depois do `expiresAt` da reserva.
+        As URLs de retorno são montadas pela API (variável FAMILHAS_WEB_BASE_URL), nunca vêm do cliente.
+
+        Parcelamento no cartão não está disponível nesta versão (ADR 0008): o pagamento é sempre à vista.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CheckoutSessionRequest' }
+      responses:
+        '200':
+          description: Sessão aberta reaproveitada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckoutSessionResponse' }
+        '201':
+          description: Sessão criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckoutSessionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: |
+            Reserva fora de `PENDING_PAYMENT` (`code` = BOOKING_NOT_PAYABLE), prazo vencido
+            (`code` = BOOKING_EXPIRED) ou Pix já em processamento (`code` = PAYMENT_IN_PROGRESS).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/CodedProblem' }
+        '422':
+          description: Método de pagamento desabilitado nesta conta ou ambiente (`code` = PAYMENT_METHOD_UNAVAILABLE).
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/CodedProblem' }
+        '503':
+          description: Stripe indisponível. Tente novamente em instantes.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /api/webhooks/stripe:
+    post:
+      tags: [webhooks]
+      operationId: receiveStripeWebhook
+      summary: Eventos do Stripe (uso exclusivo do Stripe)
+      description: |
+        Rota pública, autenticada pela assinatura `Stripe-Signature` (HMAC com o webhook secret). O corpo é lido
+        cru, sem desserializar antes de validar. Processamento idempotente por `event.id`: um evento repetido
+        responde 200 sem efeito.
+
+        Eventos tratados:
+        - `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
+          `checkout.session.async_payment_failed`, `checkout.session.expired`;
+        - `payment_intent.processing`, `payment_intent.succeeded`, `payment_intent.payment_failed`;
+        - `charge.refunded`.
+
+        Outros tipos respondem 200 e são ignorados.
+      security: []
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema: { type: string, example: 't=1731420000,v1=5257a869e7ecebeda32affa62cdca3fa51cad7e77a0e56ff536d0ce8e108d8bd' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Objeto Event do Stripe.
+              required: [id, type, data]
+              properties:
+                id: { type: string, example: evt_1QAbCdEfGhIjKlMn }
+                type: { type: string, example: checkout.session.completed }
+                data: { type: object }
+      responses:
+        '200':
+          description: Evento processado, repetido ou ignorado.
+        '400':
+          description: Assinatura ausente ou inválida, ou payload ilegível.
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token do realm familhas (Keycloak), audiência familhas-api, ROLE_USER ou ROLE_ADMIN.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      description: Página, começando em 0.
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    BadRequest:
+      description: Requisição inválida. Erros de campo vêm em `errors`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ValidationProblem' }
+    Unauthorized:
+      description: Sem token ou token inválido.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Token sem ROLE_USER ou ROLE_ADMIN.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Recurso inexistente ou de outro cliente.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Unprocessable:
+      description: Regra de negócio violada (oferta indisponível, assentos insuficientes, moedas diferentes).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ServiceUnavailable:
+      description: Fornecedor indisponível.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+
+  schemas:
+    Problem:
+      type: object
+      description: Problem Details (RFC 7807).
+      properties:
+        type: { type: string, example: about:blank }
+        title: { type: string, example: Not Found }
+        status: { type: integer, example: 404 }
+        detail: { type: string }
+        instance: { type: string, example: /api/me/bookings/8d0e4c7a-31b2-4f0f-9c64-5b0a2e7d4f10 }
+    ValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties: { type: string }
+              example: { quoteId: must not be null }
+    CodedProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              description: Código estável para o front decidir a mensagem e a ação.
+              enum:
+                - QUOTE_EXPIRED
+                - QUOTE_ALREADY_BOOKED
+                - CURRENCY_NOT_SUPPORTED
+                - SEATS_UNAVAILABLE
+                - OFFER_UNAVAILABLE
+                - BOOKING_NOT_PAYABLE
+                - BOOKING_EXPIRED
+                - PAYMENT_IN_PROGRESS
+                - PAYMENT_METHOD_UNAVAILABLE
+    BookingConflictProblem:
+      allOf:
+        - $ref: '#/components/schemas/CodedProblem'
+        - type: object
+          properties:
+            bookingId:
+              type: string
+              format: uuid
+              description: Só com QUOTE_ALREADY_BOOKED.
+
+    Amount:
+      type: number
+      format: decimal
+      description: Decimal com 2 casas, serializado como número JSON.
+      multipleOf: 0.01
+      example: 7830.16
+    Currency:
+      type: string
+      pattern: '^[A-Z]{3}$'
+      example: BRL
+    ItemType:
+      type: string
+      enum: [FLIGHT, HOTEL_STAY, CAR_RENTAL]
+
+    QuoteRequest:
+      type: object
+      required: [passengers]
+      description: Informe travelPackageId ou ao menos um item avulso, nunca os dois.
+      properties:
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer, minimum: 1, maximum: 9 }
+        flight:
+          type: [object, 'null']
+          required: [offerId]
+          properties:
+            offerId: { type: string, maxLength: 500 }
+        hotel:
+          type: [object, 'null']
+          required: [offerId, checkIn, checkOut]
+          properties:
+            offerId: { type: string, maxLength: 500 }
+            checkIn: { type: string, format: date }
+            checkOut: { type: string, format: date }
+        car:
+          type: [object, 'null']
+          required: [offerId, pickUpDate, dropOffDate]
+          properties:
+            offerId: { type: string, maxLength: 500 }
+            pickUpDate: { type: string, format: date }
+            dropOffDate: { type: string, format: date }
+    QuoteItem:
+      type: object
+      required: [type, description, startDate, endDate, quantity]
+      properties:
+        type: { $ref: '#/components/schemas/ItemType' }
+        description: { type: string, example: GOL - BSB / MCZ }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        quantity: { type: integer, minimum: 1 }
+    QuoteResponse:
+      type: object
+      required: [id, status, passengers, items, currency, subtotal, discount, serviceFee, total, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [OPEN, EXPIRED, BOOKED]
+          description: BOOKED entra na Fase 6, quando a cotação vira reserva.
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/QuoteItem' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        subtotal: { $ref: '#/components/schemas/Amount' }
+        discount: { $ref: '#/components/schemas/Amount' }
+        serviceFee: { $ref: '#/components/schemas/Amount' }
+        total: { $ref: '#/components/schemas/Amount' }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    QuoteSummary:
+      type: object
+      required: [id, status, passengers, currency, total, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [OPEN, EXPIRED, BOOKED] }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        currency: { $ref: '#/components/schemas/Currency' }
+        total: { $ref: '#/components/schemas/Amount' }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    QuoteSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/QuoteSummary' }
+
+    BookingRequest:
+      type: object
+      required: [quoteId]
+      properties:
+        quoteId: { type: string, format: uuid }
+    BookingStatus:
+      type: string
+      enum: [PENDING_PAYMENT, CONFIRMED, CANCELLED, COMPLETED]
+      description: |
+        PENDING_PAYMENT -> CONFIRMED (pagamento aprovado) -> COMPLETED (viagem concluída).
+        PENDING_PAYMENT -> CANCELLED (prazo vencido sem pagamento). CONFIRMED -> CANCELLED (estorno total).
+    CancellationReason:
+      type: string
+      enum: [PAYMENT_EXPIRED, REFUNDED]
+    PaymentMethod:
+      type: string
+      enum: [PIX, CREDIT_CARD]
+    PaymentStatus:
+      type: string
+      enum: [PENDING, PROCESSING, SUCCEEDED, FAILED, CANCELED, REFUNDED, PARTIALLY_REFUNDED]
+      description: |
+        PENDING: sessão de checkout aberta. PROCESSING: Pix gerado, aguardando o pagamento.
+        SUCCEEDED: aprovado. FAILED: recusado (o cliente pode tentar de novo na mesma sessão ou abrir outra).
+        CANCELED: sessão expirou ou foi substituída. REFUNDED / PARTIALLY_REFUNDED: estorno total ou parcial.
+    PaymentSummary:
+      type: object
+      required: [id, method, status, installments, amount, currency]
+      properties:
+        id: { type: string, format: uuid }
+        method: { $ref: '#/components/schemas/PaymentMethod' }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        installments:
+          type: integer
+          const: 1
+          description: Sempre 1 nesta versão (ADR 0008).
+        amount: { $ref: '#/components/schemas/Amount' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        refundedAmount: { $ref: '#/components/schemas/Amount' }
+        paidAt: { type: [string, 'null'], format: date-time }
+    BookingResponse:
+      type: object
+      required: [id, status, quoteId, passengers, items, currency, subtotal, discount, serviceFee, total, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        quoteId: { type: string, format: uuid }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/QuoteItem' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        subtotal: { $ref: '#/components/schemas/Amount' }
+        discount: { $ref: '#/components/schemas/Amount' }
+        serviceFee: { $ref: '#/components/schemas/Amount' }
+        total: { $ref: '#/components/schemas/Amount' }
+        expiresAt:
+          type: string
+          format: date-time
+          description: Prazo para pagar. Depois dele, sem sessão aberta nem Pix em processamento, a reserva é cancelada.
+        confirmedAt: { type: [string, 'null'], format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        cancellationReason:
+          oneOf:
+            - $ref: '#/components/schemas/CancellationReason'
+            - type: 'null'
+        payment:
+          description: Pagamento mais recente, ou null se o checkout ainda não foi aberto.
+          oneOf:
+            - $ref: '#/components/schemas/PaymentSummary'
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+    BookingSummary:
+      type: object
+      required: [id, status, passengers, currency, total, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        currency: { $ref: '#/components/schemas/Currency' }
+        total: { $ref: '#/components/schemas/Amount' }
+        startDate:
+          type: [string, 'null']
+          format: date
+          description: Data do primeiro item da viagem.
+        paymentStatus:
+          oneOf:
+            - $ref: '#/components/schemas/PaymentStatus'
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+    BookingSummaryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content:
+              type: array
+              items: { $ref: '#/components/schemas/BookingSummary' }
+
+    CheckoutSessionRequest:
+      type: object
+      required: [paymentMethod]
+      properties:
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+    CheckoutSessionResponse:
+      type: object
+      required: [paymentId, paymentMethod, checkoutUrl, expiresAt]
+      properties:
+        paymentId: { type: string, format: uuid }
+        paymentMethod: { $ref: '#/components/schemas/PaymentMethod' }
+        checkoutUrl:
+          type: string
+          format: uri
+          description: URL da página hospedada do Stripe. O front só redireciona.
+          example: https://checkout.stripe.com/c/pay/cs_test_a1B2c3D4
+        expiresAt: { type: string, format: date-time }
+
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page: { type: integer, description: Começa em 0. }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }

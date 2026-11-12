@@ -52,10 +52,13 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 
 /**
- * Sobe um Oracle real, aplica as migrations V1..V6 via Flyway e valida o
+ * Sobe um Oracle real, aplica as migrations V1..V8 via Flyway e valida o
  * mapeamento JPA (ddl-auto=validate no profile local). Pulado sem Docker.
  */
-@SpringBootTest(properties = "spring.jpa.properties.hibernate.generate_statistics=true")
+@SpringBootTest(properties = {
+        "spring.jpa.properties.hibernate.generate_statistics=true",
+        // Sem RabbitMQ neste teste: o fluxo do outbox é coberto em OutboxMessagingIntegrationTests
+        "familhas.outbox.publisher-enabled=false" })
 @Testcontainers(disabledWithoutDocker = true)
 @Transactional
 class OracleMigrationIntegrationTests {

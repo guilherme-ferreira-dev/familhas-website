@@ -1,0 +1,135 @@
+<div class="container stack">
+  @if (notFound()) {
+    <h1>Pacote não encontrado</h1>
+    <p>Esse pacote pode ter esgotado ou saído do ar.</p>
+    <p><a routerLink="/busca" class="button">Ver outros pacotes</a></p>
+  } @else if (detail.error()) {
+    <h1>Pacote</h1>
+    <app-load-error [error]="detail.error()" (retry)="detail.reload()" />
+  } @else if (detail.isLoading()) {
+    <p class="muted" aria-busy="true">Carregando o pacote…</p>
+  } @else if (detail.hasValue()) {
+    @let d = detail.value();
+    <nav aria-label="Você está em" class="breadcrumb">
+      <a routerLink="/busca" [queryParams]="{ tipo: 'pacotes' }">Pacotes</a>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">{{ d.pkg.title }}</span>
+    </nav>
+
+    <div class="layout">
+      <article class="main">
+        <div class="media" aria-hidden="true">
+          @if (d.pkg.imageUrl) {
+            <img [src]="d.pkg.imageUrl" alt="" width="1280" height="720" />
+          }
+        </div>
+        <h1>{{ d.pkg.title }}</h1>
+        <p class="muted">
+          {{ cities.name(d.pkg.originCityId) }} → {{ cities.name(d.pkg.destinationCityId) }}
+        </p>
+
+        <h2>O que está incluído</h2>
+        <ul class="components">
+          <li class="card">
+            <h3>Voo de ida e volta</h3>
+            <p>
+              {{ d.flight.companyName }} · {{ d.flight.boardingAirport }} →
+              {{ d.flight.returnAirport }}
+            </p>
+            <p class="muted">
+              Ida {{ d.flight.boardingDate | date: "EEEE, dd/MM/yyyy 'às' HH:mm" }}
+              @if (d.flight.returnDate) {
+                <br />Volta {{ d.flight.returnDate | date: "EEEE, dd/MM/yyyy 'às' HH:mm" }}
+              }
+            </p>
+          </li>
+          @for (stay of d.stays; track stay.room.id) {
+            <li class="card">
+              <h3>Hospedagem</h3>
+              <p>
+                {{ stay.hotel.name }}
+                @if (stay.hotel.stars) {
+                  <span aria-label="{{ stay.hotel.stars }} estrelas">{{
+                    '★'.repeat(stay.hotel.stars)
+                  }}</span>
+                }
+              </p>
+              <p class="muted">
+                {{ stay.room.roomType }} · {{ boardLabels[stay.room.boardType] }}
+                @if (stay.quantity > 1) {
+                  · {{ stay.quantity }} quartos
+                }
+              </p>
+              @if (stay.hotel.description) {
+                <p>{{ stay.hotel.description }}</p>
+              }
+            </li>
+          }
+          @for (item of d.cars; track item.car.id) {
+            <li class="card">
+              <h3>Carro</h3>
+              <p>{{ item.car.carModel }} ({{ item.car.companyName }})</p>
+              <p class="muted">
+                {{ carLabels[item.car.carCategory] }} ·
+                {{ item.car.transmission === 'AUTOMATIC' ? 'Automático' : 'Manual' }}
+                @if (item.car.seats) {
+                  · {{ item.car.seats }} lugares
+                }
+              </p>
+            </li>
+          }
+        </ul>
+      </article>
+
+      <aside class="card summary" aria-labelledby="preco-titulo">
+        <h2 id="preco-titulo">Preço</h2>
+        <p class="price">
+          @if (d.pkg.pricePromotion !== null && d.pkg.pricePromotion !== undefined) {
+            <s class="muted"
+              ><span class="visually-hidden">De </span
+              >{{ d.pkg.price | currency: d.pkg.currency }}</s
+            >
+            <span class="visually-hidden"> por </span>
+          } @else {
+            <span class="muted">A partir de</span>
+          }
+          <strong>{{ pricePerPerson() | currency: d.pkg.currency }}</strong>
+          <span class="muted">por pessoa</span>
+        </p>
+
+        <div class="field">
+          <label for="pd-pessoas">Quantas pessoas?</label>
+          <select
+            id="pd-pessoas"
+            name="pessoas"
+            [ngModel]="passengers()"
+            (ngModelChange)="passengers.set(+$event)"
+          >
+            @for (n of passengerOptions; track n) {
+              <option [value]="n">{{ n }} {{ n === 1 ? 'pessoa' : 'pessoas' }}</option>
+            }
+          </select>
+        </div>
+
+        <p class="muted small">
+          O preço final, com taxas e disponibilidade confirmadas, sai na cotação. Ela vale por 24
+          horas.
+        </p>
+
+        @if (quoteError(); as message) {
+          <p class="alert" role="alert">{{ message }}</p>
+        }
+
+        <button type="button" class="button" (click)="requestQuote()" [disabled]="quoting()">
+          @if (quoting()) {
+            Calculando…
+          } @else if (auth.isAuthenticated()) {
+            Ver preço final
+          } @else {
+            Entrar e ver preço final
+          }
+        </button>
+      </aside>
+    </div>
+  }
+</div>

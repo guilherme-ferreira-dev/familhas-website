@@ -1,0 +1,74 @@
+<div class="container stack">
+  @if (quote.error()) {
+    <h1>Cotação</h1>
+    <app-load-error [error]="quote.error()" (retry)="quote.reload()" />
+  } @else if (quote.isLoading()) {
+    <p class="muted" aria-busy="true">Carregando a cotação…</p>
+  } @else if (quote.hasValue()) {
+    @let q = quote.value();
+    <h1>
+      Sua cotação <span class="code">{{ shortId(q.id) }}</span>
+    </h1>
+
+    @switch (q.status) {
+      @case ('OPEN') {
+        <p class="status status--open">
+          Válida até {{ q.expiresAt | date: "dd/MM/yyyy 'às' HH:mm" }}. Depois disso, os preços
+          podem mudar.
+        </p>
+      }
+      @case ('EXPIRED') {
+        <p class="status status--warn" role="status">
+          Esta cotação expirou. Gere uma nova para ver os preços atualizados.
+        </p>
+      }
+      @case ('BOOKED') {
+        <p class="status" role="status">Esta cotação já virou uma reserva.</p>
+      }
+    }
+
+    <section class="card" aria-labelledby="itens-titulo">
+      <h2 id="itens-titulo">
+        Itens · {{ q.passengers }} {{ q.passengers === 1 ? 'pessoa' : 'pessoas' }}
+      </h2>
+      <ul class="items">
+        @for (item of q.items; track $index) {
+          <li>
+            <strong>{{ itemLabels[item.type] }}</strong>
+            <span>{{ item.description }}</span>
+            <span class="muted">
+              {{ item.startDate | date: 'dd/MM/yyyy' }}
+              @if (item.endDate && item.endDate !== item.startDate) {
+                a {{ item.endDate | date: 'dd/MM/yyyy' }}
+              }
+            </span>
+          </li>
+        }
+      </ul>
+    </section>
+
+    <section class="card" aria-labelledby="valores-titulo">
+      <h2 id="valores-titulo">Valores</h2>
+      <dl class="totals">
+        <dt>Subtotal</dt>
+        <dd>{{ q.subtotal | currency: q.currency }}</dd>
+        @if (q.discount > 0) {
+          <dt>Desconto</dt>
+          <dd class="discount">− {{ q.discount | currency: q.currency }}</dd>
+        }
+        <dt>Taxa de serviço</dt>
+        <dd>{{ q.serviceFee | currency: q.currency }}</dd>
+        <dt class="total">Total</dt>
+        <dd class="total">{{ q.total | currency: q.currency }}</dd>
+      </dl>
+    </section>
+
+    <div class="actions">
+      @if (q.travelPackageId) {
+        <a class="button button--ghost" [routerLink]="['/pacotes', q.travelPackageId]"
+          >Voltar ao pacote</a
+        >
+      }
+    </div>
+  }
+</div>

@@ -1,5 +1,6 @@
 package br.com.familhas.rating;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -12,14 +13,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import br.com.familhas.api.BusinessException;
+import br.com.familhas.booking.BookingRepository;
 import br.com.familhas.client.ClientEntity;
+import br.com.familhas.common.BusinessTime;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.common.Pagination;
 import br.com.familhas.rating.dto.ClientRatingRequest;
+import br.com.familhas.rating.dto.MyRatingResponse;
 import br.com.familhas.rating.dto.RatingFilter;
 import br.com.familhas.rating.dto.RatingRequest;
 import br.com.familhas.rating.dto.RatingResponse;
 import br.com.familhas.travelPackage.TravelPackageEntity;
+import br.com.familhas.travelPackage.dto.PackageSummaryResponse;
 
 import jakarta.persistence.EntityManager;
 
@@ -30,11 +36,16 @@ public class RatingService {
     static final Set<String> SORTABLE = Set.of("rating", "createdAt", "updatedAt");
 
     private final RatingRepository ratingRepository;
+    private final BookingRepository bookingRepository;
     private final EntityManager entityManager;
+    private final Clock clock;
 
-    public RatingService(RatingRepository ratingRepository, EntityManager entityManager) {
+    public RatingService(RatingRepository ratingRepository, BookingRepository bookingRepository,
+            EntityManager entityManager, Clock clock) {
         this.ratingRepository = ratingRepository;
+        this.bookingRepository = bookingRepository;
         this.entityManager = entityManager;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -60,17 +71,24 @@ public class RatingService {
     }
 
     public RatingResponse create(RatingRequest request) {
-        assertUniqueRatingPerClientAndPackage(request.clientId(), request.travelPackageId(), null);
-        RatingEntity rating = new RatingEntity();
-        apply(rating, request);
-        return toResponse(ratingRepository.save(rating));
+        return toResponse(createEntity(request));
     }
 
     public RatingResponse update(UUID id, RatingRequest request) {
-        assertUniqueRatingPerClientAndPackage(request.clientId(), request.travelPackageId(), id);
-        RatingEntity rating = getRatingOrThrow(id);
+        return toResponse(updateEntity(getRatingOrThrow(id), request));
+    }
+
+    private RatingEntity createEntity(RatingRequest request) {
+        assertUniqueRatingPerClientAndPackage(request.clientId(), request.travelPackageId(), null);
+        RatingEntity rating = new RatingEntity();
         apply(rating, request);
-        return toResponse(ratingRepository.save(rating));
+        return ratingRepository.save(rating);
+    }
+
+    private RatingEntity updateEntity(RatingEntity rating, RatingRequest request) {
+        assertUniqueRatingPerClientAndPackage(request.clientId(), request.travelPackageId(), rating.getId());
+        apply(rating, request);
+        return ratingRepository.save(rating);
     }
 
     public void delete(UUID id) {
@@ -87,8 +105,8 @@ public class RatingService {
                     clientId, travelPackageId, excludeRatingId);
         }
         if (duplicate) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT, "Client already rated this travel package");
+            throw new BusinessException(HttpStatus.CONFLICT, "RATING_ALREADY_EXISTS",
+                    "O cliente ja avaliou este pacote.");
         }
     }
 
@@ -112,32 +130,53 @@ public class RatingService {
                 getReferenceOrThrow(TravelPackageEntity.class, request.travelPackageId(), "Travel package"));
     }
 
-    /** Avaliações do próprio cliente autenticado (/api/me/ratings). */
+    /** Avaliações do próprio cliente autenticado (/api/me/ratings), com o pacote resumido. */
     @Transactional(readOnly = true)
-    public PageResponse<RatingResponse> findAllForClient(UUID clientId, Pageable pageable) {
-        return findAll(new RatingFilter(clientId, null), pageable);
+    public PageResponse<MyRatingResponse> findAllForClient(UUID clientId, Pageable pageable) {
+        Pagination.validateSort(pageable, SORTABLE);
+        return PageResponse.of(ratingRepository.findByClient_Id(clientId, pageable), RatingService::toMyResponse);
     }
 
-    public RatingResponse createForClient(UUID clientId, ClientRatingRequest request) {
-        return create(new RatingRequest(request.rating(), clientId, request.travelPackageId()));
+    /** Só pacote de viagem passada do próprio cliente (ADR 0010, D5). */
+    public MyRatingResponse createForClient(UUID clientId, ClientRatingRequest request) {
+        assertTraveledWith(clientId, request.travelPackageId());
+        RatingEntity created = createEntity(new RatingRequest(request.rating(), clientId, request.travelPackageId()));
+        ratingRepository.flush();
+        return toMyResponse(created);
     }
 
     /** 404 (e não 403) quando a avaliação é de outro cliente: não revela existência. */
-    public RatingResponse updateForClient(UUID clientId, UUID ratingId, ClientRatingRequest request) {
-        assertOwnedByClient(ratingId, clientId);
-        return update(ratingId, new RatingRequest(request.rating(), clientId, request.travelPackageId()));
+    public MyRatingResponse updateForClient(UUID clientId, UUID ratingId, ClientRatingRequest request) {
+        RatingEntity rating = getOwnedOrThrow(ratingId, clientId);
+        if (!rating.getTravelPackage().getId().equals(request.travelPackageId())) {
+            assertTraveledWith(clientId, request.travelPackageId());
+        }
+        updateEntity(rating, new RatingRequest(request.rating(), clientId, request.travelPackageId()));
+        ratingRepository.flush();
+        return toMyResponse(rating);
     }
 
     public void deleteForClient(UUID clientId, UUID ratingId) {
-        assertOwnedByClient(ratingId, clientId);
-        delete(ratingId);
+        ratingRepository.delete(getOwnedOrThrow(ratingId, clientId));
     }
 
-    private void assertOwnedByClient(UUID ratingId, UUID clientId) {
-        RatingEntity rating = getRatingOrThrow(ratingId);
-        if (!rating.getClient().getId().equals(clientId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Rating not found: " + ratingId);
+    private void assertTraveledWith(UUID clientId, UUID travelPackageId) {
+        if (!bookingRepository.existsPastTrip(clientId, travelPackageId, BusinessTime.today(clock))) {
+            throw new BusinessException(HttpStatus.UNPROCESSABLE_ENTITY, "RATING_NOT_ALLOWED",
+                    "So e possivel avaliar pacotes de viagens ja realizadas.");
         }
+    }
+
+    private RatingEntity getOwnedOrThrow(UUID ratingId, UUID clientId) {
+        return ratingRepository.findById(ratingId)
+                .filter(rating -> rating.getClient().getId().equals(clientId))
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "RATING_NOT_FOUND",
+                        "Avaliacao nao encontrada: " + ratingId));
+    }
+
+    private static MyRatingResponse toMyResponse(RatingEntity rating) {
+        return new MyRatingResponse(rating.getId(), rating.getRating(),
+                PackageSummaryResponse.of(rating.getTravelPackage()), rating.getCreatedAt(), rating.getUpdatedAt());
     }
 
     private RatingResponse toResponse(RatingEntity rating) {

@@ -29,7 +29,7 @@ import br.com.familhas.client.dto.MeUpdateRequest;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.rating.RatingService;
 import br.com.familhas.rating.dto.ClientRatingRequest;
-import br.com.familhas.rating.dto.RatingResponse;
+import br.com.familhas.rating.dto.MyRatingResponse;
 
 import jakarta.validation.Valid;
 
@@ -72,19 +72,19 @@ public class MeController {
     }
 
     @GetMapping("/ratings")
-    public PageResponse<RatingResponse> ratings(@AuthenticationPrincipal Jwt jwt,
+    public PageResponse<MyRatingResponse> ratings(@AuthenticationPrincipal Jwt jwt,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return ratingService.findAllForClient(syncClient(jwt), pageable);
     }
 
     @PostMapping("/ratings")
-    public ResponseEntity<RatingResponse> createRating(@AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<MyRatingResponse> createRating(@AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid ClientRatingRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ratingService.createForClient(syncClient(jwt), request));
     }
 
     @PutMapping("/ratings/{id}")
-    public RatingResponse updateRating(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,
+    public MyRatingResponse updateRating(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,
             @RequestBody @Valid ClientRatingRequest request) {
         return ratingService.updateForClient(syncClient(jwt), id, request);
     }

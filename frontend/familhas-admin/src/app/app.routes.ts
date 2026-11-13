@@ -62,6 +62,43 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/quotes/quote-detail.page').then((m) => m.QuoteDetailPage),
       },
+      {
+        path: 'catalogo',
+        title: 'Catálogo',
+        loadComponent: () => import('./pages/catalog/catalog-shell').then((m) => m.CatalogShell),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'voos' },
+          {
+            path: 'promocoes',
+            title: 'Promoções',
+            loadComponent: () =>
+              import('./pages/catalog/promotions.page').then((m) => m.PromotionsPage),
+          },
+          {
+            path: 'margem',
+            title: 'Margem e taxa',
+            loadComponent: () => import('./pages/catalog/pricing.page').then((m) => m.PricingPage),
+          },
+          {
+            path: ':tipo',
+            title: 'Catálogo',
+            loadComponent: () =>
+              import('./pages/catalog/catalog-list.page').then((m) => m.CatalogListPage),
+          },
+          {
+            path: ':tipo/novo',
+            title: 'Novo item do catálogo',
+            loadComponent: () =>
+              import('./pages/catalog/catalog-form.page').then((m) => m.CatalogFormPage),
+          },
+          {
+            path: ':tipo/:id',
+            title: 'Editar item do catálogo',
+            loadComponent: () =>
+              import('./pages/catalog/catalog-form.page').then((m) => m.CatalogFormPage),
+          },
+        ],
+      },
       { path: '**', component: NotFoundPage, title: 'Página não encontrada' },
     ],
   },

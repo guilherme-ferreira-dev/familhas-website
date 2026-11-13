@@ -41,6 +41,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/bookings/booking-detail.page').then((m) => m.BookingDetailPage),
       },
+      {
+        path: 'pagamentos',
+        title: 'Pagamentos',
+        loadComponent: () => import('./pages/payments/payments.page').then((m) => m.PaymentsPage),
+      },
       { path: '**', component: NotFoundPage, title: 'Página não encontrada' },
     ],
   },

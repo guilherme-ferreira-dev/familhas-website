@@ -784,7 +784,11 @@ export interface components {
        */
       openQuotes: number;
     };
-    /** @description Ou `travelPackageId`, ou ao menos um item avulso (`flight`, `hotel`, `car`), nunca os dois. */
+    /**
+     * @description Ou `travelPackageId`, ou ao menos um item avulso (`flight`, `hotel`, `car`), nunca os dois.
+     *     O `offerId` de um item do catálogo curado é `curated:{id}` (id do voo, do quarto ou do carro em
+     *     `/api/admin/flights`, `/room-offers` e `/car-rental-offers`).
+     */
     ManualQuoteRequest: {
       /** Format: uuid */
       clientId: string;

@@ -1035,7 +1035,10 @@ components:
     ManualQuoteRequest:
       type: object
       required: [clientId, passengers]
-      description: Ou `travelPackageId`, ou ao menos um item avulso (`flight`, `hotel`, `car`), nunca os dois.
+      description: |
+        Ou `travelPackageId`, ou ao menos um item avulso (`flight`, `hotel`, `car`), nunca os dois.
+        O `offerId` de um item do catálogo curado é `curated:{id}` (id do voo, do quarto ou do carro em
+        `/api/admin/flights`, `/room-offers` e `/car-rental-offers`).
       properties:
         clientId: { type: string, format: uuid }
         passengers: { type: integer, minimum: 1, maximum: 9 }

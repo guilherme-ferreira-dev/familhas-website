@@ -46,6 +46,22 @@ export const routes: Routes = [
         title: 'Pagamentos',
         loadComponent: () => import('./pages/payments/payments.page').then((m) => m.PaymentsPage),
       },
+      {
+        path: 'cotacoes',
+        title: 'Cotações',
+        loadComponent: () => import('./pages/quotes/quotes.page').then((m) => m.QuotesPage),
+      },
+      {
+        path: 'cotacoes/nova',
+        title: 'Nova cotação manual',
+        loadComponent: () => import('./pages/quotes/new-quote.page').then((m) => m.NewQuotePage),
+      },
+      {
+        path: 'cotacoes/:id',
+        title: 'Cotação',
+        loadComponent: () =>
+          import('./pages/quotes/quote-detail.page').then((m) => m.QuoteDetailPage),
+      },
       { path: '**', component: NotFoundPage, title: 'Página não encontrada' },
     ],
   },

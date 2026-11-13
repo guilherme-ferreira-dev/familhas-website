@@ -1,10 +1,11 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideZonelessChangeDetection, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AuthService } from '../app/core/auth/auth.service';
 import { APP_CONFIG, AppConfig } from '../app/core/config/app-config';
+import { errorInterceptor } from '../app/core/errors/error.interceptor';
 import { provideLocale } from '../app/core/locale';
 
 export const API = 'http://api/api/admin';
@@ -17,12 +18,15 @@ export async function render<T>(
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(),
-      provideHttpClient(),
+      provideHttpClient(withInterceptors([errorInterceptor])),
       provideHttpClientTesting(),
       provideRouter([]),
       provideLocale(),
       { provide: APP_CONFIG, useValue: { apiBaseUrl: 'http://api' } as AppConfig },
-      { provide: AuthService, useValue: { getAccessToken: () => Promise.resolve('tok') } },
+      {
+        provide: AuthService,
+        useValue: { getAccessToken: () => Promise.resolve('tok'), login: () => undefined },
+      },
     ],
   });
   const fixture = TestBed.createComponent(component);

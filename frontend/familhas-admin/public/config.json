@@ -1,0 +1,8 @@
+{
+  "apiBaseUrl": "http://localhost:8080",
+  "oidc": {
+    "authority": "https://localhost:8443/realms/familhas",
+    "clientId": "familhas-admin",
+    "scope": "openid profile email"
+  }
+}

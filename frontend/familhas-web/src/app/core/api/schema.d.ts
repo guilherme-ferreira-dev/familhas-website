@@ -466,6 +466,10 @@ export interface components {
        */
       roles: string[];
       favoriteIds: string[];
+      /**
+       * @deprecated
+       * @description Legado (client_flights). Substituído por `GET /api/me/trips` (ADR 0010, D7).
+       */
       myFlightIds: string[];
     };
   };

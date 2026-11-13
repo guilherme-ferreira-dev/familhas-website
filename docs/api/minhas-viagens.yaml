@@ -76,7 +76,7 @@ paths:
       summary: Pacotes favoritos do cliente
       responses:
         '200':
-          description: Favoritos, do mais recente para o mais antigo.
+          description: Favoritos em ordem de título. Pacote que saiu do catálogo vem com `active` false.
           content:
             application/json:
               schema:

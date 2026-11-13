@@ -45,6 +45,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import br.com.familhas.admin.audit.AuditAction;
 import br.com.familhas.admin.audit.AuditEntry;
 import br.com.familhas.admin.audit.AuditService;
+import br.com.familhas.admin.payment.feed.PaymentFeedBroadcaster;
+import br.com.familhas.admin.payment.feed.PaymentFeedEvent;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.config.RestAccessDeniedHandler;
 import br.com.familhas.config.RestAuthenticationEntryPoint;
@@ -54,7 +56,7 @@ import br.com.familhas.payment.PaymentStatus;
 
 @WebMvcTest(AdminPaymentController.class)
 @Import({SecurityConfig.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class,
-        AdminPaymentControllerTests.FixedClock.class})
+        AdminPaymentControllerTests.FixedClock.class, PaymentFeedBroadcaster.class})
 class AdminPaymentControllerTests {
 
     @TestConfiguration
@@ -71,6 +73,7 @@ class AdminPaymentControllerTests {
     @MockitoBean private AdminPaymentService paymentService;
     @MockitoBean private JwtDecoder jwtDecoder;
     @MockitoBean private AuditService auditService;
+    @Autowired private PaymentFeedBroadcaster feed;
 
     @Test
     void bindsEveryFilterIncludingRepeatedStatus() throws Exception {
@@ -158,5 +161,22 @@ class AdminPaymentControllerTests {
                         .with(jwt().authorities(new SimpleGrantedAuthority("ROLE_USER"))))
                 .andExpect(status().isForbidden());
         verify(auditService, never()).record(any(), eq(null));
+    }
+
+    @Test
+    void streamSendsReadyAndThenEachPaymentEvent() throws Exception {
+        MvcResult started = mockMvc.perform(get("/api/admin/payments/stream").with(ADMIN))
+                .andExpect(request().asyncStarted())
+                .andReturn();
+        UUID paymentId = UUID.randomUUID();
+
+        feed.broadcast(new PaymentFeedEvent("PaymentConfirmed", paymentId, UUID.randomUUID(),
+                Instant.parse("2027-01-10T15:00:00Z")));
+
+        String body = started.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(started.getResponse().getContentType()).startsWith("text/event-stream");
+        assertThat(body).contains("event:ready").contains("event:payment").contains("id:" + paymentId)
+                .contains("\"eventType\":\"PaymentConfirmed\"");
+        assertThat(body).doesNotContain("@");
     }
 }

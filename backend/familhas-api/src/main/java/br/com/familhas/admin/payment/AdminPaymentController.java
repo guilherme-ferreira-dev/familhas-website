@@ -13,6 +13,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import br.com.familhas.admin.audit.AuditAction;
@@ -29,6 +31,7 @@ import br.com.familhas.admin.audit.AuditEntry;
 import br.com.familhas.admin.audit.AuditService;
 import br.com.familhas.admin.payment.export.PaymentExportFormat;
 import br.com.familhas.admin.payment.export.PaymentExportWriter;
+import br.com.familhas.admin.payment.feed.PaymentFeedBroadcaster;
 import br.com.familhas.common.BusinessTime;
 
 import br.com.familhas.common.PageResponse;
@@ -43,11 +46,14 @@ public class AdminPaymentController {
 
     private final AdminPaymentService paymentService;
     private final AuditService auditService;
+    private final PaymentFeedBroadcaster feed;
     private final Clock clock;
 
-    public AdminPaymentController(AdminPaymentService paymentService, AuditService auditService, Clock clock) {
+    public AdminPaymentController(AdminPaymentService paymentService, AuditService auditService,
+            PaymentFeedBroadcaster feed, Clock clock) {
         this.paymentService = paymentService;
         this.auditService = auditService;
+        this.feed = feed;
         this.clock = clock;
     }
 
@@ -55,6 +61,12 @@ public class AdminPaymentController {
     public PageResponse<AdminPaymentResponse> findAll(@Valid @ModelAttribute AdminPaymentFilter filter,
             @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         return paymentService.findAll(filter, pageable);
+    }
+
+    /** Avisos em tempo real (SSE) alimentados pelos eventos de pagamento. Ver docs/api/admin.yaml. */
+    @GetMapping(path = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream() {
+        return feed.subscribe();
     }
 
     @GetMapping("/{id}")

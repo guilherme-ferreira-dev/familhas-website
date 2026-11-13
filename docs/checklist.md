@@ -191,3 +191,40 @@ Decisões em [ADR 0009](adr/0009-frontend-da-loja.md). Rodou em paralelo à Fase
 - [ ] Minhas viagens e recomendação (Fase 8); chat (Fase 9)
 - [ ] SSR ou prerender para SEO, quando houver hospedagem definida
 - [ ] Imagens reais dos pacotes e categorias (hoje gradiente quando `imageUrl` é nulo)
+
+## Fase 8: Minhas viagens e recomendação
+
+Decisões em [ADR 0010](adr/0010-minhas-viagens-e-recomendacao.md). Contrato em [docs/api/minhas-viagens.yaml](api/minhas-viagens.yaml).
+
+### Decisões
+- [x] Trip derivada de `Booking` `CONFIRMED`/`COMPLETED`, sem tabela própria; id da viagem = id da reserva
+- [x] Futura x passada pela data do último item (America/Sao_Paulo) ou `COMPLETED`, sem job
+- [x] `client_flights`/`myFlights` mantido como legado e marcado `deprecated` no contrato
+- [x] Migration V13 só com o índice `bookings (client_id, status)` (numeração combinada com a Fase 10: V13/ADR 0010 x V14+/ADR 0011)
+
+### API (familhas-api)
+- [x] `GET /api/me/trips?when=UPCOMING|PAST` e `GET /api/me/trips/{id}` com itens, total, pagamento, parcelas e avaliação do cliente
+- [x] `GET`, `PUT` e `DELETE /api/me/favorites[/{packageId}]`, idempotentes; só pacote ativo
+- [x] `/api/me/ratings`: avaliação só de pacote de viagem passada; resposta com pacote resumido; erros com `code`
+- [x] `RecommendationService` (interface estável) + `RuleBasedRecommendationService` + `RecommendationRules` (função pura)
+- [x] `GET /api/me/recommendations?limit=` (1 a 20) com `reasons`
+- [x] DTOs em todas as respostas; erros em Problem Details com `code` (`TRIP_NOT_FOUND`, `PACKAGE_NOT_FOUND`, `RATING_*`)
+- [x] v2 (ML/embeddings) só documentada no ADR 0010
+
+### Loja (familhas-web)
+- [x] Página `/minhas-viagens` (authGuard, noindex): abas próximas/realizadas na URL, pagamento e parcelas, avaliação, favoritos, avaliações e sugestões
+- [x] Coração de favoritar no cartão e no detalhe do pacote (sem sessão leva ao login); link no cabeçalho e no fim do pagamento
+- [x] Tipos gerados do novo contrato; handlers MSW com as mesmas regras da API
+
+### Testes e validação
+- [x] Unitários e WebMvcTest: classificação por data, paginação, pagamento exibido, 401/403/404, favoritos, regras de avaliação, recomendação parametrizada
+- [x] Teste de contrato do `minhas-viagens.yaml`
+- [ ] `MinhasViagensIntegrationTests` (Oracle, HTTP com JWT, isolamento entre clientes) rodado nesta máquina: escrito, mas o Docker local não teve memória para um segundo Oracle (ver pendências)
+- [x] Loja: testes de tela com MSW (página, favoritos, detalhe do pacote), lint, formatação e build
+
+### Pendências documentadas (fora da Fase 8)
+- [ ] Rodar `MinhasViagensIntegrationTests` com memória suficiente no Docker (ou no CI)
+- [ ] Marcar `COMPLETED` (job ou Admin) e remover `client_flights`: decisão de fase futura
+- [ ] Afinidade de destino além do país (região/tags em `CityEntity`) e pesos da recomendação validados com o Enéas
+- [ ] Parcelamento real no cartão continua adiado (ADR 0008); a tela já mostra a lista de parcelas quando houver mais de uma
+

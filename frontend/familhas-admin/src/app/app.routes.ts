@@ -11,6 +11,15 @@ export const routes: Routes = [
     component: Shell,
     canActivate: [adminGuard],
     canActivateChild: [adminGuard],
-    children: [{ path: '**', component: NotFoundPage, title: 'Página não encontrada' }],
+    children: [
+      {
+        path: '',
+        pathMatch: 'full',
+        title: 'Dashboard',
+        loadComponent: () =>
+          import('./pages/dashboard/dashboard.page').then((m) => m.DashboardPage),
+      },
+      { path: '**', component: NotFoundPage, title: 'Página não encontrada' },
+    ],
   },
 ];

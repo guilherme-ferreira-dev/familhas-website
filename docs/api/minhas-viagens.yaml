@@ -1,0 +1,465 @@
+openapi: 3.1.0
+info:
+  title: Familhas API - minhas viagens, favoritos, avaliações e recomendação
+  version: 0.8.0
+  description: |
+    Contrato da Fase 8 (guia, seção 8; ADR 0010). Tudo aqui é do dono do token: o cliente vem sempre do claim
+    `sub`, nunca do corpo nem da URL. Recurso de outro cliente responde 404 (não revela existência).
+
+    - Viagem (`Trip`) é uma leitura da reserva `CONFIRMED` ou `COMPLETED`; o id da viagem é o id da reserva.
+      Passada: `COMPLETED` ou último dia (`endDate`) antes de hoje em America/Sao_Paulo. Futura: o resto
+      (`inProgress` indica que já começou).
+    - Parcelas: hoje sempre uma, à vista (ADR 0008). O status vale para o pagamento todo.
+    - Avaliação nova só para pacote de viagem passada do próprio cliente (`RATING_NOT_ALLOWED`).
+    - Recomendação v1 por regras, com `reasons` para explicar cada sugestão.
+    - Dinheiro sempre em decimal com 2 casas e moeda ISO 4217 explícita. Erros em Problem Details (RFC 7807).
+servers:
+  - url: http://localhost:8080
+    description: familhas-api local
+tags:
+  - name: trips
+    description: Viagens do cliente (reservas confirmadas ou concluídas).
+  - name: favorites
+    description: Pacotes favoritos do cliente.
+  - name: ratings
+    description: Avaliações feitas pelo cliente.
+  - name: recommendations
+    description: Pacotes sugeridos para o cliente.
+security:
+  - bearerAuth: []
+
+paths:
+  /api/me/trips:
+    get:
+      tags: [trips]
+      operationId: listTrips
+      summary: Viagens futuras ou passadas do cliente
+      description: Futuras em ordem de início crescente; passadas em ordem de fim decrescente.
+      parameters:
+        - name: when
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/TripTiming' }
+          description: Padrão `UPCOMING`.
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de viagens.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TripPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/me/trips/{id}:
+    get:
+      tags: [trips]
+      operationId: getTrip
+      summary: Uma viagem do cliente
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Viagem.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Trip' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/me/favorites:
+    get:
+      tags: [favorites]
+      operationId: listFavorites
+      summary: Pacotes favoritos do cliente
+      responses:
+        '200':
+          description: Favoritos, do mais recente para o mais antigo.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PackageSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/me/favorites/{packageId}:
+    parameters:
+      - $ref: '#/components/parameters/PackageIdPath'
+    put:
+      tags: [favorites]
+      operationId: addFavorite
+      summary: Favorita um pacote (idempotente)
+      responses:
+        '204': { description: Pacote está nos favoritos. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/CodedNotFound' }
+    delete:
+      tags: [favorites]
+      operationId: removeFavorite
+      summary: Tira um pacote dos favoritos (idempotente)
+      responses:
+        '204': { description: Pacote não está nos favoritos. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/me/ratings:
+    get:
+      tags: [ratings]
+      operationId: listMyRatings
+      summary: Avaliações do cliente
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - name: sort
+          in: query
+          schema: { type: string, default: 'createdAt,desc' }
+          description: '`rating`, `createdAt` ou `updatedAt`, com `,asc` ou `,desc`.'
+      responses:
+        '200':
+          description: Página de avaliações.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyRatingPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ratings]
+      operationId: createMyRating
+      summary: Avalia um pacote de viagem já realizada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientRatingRequest' }
+      responses:
+        '201':
+          description: Avaliação criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyRating' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/CodedNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+  /api/me/ratings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    put:
+      tags: [ratings]
+      operationId: updateMyRating
+      summary: Altera uma avaliação do cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientRatingRequest' }
+      responses:
+        '200':
+          description: Avaliação alterada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MyRating' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/CodedNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [ratings]
+      operationId: deleteMyRating
+      summary: Apaga uma avaliação do cliente
+      responses:
+        '204': { description: Avaliação apagada. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/CodedNotFound' }
+
+  /api/me/recommendations:
+    get:
+      tags: [recommendations]
+      operationId: listRecommendations
+      summary: Pacotes recomendados para o cliente (v1 por regras)
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 6 }
+      responses:
+        '200':
+          description: Recomendações, da mais para a menos relevante. Pode vir vazia.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Recommendation' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token do realm `familhas` (client `familhas-web`), com ROLE_USER ou ROLE_ADMIN.
+
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PackageIdPath:
+      name: packageId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      description: Página, começando em 0.
+      schema: { type: integer, minimum: 0, default: 0 }
+    Size:
+      name: size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    BadRequest:
+      description: Requisição inválida. Erros de campo vêm em `errors`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ValidationProblem' }
+    Unauthorized:
+      description: Sem token ou token inválido.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: Token sem ROLE_USER ou ROLE_ADMIN.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Recurso inexistente ou de outro cliente.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    CodedNotFound:
+      description: Pacote ou avaliação inexistente, inativo ou de outro cliente (`PACKAGE_NOT_FOUND`, `RATING_NOT_FOUND`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/CodedProblem' }
+    Conflict:
+      description: O cliente já avaliou esse pacote (`RATING_ALREADY_EXISTS`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/CodedProblem' }
+    Unprocessable:
+      description: Pacote sem viagem passada do cliente (`RATING_NOT_ALLOWED`).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/CodedProblem' }
+
+  schemas:
+    Problem:
+      type: object
+      description: Problem Details (RFC 7807).
+      properties:
+        type: { type: string, example: about:blank }
+        title: { type: string, example: Not Found }
+        status: { type: integer, example: 404 }
+        detail: { type: string }
+        instance: { type: string, example: /api/me/trips/8d0e4c7a-31b2-4f0f-9c64-5b0a2e7d4f10 }
+    ValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            errors:
+              type: object
+              additionalProperties: { type: string }
+              example: { rating: must be less than or equal to 5 }
+    CodedProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              description: Código estável para o front decidir a mensagem e a ação.
+              enum:
+                - PACKAGE_NOT_FOUND
+                - RATING_NOT_FOUND
+                - RATING_ALREADY_EXISTS
+                - RATING_NOT_ALLOWED
+
+    TripTiming:
+      type: string
+      enum: [UPCOMING, PAST]
+    TripStatus:
+      type: string
+      enum: [CONFIRMED, COMPLETED]
+      description: Status da reserva por trás da viagem.
+    ItemType:
+      type: string
+      enum: [FLIGHT, HOTEL_STAY, CAR_RENTAL]
+    PaymentMethod:
+      type: string
+      enum: [PIX, CREDIT_CARD]
+    PaymentStatus:
+      type: string
+      enum: [PENDING, PROCESSING, SUCCEEDED, FAILED, CANCELED, REFUNDED, PARTIALLY_REFUNDED]
+      description: Mesmo significado de `checkout.yaml`. Numa viagem, normalmente SUCCEEDED ou estorno.
+
+    PackageSummary:
+      type: object
+      description: Pacote resumido para cartões (favoritos, avaliações, recomendações e viagens).
+      required: [id, title, categoryId, categoryTitle, destinationCityId, destinationCityName, destinationCountry,
+        pricePerPerson, originalPricePerPerson, currency, active]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string, example: Maceio Resort All Inclusive - 7 noites }
+        imageUrl: { type: [string, 'null'] }
+        categoryId: { type: string, format: uuid }
+        categoryTitle: { type: string, example: Praia }
+        destinationCityId: { type: string, format: uuid }
+        destinationCityName: { type: string, example: Maceio }
+        destinationCountry: { type: string, example: Brasil }
+        departureAt: { type: [string, 'null'], format: date-time, description: Embarque do voo (horário local, sem fuso). }
+        returnAt: { type: [string, 'null'], format: date-time }
+        pricePerPerson: { type: number, format: decimal, example: 2799.90, description: Preço "a partir de", com promoção. }
+        originalPricePerPerson: { type: number, format: decimal, example: 3299.90 }
+        currency: { type: string, example: BRL }
+        active: { type: boolean, description: false quando o pacote saiu do catálogo. }
+
+    TripItem:
+      type: object
+      required: [type, description, startDate, endDate, quantity]
+      properties:
+        type: { $ref: '#/components/schemas/ItemType' }
+        description: { type: string, example: GOL - BSB / MCZ }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        quantity: { type: integer, minimum: 1 }
+    Installment:
+      type: object
+      required: [number, amount, currency]
+      properties:
+        number: { type: integer, minimum: 1 }
+        amount: { type: number, format: decimal }
+        currency: { type: string, example: BRL }
+    TripPayment:
+      type: object
+      required: [method, status, installments, amount, currency, refundedAmount, installmentPlan]
+      properties:
+        method: { $ref: '#/components/schemas/PaymentMethod' }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        installments: { type: integer, minimum: 1, description: Número de parcelas (hoje sempre 1). }
+        amount: { type: number, format: decimal }
+        currency: { type: string, example: BRL }
+        refundedAmount: { type: number, format: decimal }
+        paidAt: { type: [string, 'null'], format: date-time }
+        installmentPlan:
+          type: array
+          items: { $ref: '#/components/schemas/Installment' }
+    MyTripRating:
+      type: object
+      required: [id, rating]
+      properties:
+        id: { type: string, format: uuid }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+    Trip:
+      type: object
+      required: [id, status, timing, inProgress, title, passengers, items, currency, total, canRate]
+      properties:
+        id: { type: string, format: uuid, description: Id da reserva. }
+        status: { $ref: '#/components/schemas/TripStatus' }
+        timing: { $ref: '#/components/schemas/TripTiming' }
+        inProgress: { type: boolean, description: Futura que já começou (hoje entre o início e o fim). }
+        startDate: { type: [string, 'null'], format: date }
+        endDate: { type: [string, 'null'], format: date }
+        title: { type: string, description: Título do pacote ou descrição do primeiro item (reserva avulsa). }
+        passengers: { type: integer, minimum: 1 }
+        travelPackage:
+          oneOf:
+            - $ref: '#/components/schemas/PackageSummary'
+            - type: 'null'
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/TripItem' }
+        currency: { type: string, example: BRL }
+        total: { type: number, format: decimal }
+        confirmedAt: { type: [string, 'null'], format: date-time }
+        payment:
+          oneOf:
+            - $ref: '#/components/schemas/TripPayment'
+            - type: 'null'
+        myRating:
+          oneOf:
+            - $ref: '#/components/schemas/MyTripRating'
+            - type: 'null'
+        canRate: { type: boolean, description: Passada, com pacote e ainda sem avaliação do cliente. }
+    TripPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/Trip' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+
+    ClientRatingRequest:
+      type: object
+      required: [rating, travelPackageId]
+      properties:
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        travelPackageId: { type: string, format: uuid }
+    MyRating:
+      type: object
+      required: [id, rating, travelPackage]
+      properties:
+        id: { type: string, format: uuid }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        travelPackage: { $ref: '#/components/schemas/PackageSummary' }
+        createdAt: { type: [string, 'null'], format: date-time }
+        updatedAt: { type: [string, 'null'], format: date-time }
+    MyRatingPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/MyRating' }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+
+    RecommendationReason:
+      type: string
+      enum: [SIMILAR_CATEGORY, SIMILAR_DESTINATION, SEASONAL, HIGHLY_RATED, ON_PROMOTION]
+      description: |
+        SIMILAR_CATEGORY: categoria de viagens, favoritos ou avaliações boas. SIMILAR_DESTINATION: mesmo país.
+        SEASONAL: embarque perto da época em que o cliente costuma viajar. HIGHLY_RATED: média ≥ 4.
+        ON_PROMOTION: preço promocional.
+    Recommendation:
+      type: object
+      required: [travelPackage, score, reasons]
+      properties:
+        travelPackage: { $ref: '#/components/schemas/PackageSummary' }
+        score: { type: number, description: Pontuação v1 (só para ordenar; não comparar entre clientes). }
+        reasons:
+          type: array
+          items: { $ref: '#/components/schemas/RecommendationReason' }

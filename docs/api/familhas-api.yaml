@@ -608,4 +608,8 @@ components:
         status: { $ref: '#/components/schemas/EntityStatus' }
         roles: { type: array, items: { type: string }, examples: [[ROLE_USER]] }
         favoriteIds: { type: array, items: { type: string, format: uuid } }
-        myFlightIds: { type: array, items: { type: string, format: uuid } }
+        myFlightIds:
+          type: array
+          items: { type: string, format: uuid }
+          deprecated: true
+          description: Legado (client_flights). Substituído por `GET /api/me/trips` (ADR 0010, D7).

@@ -128,6 +128,10 @@ public class TravelPackageService {
         if (Specs.hasText(filter.q())) {
             specs.add(Specs.containsIgnoreCase("title", filter.q()));
         }
+        if (Boolean.TRUE.equals(filter.onPromotion())) {
+            specs.add((root, query, cb) -> cb.and(cb.isNotNull(root.get("pricePromotion")),
+                    cb.lessThan(root.<BigDecimal>get("pricePromotion"), root.<BigDecimal>get("price"))));
+        }
         return Specification.allOf(specs);
     }
 

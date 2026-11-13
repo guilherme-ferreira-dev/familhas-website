@@ -1,0 +1,1363 @@
+openapi: 3.1.0
+info:
+  title: Familhas API - Admin
+  version: 0.10.0
+  description: |
+    Contrato da Fase 10 (guia, seção 8; ADR 0011): tudo o que o `familhas-admin` consome.
+
+    - Só `/api/admin/**`, sempre com JWT do realm `familhas`, audiência `familhas-api` e `ROLE_ADMIN`.
+      Sem token: 401. Token sem `ROLE_ADMIN` (cliente comum): 403.
+    - Toda escrita em `/api/admin/**` e toda exportação ficam no log de auditoria (`/api/admin/audit-logs`).
+    - Listas paginadas no formato `{ content, page, size, totalElements, totalPages }`; `size` máximo 100;
+      ordenação só por campos da lista branca de cada recurso (fora dela: 400).
+    - Datas de filtro (`from`, `to`) são dias no fuso `America/Sao_Paulo`, ambos inclusivos.
+    - Dinheiro sempre em decimal com 2 casas e moeda ISO 4217 explícita.
+    - Erros como Problem Details (RFC 7807, `application/problem+json`); regras de negócio trazem `code`.
+    - O catálogo (`/flights`, `/hotels`, `/room-offers`, `/car-rental-offers`, `/travel-packages`, `/cities`,
+      `/categories`) e `/clients` já existiam desde a Fase 2; aqui estão documentados para o Admin.
+servers:
+  - url: http://localhost:8080
+    description: familhas-api local
+tags:
+  - name: dashboard
+    description: Indicadores do período.
+  - name: clients
+    description: Clientes e abas novos, ativos e passados.
+  - name: bookings
+    description: Reservas (somente leitura).
+  - name: payments
+    description: Planilha de pagamentos, exportação e avisos em tempo real.
+  - name: quotes
+    description: Cotações do cliente e cotações manuais.
+  - name: pricing
+    description: Margem e taxa de serviço.
+  - name: catalog
+    description: CRUD do catálogo curado (desde a Fase 2).
+  - name: audit
+    description: Log de auditoria das ações do admin.
+security:
+  - bearerAuth: []
+
+paths:
+  /api/admin/dashboard:
+    get:
+      tags: [dashboard]
+      operationId: getDashboard
+      summary: Indicadores do período
+      description: "Período padrão: últimos 30 dias até hoje. Máximo de 366 dias."
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Indicadores.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Dashboard' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/clients:
+    get:
+      tags: [clients]
+      operationId: listClients
+      summary: Clientes
+      description: |
+        Abas do Admin (`segment`), exclusivas entre si:
+        - `ACTIVE`: tem reserva `PENDING_PAYMENT` ou `CONFIRMED`.
+        - `NEW`: não é ativo, cadastrado há 30 dias ou menos e sem reserva confirmada ou concluída.
+        - `PAST`: não é ativo e tem reserva `COMPLETED` ou `CANCELLED`, ou está `INACTIVE`.
+        Sem `segment`, lista todos (inclusive quem não cai em nenhuma aba).
+      parameters:
+        - { name: segment, in: query, schema: { $ref: '#/components/schemas/ClientSegment' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - { name: q, in: query, description: Nome ou e-mail, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - { name: sort, in: query, description: 'name, email, createdAt, updatedAt', schema: { type: string } }
+      responses:
+        '200':
+          description: Página de clientes.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [clients]
+      operationId: createClient
+      summary: Cadastra cliente sem login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientRequest' }
+      responses:
+        '201':
+          description: Criado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/admin/clients/segments:
+    get:
+      tags: [clients]
+      operationId: getClientSegments
+      summary: Quantidade de clientes por aba
+      responses:
+        '200':
+          description: Contagens.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientSegmentCounts' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/admin/clients/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [clients]
+      operationId: getClient
+      summary: Detalhe do cliente
+      description: Reservas e pagamentos do cliente vêm de `/api/admin/bookings?clientId=` e `/api/admin/payments?clientId=`.
+      responses:
+        '200':
+          description: Cliente.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [clients]
+      operationId: updateClient
+      summary: Atualiza cliente
+      description: O e-mail de conta com login é gerido pelo Keycloak (mudar aqui responde 409).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientRequest' }
+      responses:
+        '200':
+          description: Atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Client' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [clients]
+      operationId: deleteClient
+      summary: Exclui cliente
+      responses:
+        '204': { description: Excluído. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/admin/bookings:
+    get:
+      tags: [bookings]
+      operationId: listBookings
+      summary: Reservas
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/BookingStatus' } }
+        - { name: clientId, in: query, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - { name: sort, in: query, description: 'createdAt (padrão, desc), totalAmount, expiresAt, status', schema: { type: string } }
+      responses:
+        '200':
+          description: Página de reservas. O período filtra pela criação.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBookingPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/admin/bookings/{id}:
+    get:
+      tags: [bookings]
+      operationId: getBooking
+      summary: Detalhe da reserva com snapshot de preço e todas as tentativas de pagamento
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Reserva.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminBookingDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/admin/payments:
+    get:
+      tags: [payments]
+      operationId: listPayments
+      summary: Planilha de pagamentos
+      parameters:
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: dateField
+          in: query
+          description: Data usada no período. `CREATED` (padrão) ou `PAID`.
+          schema: { type: string, enum: [CREATED, PAID], default: CREATED }
+        - name: status
+          in: query
+          description: Pode repetir (`status=SUCCEEDED&status=REFUNDED`).
+          schema: { type: array, items: { $ref: '#/components/schemas/PaymentStatus' } }
+          explode: true
+        - { name: method, in: query, schema: { $ref: '#/components/schemas/PaymentMethod' } }
+        - { name: installments, in: query, schema: { type: integer, minimum: 1, maximum: 24 } }
+        - { name: clientId, in: query, schema: { type: string, format: uuid } }
+        - { name: bookingId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Página de pagamentos (padrão `createdAt,desc`; ordenação por createdAt, paidAt, amount, updatedAt).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPaymentPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/admin/payments/{id}:
+    get:
+      tags: [payments]
+      operationId: getPayment
+      summary: Uma linha da planilha
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Pagamento.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminPayment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/admin/payments/export:
+    get:
+      tags: [payments]
+      operationId: exportPayments
+      summary: Exporta a planilha filtrada (XLSX ou CSV), em streaming
+      description: |
+        Mesmos filtros da listagem, sem paginação, ordenado por `createdAt`. O arquivo é gerado em streaming
+        (Apache POI SXSSF no XLSX), sem carregar tudo em memória. A exportação fica na auditoria.
+        CSV: UTF-8 com BOM, separador vírgula, decimal com ponto; células que começam com `=`, `+`, `-` ou `@`
+        recebem `'` na frente (injeção de fórmula).
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema: { type: string, enum: [xlsx, csv] }
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - name: dateField
+          in: query
+          schema: { type: string, enum: [CREATED, PAID], default: CREATED }
+        - name: status
+          in: query
+          schema: { type: array, items: { $ref: '#/components/schemas/PaymentStatus' } }
+          explode: true
+        - { name: method, in: query, schema: { $ref: '#/components/schemas/PaymentMethod' } }
+        - { name: installments, in: query, schema: { type: integer, minimum: 1, maximum: 24 } }
+        - { name: clientId, in: query, schema: { type: string, format: uuid } }
+        - { name: bookingId, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: "Arquivo (`Content-Disposition: attachment; filename=pagamentos-AAAAMMDD-HHMM.xlsx|csv`)."
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, contentMediaType: application/octet-stream }
+            text/csv:
+              schema: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/admin/payments/stream:
+    get:
+      tags: [payments]
+      operationId: streamPayments
+      summary: Avisos em tempo real de mudança de pagamento (Server-Sent Events)
+      description: |
+        Alimentado pelos eventos de pagamento da Fase 6 (`payment.*` no exchange `familhas.events`).
+        O aviso não traz dados pessoais: o Admin busca a linha em `GET /api/admin/payments/{id}`.
+
+        - Primeiro evento: `ready`. Depois, `payment` a cada evento, e um comentário `: ping` a cada 25 s.
+        - O servidor fecha a conexão depois de 5 minutos: o Admin reconecta com um token novo
+          (o `Authorization` vai no header, nunca na URL).
+        - Estornos e sessões expiradas não geram evento: o Admin também recarrega a página a cada 30 s.
+      responses:
+        '200':
+          description: Fluxo SSE.
+          content:
+            text/event-stream:
+              schema: { $ref: '#/components/schemas/PaymentStreamEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/quotes:
+    get:
+      tags: [quotes]
+      operationId: listQuotes
+      summary: Cotações (do cliente e manuais)
+      parameters:
+        - { name: origin, in: query, schema: { $ref: '#/components/schemas/QuoteOrigin' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/QuoteStatus' } }
+        - { name: clientId, in: query, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - { name: sort, in: query, description: 'createdAt (padrão, desc), expiresAt, totalAmount', schema: { type: string } }
+      responses:
+        '200':
+          description: Página de cotações. `EXPIRED` é calculado na leitura.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminQuotePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [quotes]
+      operationId: createManualQuote
+      summary: Cotação manual para um cliente
+      description: |
+        O admin monta a cotação para o cliente (por exemplo, um atendimento que veio do WhatsApp). Os preços
+        são reconsultados no provedor e calculados como na Loja; o admin só pode dar um desconto manual.
+        A cotação aparece para o cliente em `/api/me/quotes` e segue o fluxo normal de reserva e pagamento.
+
+        - `manualDiscount` + promoção do pacote não podem passar da margem: o total nunca fica abaixo de
+          custo + taxa de serviço (422 `QUOTE_BELOW_COST`).
+        - Cliente inativo: 422 `CLIENT_INACTIVE`.
+        - `internalNote` nunca aparece para o cliente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ManualQuoteRequest' }
+      responses:
+        '201':
+          description: Cotação criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminQuoteDetail' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/admin/quotes/{id}:
+    get:
+      tags: [quotes]
+      operationId: getQuote
+      summary: Detalhe com custo, margem e descontos
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Cotação.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AdminQuoteDetail' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/admin/pricing-settings:
+    get:
+      tags: [pricing]
+      operationId: getPricingSettings
+      summary: Margem e taxa de serviço em vigor
+      description: Enquanto ninguém salvar pelo Admin, valem as variáveis de ambiente (`source = ENVIRONMENT`).
+      responses:
+        '200':
+          description: Regras em vigor.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [pricing]
+      operationId: updatePricingSettings
+      summary: Altera margem e taxa de serviço
+      description: Vale para cotações e buscas novas. Cotações e reservas existentes mantêm o snapshot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PricingSettingsRequest' }
+      responses:
+        '200':
+          description: Regras salvas.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PricingSettings' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/admin/audit-logs:
+    get:
+      tags: [audit]
+      operationId: listAuditLogs
+      summary: Ações do admin
+      parameters:
+        - { name: actor, in: query, description: sub ou username do admin, schema: { type: string, maxLength: 100 } }
+        - { name: resource, in: query, description: 'Ex.: travel-packages, payments', schema: { type: string, maxLength: 60 } }
+        - { name: action, in: query, schema: { $ref: '#/components/schemas/AuditAction' } }
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de registros, mais recentes primeiro.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuditLogPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ---------------------------------------------------------------- catálogo (Fase 2 e 5)
+  /api/admin/flights:
+    get:
+      tags: [catalog]
+      operationId: listFlights
+      summary: Lista Flights
+      parameters:
+        - { name: departureFrom, in: query, schema: { type: string, format: date } }
+        - { name: departureTo, in: query, schema: { type: string, format: date } }
+        - { name: originCityId, in: query, schema: { type: string, format: uuid } }
+        - { name: destinationCityId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - { name: q, in: query, description: Companhia, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200': { description: Página., content: { application/json: { schema: { $ref: '#/components/schemas/FlightPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [catalog]
+      operationId: createFlight
+      summary: Cria Flight
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FlightRequest' } } } }
+      responses:
+        '201': { description: Criado., content: { application/json: { schema: { $ref: '#/components/schemas/Flight' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/admin/flights/{id}:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    get:
+      tags: [catalog]
+      operationId: getFlight
+      summary: Detalhe de Flight
+      responses:
+        '200': { description: Voo., content: { application/json: { schema: { $ref: '#/components/schemas/Flight' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [catalog]
+      operationId: updateFlight
+      summary: Atualiza Flight
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/FlightRequest' } } } }
+      responses:
+        '200': { description: Atualizado., content: { application/json: { schema: { $ref: '#/components/schemas/Flight' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [catalog]
+      operationId: deleteFlight
+      summary: Exclui Flight
+      responses:
+        '204': { description: Excluído. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/admin/hotels:
+    get:
+      tags: [catalog]
+      operationId: listHotels
+      summary: Lista Hotels
+      parameters:
+        - { name: cityId, in: query, schema: { type: string, format: uuid } }
+        - { name: minStars, in: query, schema: { type: integer, minimum: 1, maximum: 5 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200': { description: Página., content: { application/json: { schema: { $ref: '#/components/schemas/HotelPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [catalog]
+      operationId: createHotel
+      summary: Cria Hotel
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HotelRequest' } } } }
+      responses:
+        '201': { description: Criado., content: { application/json: { schema: { $ref: '#/components/schemas/Hotel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/admin/hotels/{id}:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    get:
+      tags: [catalog]
+      operationId: getHotel
+      summary: Detalhe de Hotel
+      responses:
+        '200': { description: Hotel., content: { application/json: { schema: { $ref: '#/components/schemas/Hotel' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [catalog]
+      operationId: updateHotel
+      summary: Atualiza Hotel
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/HotelRequest' } } } }
+      responses:
+        '200': { description: Atualizado., content: { application/json: { schema: { $ref: '#/components/schemas/Hotel' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [catalog]
+      operationId: deleteHotel
+      summary: Exclui Hotel
+      responses:
+        '204': { description: Excluído. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/admin/room-offers:
+    get:
+      tags: [catalog]
+      operationId: listRoomOffers
+      summary: Lista RoomOffers
+      parameters:
+        - { name: hotelId, in: query, schema: { type: string, format: uuid } }
+        - { name: cityId, in: query, schema: { type: string, format: uuid } }
+        - { name: boardType, in: query, schema: { $ref: '#/components/schemas/BoardType' } }
+        - { name: guests, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: maxPricePerNight, in: query, schema: { type: number, minimum: 0 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200': { description: Página., content: { application/json: { schema: { $ref: '#/components/schemas/RoomOfferPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [catalog]
+      operationId: createRoomOffer
+      summary: Cria RoomOffer
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoomOfferRequest' } } } }
+      responses:
+        '201': { description: Criado., content: { application/json: { schema: { $ref: '#/components/schemas/RoomOffer' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/admin/room-offers/{id}:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    get:
+      tags: [catalog]
+      operationId: getRoomOffer
+      summary: Detalhe de RoomOffer
+      responses:
+        '200': { description: Quarto., content: { application/json: { schema: { $ref: '#/components/schemas/RoomOffer' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [catalog]
+      operationId: updateRoomOffer
+      summary: Atualiza RoomOffer
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoomOfferRequest' } } } }
+      responses:
+        '200': { description: Atualizado., content: { application/json: { schema: { $ref: '#/components/schemas/RoomOffer' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [catalog]
+      operationId: deleteRoomOffer
+      summary: Exclui RoomOffer
+      responses:
+        '204': { description: Excluído. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/admin/car-rental-offers:
+    get:
+      tags: [catalog]
+      operationId: listCarRentalOffers
+      summary: Lista CarRentalOffers
+      parameters:
+        - { name: cityId, in: query, schema: { type: string, format: uuid } }
+        - { name: carCategory, in: query, schema: { $ref: '#/components/schemas/CarCategory' } }
+        - { name: transmission, in: query, schema: { $ref: '#/components/schemas/Transmission' } }
+        - { name: minSeats, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: maxPricePerDay, in: query, schema: { type: number, minimum: 0 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200': { description: Página., content: { application/json: { schema: { $ref: '#/components/schemas/CarRentalOfferPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [catalog]
+      operationId: createCarRentalOffer
+      summary: Cria CarRentalOffer
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CarRentalOfferRequest' } } } }
+      responses:
+        '201': { description: Criado., content: { application/json: { schema: { $ref: '#/components/schemas/CarRentalOffer' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/admin/car-rental-offers/{id}:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    get:
+      tags: [catalog]
+      operationId: getCarRentalOffer
+      summary: Detalhe de CarRentalOffer
+      responses:
+        '200': { description: Carro., content: { application/json: { schema: { $ref: '#/components/schemas/CarRentalOffer' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [catalog]
+      operationId: updateCarRentalOffer
+      summary: Atualiza CarRentalOffer
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CarRentalOfferRequest' } } } }
+      responses:
+        '200': { description: Atualizado., content: { application/json: { schema: { $ref: '#/components/schemas/CarRentalOffer' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [catalog]
+      operationId: deleteCarRentalOffer
+      summary: Exclui CarRentalOffer
+      responses:
+        '204': { description: Excluído. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/admin/travel-packages:
+    get:
+      tags: [catalog]
+      operationId: listTravelPackages
+      summary: Lista TravelPackages
+      parameters:
+        - { name: originCityId, in: query, schema: { type: string, format: uuid } }
+        - { name: destinationCityId, in: query, schema: { type: string, format: uuid } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - { name: minPrice, in: query, schema: { type: number, minimum: 0 } }
+        - { name: maxPrice, in: query, schema: { type: number, minimum: 0 } }
+        - { name: onPromotion, in: query, description: 'true: só pacotes com pricePromotion menor que price', schema: { type: boolean } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200': { description: Página., content: { application/json: { schema: { $ref: '#/components/schemas/TravelPackagePage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+    post:
+      tags: [catalog]
+      operationId: createTravelPackage
+      summary: Cria TravelPackage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TravelPackageRequest' } } } }
+      responses:
+        '201': { description: Criado., content: { application/json: { schema: { $ref: '#/components/schemas/TravelPackage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/admin/travel-packages/{id}:
+    parameters: [{ $ref: '#/components/parameters/IdPath' }]
+    get:
+      tags: [catalog]
+      operationId: getTravelPackage
+      summary: Detalhe de TravelPackage
+      responses:
+        '200': { description: Pacote., content: { application/json: { schema: { $ref: '#/components/schemas/TravelPackage' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [catalog]
+      operationId: updateTravelPackage
+      summary: Atualiza TravelPackage
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TravelPackageRequest' } } } }
+      responses:
+        '200': { description: Atualizado., content: { application/json: { schema: { $ref: '#/components/schemas/TravelPackage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [catalog]
+      operationId: deleteTravelPackage
+      summary: Exclui TravelPackage
+      responses:
+        '204': { description: Excluído. }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/admin/cities:
+    get:
+      tags: [catalog]
+      operationId: listCities
+      summary: Lista Cities
+      parameters:
+        - { name: cityType, in: query, schema: { $ref: '#/components/schemas/CityType' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200': { description: Página., content: { application/json: { schema: { $ref: '#/components/schemas/CityPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/admin/categories:
+    get:
+      tags: [catalog]
+      operationId: listCategories
+      summary: Lista Categories
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - $ref: '#/components/parameters/Sort'
+      responses:
+        '200': { description: Página., content: { application/json: { schema: { $ref: '#/components/schemas/CategoryPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token do Keycloak (realm `familhas`), emitido para o client público `familhas-admin`
+        (Authorization Code + PKCE S256), com audiência `familhas-api` e `ROLE_ADMIN` em `realm_access.roles`.
+
+  parameters:
+    IdPath: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+    Sort:
+      name: sort
+      in: query
+      description: '`campo,asc|desc`'
+      schema: { type: string }
+    From: { name: from, in: query, description: 'Dia inicial (inclusivo, America/Sao_Paulo)', schema: { type: string, format: date } }
+    To: { name: to, in: query, description: 'Dia final (inclusivo, America/Sao_Paulo)', schema: { type: string, format: date } }
+
+  responses:
+    BadRequest:
+      description: Parâmetros ou corpo inválidos (`errors` traz campo -> mensagem)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Unauthorized:
+      description: Sem token ou token inválido
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Forbidden:
+      description: Token sem `ROLE_ADMIN`
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    NotFound:
+      description: Não encontrado
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Conflict:
+      description: Conflito com registros relacionados ou e-mail já cadastrado
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Unprocessable:
+      description: Regra de negócio (`code` estável)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    ServiceUnavailable:
+      description: Provedor indisponível
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  schemas:
+    ProblemDetail:
+      type: object
+      required: [status, title]
+      properties:
+        type: { type: string, default: 'about:blank' }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code:
+          description: "Regra de negócio (ex.: QUOTE_BELOW_COST, CLIENT_INACTIVE)"
+          type: string
+        errors:
+          description: Só em 400 de validação
+          type: object
+          additionalProperties: { type: string }
+
+    PageMeta:
+      type: object
+      required: [page, size, totalElements, totalPages]
+      properties:
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+
+    EntityStatus: { type: string, enum: [ACTIVE, INACTIVE] }
+    CityType: { type: string, enum: [ORIGIN, DESTINATION] }
+    CarCategory: { type: string, enum: [ECONOMY, COMPACT, SEDAN, SUV, MINIVAN, LUXURY] }
+    Transmission: { type: string, enum: [MANUAL, AUTOMATIC] }
+    BoardType: { type: string, enum: [ROOM_ONLY, BREAKFAST, HALF_BOARD, FULL_BOARD, ALL_INCLUSIVE] }
+    PackageComponentType: { type: string, enum: [HOTEL_STAY, CAR_RENTAL] }
+    PriceItemType: { type: string, enum: [FLIGHT, HOTEL_STAY, CAR_RENTAL] }
+    BookingStatus: { type: string, enum: [PENDING_PAYMENT, CONFIRMED, CANCELLED, COMPLETED] }
+    CancellationReason: { type: string, enum: [PAYMENT_EXPIRED, REFUNDED] }
+    PaymentStatus: { type: string, enum: [PENDING, PROCESSING, SUCCEEDED, FAILED, CANCELED, REFUNDED, PARTIALLY_REFUNDED] }
+    PaymentMethod: { type: string, enum: [PIX, CREDIT_CARD] }
+    QuoteStatus: { type: string, enum: [OPEN, EXPIRED, BOOKED] }
+    QuoteOrigin: { type: string, enum: [CUSTOMER, ADMIN] }
+    ClientSegment: { type: string, enum: [NEW, ACTIVE, PAST] }
+    AuditAction: { type: string, enum: [CREATE, UPDATE, DELETE, EXPORT] }
+    Currency: { type: string, pattern: '^[A-Z]{3}$', examples: [BRL] }
+    Money: { type: number, description: 'BigDecimal, escala 2' }
+
+    ClientRef:
+      type: object
+      required: [id, name, email]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+
+    Client:
+      type: object
+      required: [id, name, email, status, hasLogin, favoriteIds, myFlightIds]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+        phoneNumber: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        hasLogin: { type: boolean, description: Conta já vinculada ao Keycloak }
+        favoriteIds: { type: array, items: { type: string, format: uuid } }
+        myFlightIds: { type: array, items: { type: string, format: uuid } }
+    ClientRequest:
+      type: object
+      required: [name, email, status]
+      properties:
+        name: { type: string, maxLength: 180 }
+        email: { type: string, format: email, maxLength: 180 }
+        phoneNumber: { type: [string, 'null'], maxLength: 40 }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        favoriteIds: { type: [array, 'null'], items: { type: string, format: uuid }, description: 'null mantém os atuais' }
+        myFlightIds: { type: [array, 'null'], items: { type: string, format: uuid }, description: 'null mantém os atuais' }
+    ClientPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Client' } }
+    ClientSegmentCounts:
+      type: object
+      required: [all, new, active, past]
+      properties:
+        all: { type: integer, format: int64 }
+        new: { type: integer, format: int64 }
+        active: { type: integer, format: int64 }
+        past: { type: integer, format: int64 }
+
+    AdminBookingSummary:
+      type: object
+      required: [id, status, client, passengers, currency, totalAmount, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/BookingStatus' }
+        client: { $ref: '#/components/schemas/ClientRef' }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        travelPackageTitle: { type: [string, 'null'] }
+        passengers: { type: integer }
+        currency: { $ref: '#/components/schemas/Currency' }
+        totalAmount: { $ref: '#/components/schemas/Money' }
+        startDate: { type: [string, 'null'], format: date, description: Início do primeiro item }
+        expiresAt: { type: string, format: date-time, description: Prazo para pagar }
+        latestPaymentStatus:
+          oneOf:
+            - { $ref: '#/components/schemas/PaymentStatus' }
+            - { type: 'null' }
+        createdAt: { type: string, format: date-time }
+    AdminBookingPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/AdminBookingSummary' } }
+    PricedItem:
+      type: object
+      required: [type, description, startDate, endDate, quantity, unitPrice, currency, subtotal, provider]
+      properties:
+        type: { $ref: '#/components/schemas/PriceItemType' }
+        description: { type: string }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        quantity: { type: integer }
+        unitPrice: { $ref: '#/components/schemas/Money', description: Custo unitário (sem margem) }
+        currency: { $ref: '#/components/schemas/Currency' }
+        subtotal: { $ref: '#/components/schemas/Money', description: Custo do item (sem margem) }
+        provider: { type: string }
+    PriceSnapshot:
+      type: object
+      required: [componentsTotal, marginPercent, marginAmount, promotionPercent, discountAmount, serviceFeeAmount, totalAmount]
+      properties:
+        componentsTotal: { $ref: '#/components/schemas/Money', description: Custo dos itens }
+        marginPercent: { type: number }
+        marginAmount: { $ref: '#/components/schemas/Money' }
+        promotionPercent: { type: number }
+        discountAmount: { $ref: '#/components/schemas/Money', description: Promoção + desconto manual }
+        serviceFeeAmount: { $ref: '#/components/schemas/Money' }
+        totalAmount: { $ref: '#/components/schemas/Money' }
+    AdminBookingDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdminBookingSummary'
+        - $ref: '#/components/schemas/PriceSnapshot'
+        - type: object
+          required: [quoteId, items, payments]
+          properties:
+            quoteId: { type: string, format: uuid }
+            confirmedAt: { type: [string, 'null'], format: date-time }
+            cancelledAt: { type: [string, 'null'], format: date-time }
+            cancellationReason:
+              oneOf:
+                - { $ref: '#/components/schemas/CancellationReason' }
+                - { type: 'null' }
+            items: { type: array, items: { $ref: '#/components/schemas/PricedItem' } }
+            payments:
+              description: Todas as tentativas, da mais recente para a mais antiga
+              type: array
+              items: { $ref: '#/components/schemas/AdminPayment' }
+
+    AdminPayment:
+      type: object
+      required: [id, bookingId, client, method, status, installments, amount, refundedAmount, currency, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid }
+        client: { $ref: '#/components/schemas/ClientRef' }
+        method: { $ref: '#/components/schemas/PaymentMethod' }
+        status: { $ref: '#/components/schemas/PaymentStatus' }
+        installments: { type: integer, description: Sempre 1 até o parcelamento ser liberado (ADR 0008) }
+        amount: { $ref: '#/components/schemas/Money' }
+        refundedAmount: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        paidAt: { type: [string, 'null'], format: date-time }
+        failureCode: { type: [string, 'null'] }
+        stripePaymentIntentId: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AdminPaymentPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/AdminPayment' } }
+    PaymentStreamEvent:
+      description: 'Dado do evento SSE `payment` (JSON). O evento `ready` vem com `{}`.'
+      type: object
+      required: [eventType, paymentId, bookingId, occurredAt]
+      properties:
+        eventType: { type: string, examples: [PaymentConfirmed, PaymentFailed] }
+        paymentId: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid }
+        occurredAt: { type: string, format: date-time }
+
+    Dashboard:
+      type: object
+      required: [from, to, revenue, dailyRevenue, paymentsByStatus, bookingsByStatus, newClients, pendingBookings, openQuotes]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        revenue:
+          description: Pagamentos aprovados no período (por `paidAt`), por moeda
+          type: array
+          items:
+            type: object
+            required: [currency, gross, refunded, net, count]
+            properties:
+              currency: { $ref: '#/components/schemas/Currency' }
+              gross: { $ref: '#/components/schemas/Money' }
+              refunded: { $ref: '#/components/schemas/Money' }
+              net: { $ref: '#/components/schemas/Money' }
+              count: { type: integer, format: int64 }
+        dailyRevenue:
+          description: Receita líquida por dia (America/Sao_Paulo) e moeda; dias sem venda não aparecem
+          type: array
+          items:
+            type: object
+            required: [date, currency, net]
+            properties:
+              date: { type: string, format: date }
+              currency: { $ref: '#/components/schemas/Currency' }
+              net: { $ref: '#/components/schemas/Money' }
+        paymentsByStatus:
+          description: Tentativas criadas no período, por status
+          type: object
+          additionalProperties: { type: integer, format: int64 }
+        bookingsByStatus:
+          description: Reservas criadas no período, por status
+          type: object
+          additionalProperties: { type: integer, format: int64 }
+        newClients: { type: integer, format: int64, description: Clientes cadastrados no período }
+        pendingBookings: { type: integer, format: int64, description: Reservas aguardando pagamento agora }
+        openQuotes: { type: integer, format: int64, description: Cotações válidas agora }
+
+    ManualQuoteRequest:
+      type: object
+      required: [clientId, passengers]
+      description: Ou `travelPackageId`, ou ao menos um item avulso (`flight`, `hotel`, `car`), nunca os dois.
+      properties:
+        clientId: { type: string, format: uuid }
+        passengers: { type: integer, minimum: 1, maximum: 9 }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        flight:
+          type: [object, 'null']
+          required: [offerId]
+          properties:
+            offerId: { type: string, maxLength: 500 }
+        hotel:
+          type: [object, 'null']
+          required: [offerId, checkIn, checkOut]
+          properties:
+            offerId: { type: string, maxLength: 500 }
+            checkIn: { type: string, format: date }
+            checkOut: { type: string, format: date }
+        car:
+          type: [object, 'null']
+          required: [offerId, pickUpDate, dropOffDate]
+          properties:
+            offerId: { type: string, maxLength: 500 }
+            pickUpDate: { type: string, format: date }
+            dropOffDate: { type: string, format: date }
+        manualDiscount: { type: [number, 'null'], minimum: 0, description: 'Desconto em valor, na moeda da cotação' }
+        validityHours: { type: [integer, 'null'], minimum: 1, maximum: 720, description: 'Padrão: validade da Loja (24 h)' }
+        internalNote: { type: [string, 'null'], maxLength: 500, description: Só o Admin vê }
+    AdminQuoteSummary:
+      type: object
+      required: [id, status, origin, client, passengers, currency, totalAmount, expiresAt, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: '#/components/schemas/QuoteStatus' }
+        origin: { $ref: '#/components/schemas/QuoteOrigin' }
+        client: { $ref: '#/components/schemas/ClientRef' }
+        travelPackageId: { type: [string, 'null'], format: uuid }
+        passengers: { type: integer }
+        currency: { $ref: '#/components/schemas/Currency' }
+        totalAmount: { $ref: '#/components/schemas/Money' }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+    AdminQuotePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/AdminQuoteSummary' } }
+    AdminQuoteDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdminQuoteSummary'
+        - $ref: '#/components/schemas/PriceSnapshot'
+        - type: object
+          required: [items, manualDiscountAmount]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/PricedItem' } }
+            manualDiscountAmount: { $ref: '#/components/schemas/Money' }
+            internalNote: { type: [string, 'null'] }
+            createdBy: { type: [string, 'null'], description: Username do admin que criou (cotação manual) }
+            bookingId: { type: [string, 'null'], format: uuid }
+
+    PricingSettings:
+      type: object
+      required: [marginPercent, serviceFeePerPassenger, serviceFeeCurrency, source]
+      properties:
+        marginPercent: { type: number, minimum: 0, maximum: 100 }
+        serviceFeePerPassenger: { $ref: '#/components/schemas/Money' }
+        serviceFeeCurrency: { $ref: '#/components/schemas/Currency' }
+        source: { type: string, enum: [DATABASE, ENVIRONMENT] }
+        updatedAt: { type: [string, 'null'], format: date-time }
+        updatedBy: { type: [string, 'null'] }
+    PricingSettingsRequest:
+      type: object
+      required: [marginPercent, serviceFeePerPassenger, serviceFeeCurrency]
+      properties:
+        marginPercent: { type: number, minimum: 0, maximum: 100 }
+        serviceFeePerPassenger: { type: number, minimum: 0 }
+        serviceFeeCurrency: { $ref: '#/components/schemas/Currency' }
+
+    AuditLog:
+      type: object
+      required: [id, actorSubject, action, resource, httpMethod, path, status, occurredAt]
+      properties:
+        id: { type: string, format: uuid }
+        actorSubject: { type: string, description: 'sub do token' }
+        actorUsername: { type: [string, 'null'] }
+        action: { $ref: '#/components/schemas/AuditAction' }
+        resource: { type: string }
+        resourceId: { type: [string, 'null'] }
+        httpMethod: { type: string }
+        path: { type: string }
+        status: { type: integer, description: Status HTTP da resposta }
+        details: { type: [string, 'null'], description: 'Ex.: filtros da exportação. Nunca o corpo da requisição.' }
+        occurredAt: { type: string, format: date-time }
+    AuditLogPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/AuditLog' } }
+
+    # ---------------------------------------------------------------- catálogo
+    City:
+      type: object
+      required: [id, name, country, cityType, status]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        country: { type: string }
+        cityType: { $ref: '#/components/schemas/CityType' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    CityPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/City' } }
+    Category:
+      type: object
+      required: [id, title, status]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        imageUrl: { type: [string, 'null'] }
+        description: { type: [string, 'null'] }
+    CategoryPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Category' } }
+    Flight:
+      type: object
+      required: [id, companyName, boardingDate, returnDate, boardingAirport, returnAirport, pricePerPassenger, currency, seatsAvailable, status]
+      properties:
+        id: { type: string, format: uuid }
+        companyName: { type: string }
+        boardingDate: { type: string, description: 'LocalDateTime sem fuso', examples: ['2027-03-10T08:00:00'] }
+        returnDate: { type: string, description: 'LocalDateTime sem fuso' }
+        boardingAirport: { type: string }
+        returnAirport: { type: string }
+        originCityId: { type: [string, 'null'], format: uuid }
+        destinationCityId: { type: [string, 'null'], format: uuid }
+        pricePerPassenger: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        seatsAvailable: { type: integer }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    FlightRequest:
+      type: object
+      required: [companyName, boardingDate, returnDate, boardingAirport, returnAirport, originCityId, destinationCityId, pricePerPassenger, seatsAvailable, status]
+      properties:
+        companyName: { type: string, maxLength: 120 }
+        boardingDate: { type: string }
+        returnDate: { type: string }
+        boardingAirport: { type: string, maxLength: 120 }
+        returnAirport: { type: string, maxLength: 120 }
+        originCityId: { type: string, format: uuid }
+        destinationCityId: { type: string, format: uuid }
+        pricePerPassenger: { type: number, exclusiveMinimum: 0 }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        seatsAvailable: { type: integer, minimum: 0, maximum: 1000 }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    FlightPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Flight' } }
+    Hotel:
+      type: object
+      required: [id, name, cityId, stars, status]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        cityId: { type: string, format: uuid }
+        address: { type: [string, 'null'] }
+        stars: { type: integer }
+        description: { type: [string, 'null'] }
+        imageUrl: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    HotelRequest:
+      type: object
+      required: [name, cityId, stars, status]
+      properties:
+        name: { type: string, maxLength: 180 }
+        cityId: { type: string, format: uuid }
+        address: { type: [string, 'null'], maxLength: 300 }
+        stars: { type: integer, minimum: 1, maximum: 5 }
+        description: { type: [string, 'null'], maxLength: 1000 }
+        imageUrl: { type: [string, 'null'], maxLength: 500 }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    HotelPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/Hotel' } }
+    RoomOffer:
+      type: object
+      required: [id, hotelId, roomType, boardType, maxGuests, pricePerNight, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        hotelId: { type: string, format: uuid }
+        roomType: { type: string }
+        boardType: { $ref: '#/components/schemas/BoardType' }
+        maxGuests: { type: integer }
+        pricePerNight: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    RoomOfferRequest:
+      type: object
+      required: [hotelId, roomType, boardType, maxGuests, pricePerNight, status]
+      properties:
+        hotelId: { type: string, format: uuid }
+        roomType: { type: string, maxLength: 120 }
+        boardType: { $ref: '#/components/schemas/BoardType' }
+        maxGuests: { type: integer, minimum: 1, maximum: 20 }
+        pricePerNight: { type: number, exclusiveMinimum: 0 }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    RoomOfferPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/RoomOffer' } }
+    CarRentalOffer:
+      type: object
+      required: [id, cityId, companyName, carModel, carCategory, transmission, seats, pricePerDay, currency, status]
+      properties:
+        id: { type: string, format: uuid }
+        cityId: { type: string, format: uuid }
+        companyName: { type: string }
+        carModel: { type: string }
+        carCategory: { $ref: '#/components/schemas/CarCategory' }
+        transmission: { $ref: '#/components/schemas/Transmission' }
+        seats: { type: integer }
+        pricePerDay: { $ref: '#/components/schemas/Money' }
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    CarRentalOfferRequest:
+      type: object
+      required: [cityId, companyName, carModel, carCategory, transmission, seats, pricePerDay, status]
+      properties:
+        cityId: { type: string, format: uuid }
+        companyName: { type: string, maxLength: 120 }
+        carModel: { type: string, maxLength: 120 }
+        carCategory: { $ref: '#/components/schemas/CarCategory' }
+        transmission: { $ref: '#/components/schemas/Transmission' }
+        seats: { type: integer, minimum: 1, maximum: 15 }
+        pricePerDay: { type: number, exclusiveMinimum: 0 }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+    CarRentalOfferPage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/CarRentalOffer' } }
+    TravelPackageComponent:
+      type: object
+      required: [id, type, quantity]
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/PackageComponentType' }
+        roomOfferId: { type: [string, 'null'], format: uuid }
+        carRentalOfferId: { type: [string, 'null'], format: uuid }
+        quantity: { type: integer, description: Noites (HOTEL_STAY) ou dias (CAR_RENTAL) }
+    TravelPackageComponentRequest:
+      type: object
+      required: [type, quantity]
+      properties:
+        type: { $ref: '#/components/schemas/PackageComponentType' }
+        roomOfferId: { type: [string, 'null'], format: uuid }
+        carRentalOfferId: { type: [string, 'null'], format: uuid }
+        quantity: { type: integer, minimum: 1, maximum: 60 }
+    TravelPackage:
+      type: object
+      required: [id, title, price, currency, status, flightId, categoryId, originCityId, destinationCityId, components]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        price: { $ref: '#/components/schemas/Money' }
+        pricePromotion: { type: [number, 'null'], description: Preço promocional de vitrine; vira desconto percentual na cotação }
+        currency: { $ref: '#/components/schemas/Currency' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        imageUrl: { type: [string, 'null'] }
+        flightId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        originCityId: { type: string, format: uuid }
+        destinationCityId: { type: string, format: uuid }
+        components: { type: array, items: { $ref: '#/components/schemas/TravelPackageComponent' } }
+    TravelPackageRequest:
+      type: object
+      required: [title, price, status, flightId, categoryId, originCityId, destinationCityId]
+      properties:
+        title: { type: string, maxLength: 180 }
+        price: { type: number, minimum: 0 }
+        pricePromotion: { type: [number, 'null'], minimum: 0, description: Menor que price }
+        currency: { type: [string, 'null'], pattern: '^[A-Z]{3}$' }
+        status: { $ref: '#/components/schemas/EntityStatus' }
+        imageUrl: { type: [string, 'null'], maxLength: 500 }
+        flightId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid }
+        originCityId: { type: string, format: uuid }
+        destinationCityId: { type: string, format: uuid }
+        components:
+          type: [array, 'null']
+          maxItems: 10
+          items: { $ref: '#/components/schemas/TravelPackageComponentRequest' }
+          description: null mantém os atuais; lista vazia remove todos
+    TravelPackagePage:
+      allOf:
+        - $ref: '#/components/schemas/PageMeta'
+        - type: object
+          required: [content]
+          properties:
+            content: { type: array, items: { $ref: '#/components/schemas/TravelPackage' } }

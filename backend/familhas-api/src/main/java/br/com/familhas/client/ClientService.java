@@ -3,12 +3,21 @@ package br.com.familhas.client;
 import br.com.familhas.client.dto.ClientFilter;
 import br.com.familhas.client.dto.ClientRequest;
 import br.com.familhas.client.dto.ClientResponse;
+import br.com.familhas.client.dto.ClientSegmentCounts;
 import br.com.familhas.client.dto.MeUpdateRequest;
 import br.com.familhas.common.PageResponse;
 import br.com.familhas.common.Pagination;
 import br.com.familhas.common.Specs;
+import br.com.familhas.booking.BookingEntity;
+import br.com.familhas.booking.BookingStatus;
+import br.com.familhas.enums.EntityStatus;
 import br.com.familhas.travelPackage.TravelPackageEntity;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
@@ -16,6 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -31,10 +43,12 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final EntityManager entityManager;
+    private final Clock clock;
 
-    public ClientService(ClientRepository clientRepository, EntityManager entityManager) {
+    public ClientService(ClientRepository clientRepository, EntityManager entityManager, Clock clock) {
         this.clientRepository = clientRepository;
         this.entityManager = entityManager;
+        this.clock = clock;
     }
 
     /**
@@ -47,7 +61,51 @@ public class ClientService {
         return PageResponse.of(clientRepository.findAll(toSpecification(filter), pageable), this::toResponse);
     }
 
-    private static Specification<ClientEntity> toSpecification(ClientFilter filter) {
+    /** Quantos clientes há em cada aba do Admin (uma contagem por aba). */
+    @Transactional(readOnly = true)
+    public ClientSegmentCounts countSegments() {
+        Instant cutoff = newClientCutoff();
+        return new ClientSegmentCounts(
+                clientRepository.count(),
+                clientRepository.count(segment(ClientSegment.NEW, cutoff)),
+                clientRepository.count(segment(ClientSegment.ACTIVE, cutoff)),
+                clientRepository.count(segment(ClientSegment.PAST, cutoff)));
+    }
+
+    private Instant newClientCutoff() {
+        return clock.instant().minus(Duration.ofDays(ClientSegment.NEW_CLIENT_DAYS));
+    }
+
+    /** Regras de cada aba em {@link ClientSegment}. Subconsultas EXISTS em bookings, sem join na lista. */
+    static Specification<ClientEntity> segment(ClientSegment segment, Instant newClientCutoff) {
+        return (root, query, cb) -> {
+            Predicate active = hasBooking(root, query, cb, BookingStatus.PENDING_PAYMENT, BookingStatus.CONFIRMED);
+            Predicate isNew = cb.and(
+                    cb.not(active),
+                    cb.equal(root.get("status"), EntityStatus.ACTIVE),
+                    cb.greaterThanOrEqualTo(root.get("createdAt"), newClientCutoff),
+                    cb.not(hasBooking(root, query, cb, BookingStatus.COMPLETED)));
+            return switch (segment) {
+                case ACTIVE -> active;
+                case NEW -> isNew;
+                case PAST -> cb.and(
+                        cb.not(active),
+                        cb.not(isNew),
+                        cb.or(hasBooking(root, query, cb, BookingStatus.COMPLETED, BookingStatus.CANCELLED),
+                                cb.equal(root.get("status"), EntityStatus.INACTIVE)));
+            };
+        };
+    }
+
+    private static Predicate hasBooking(Root<ClientEntity> client, CriteriaQuery<?> query, CriteriaBuilder cb,
+            BookingStatus... statuses) {
+        Subquery<Integer> booking = query.subquery(Integer.class);
+        Root<BookingEntity> b = booking.from(BookingEntity.class);
+        booking.select(cb.literal(1)).where(cb.equal(b.get("client"), client), b.get("status").in((Object[]) statuses));
+        return cb.exists(booking);
+    }
+
+    private Specification<ClientEntity> toSpecification(ClientFilter filter) {
         List<Specification<ClientEntity>> specs = new ArrayList<>();
         if (filter.status() != null) {
             specs.add((root, query, cb) -> cb.equal(root.get("status"), filter.status()));
@@ -57,6 +115,9 @@ public class ClientService {
             specs.add((root, query, cb) -> cb.or(
                     cb.like(cb.lower(root.<String>get("name")), pattern, Specs.escapeChar()),
                     cb.like(cb.lower(root.<String>get("email")), pattern, Specs.escapeChar())));
+        }
+        if (filter.segment() != null) {
+            specs.add(segment(filter.segment(), newClientCutoff()));
         }
         return Specification.allOf(specs);
     }

@@ -3,6 +3,7 @@ package br.com.familhas.client;
 import br.com.familhas.client.dto.ClientFilter;
 import br.com.familhas.client.dto.ClientRequest;
 import br.com.familhas.client.dto.ClientResponse;
+import br.com.familhas.client.dto.ClientSegmentCounts;
 import br.com.familhas.common.PageResponse;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -24,12 +25,18 @@ public class ClientController {
         this.clientService = clientService;
     }
 
-    /** Filtros: status, q (nome ou e-mail). Ordenação: name, email, createdAt, updatedAt. */
+    /** Filtros: status, q (nome ou e-mail), segment (aba do Admin). Ordenação: name, email, createdAt, updatedAt. */
     @GetMapping
     public PageResponse<ClientResponse> findAll(
             @Valid @ModelAttribute ClientFilter filter,
             @PageableDefault(size = 20, sort = "name", direction = Sort.Direction.ASC) Pageable pageable) {
         return clientService.findAll(filter, pageable);
+    }
+
+    /** Contagem de clientes por aba do Admin (novos, ativos e passados). */
+    @GetMapping("/segments")
+    public ClientSegmentCounts segments() {
+        return clientService.countSegments();
     }
 
     @GetMapping("/{id}")

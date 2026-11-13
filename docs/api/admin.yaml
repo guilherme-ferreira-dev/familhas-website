@@ -64,11 +64,11 @@ paths:
       operationId: listClients
       summary: Clientes
       description: |
-        Abas do Admin (`segment`), exclusivas entre si:
+        Abas do Admin (`segment`), exclusivas entre si, nesta ordem de prioridade:
         - `ACTIVE`: tem reserva `PENDING_PAYMENT` ou `CONFIRMED`.
-        - `NEW`: não é ativo, cadastrado há 30 dias ou menos e sem reserva confirmada ou concluída.
-        - `PAST`: não é ativo e tem reserva `COMPLETED` ou `CANCELLED`, ou está `INACTIVE`.
-        Sem `segment`, lista todos (inclusive quem não cai em nenhuma aba).
+        - `NEW`: não é ativo, está `ACTIVE`, foi cadastrado há 30 dias ou menos e não tem reserva concluída.
+        - `PAST`: não é ativo nem novo, e tem reserva `COMPLETED` ou `CANCELLED`, ou está `INACTIVE`.
+        Sem `segment`, lista todos (cliente antigo sem nenhuma reserva só aparece aqui).
       parameters:
         - { name: segment, in: query, schema: { $ref: '#/components/schemas/ClientSegment' } }
         - { name: status, in: query, schema: { $ref: '#/components/schemas/EntityStatus' } }

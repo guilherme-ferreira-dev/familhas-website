@@ -30,6 +30,17 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/clients/client-detail.page').then((m) => m.ClientDetailPage),
       },
+      {
+        path: 'reservas',
+        title: 'Reservas',
+        loadComponent: () => import('./pages/bookings/bookings.page').then((m) => m.BookingsPage),
+      },
+      {
+        path: 'reservas/:id',
+        title: 'Reserva',
+        loadComponent: () =>
+          import('./pages/bookings/booking-detail.page').then((m) => m.BookingDetailPage),
+      },
       { path: '**', component: NotFoundPage, title: 'Página não encontrada' },
     ],
   },

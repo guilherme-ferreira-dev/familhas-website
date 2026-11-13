@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { PackageSearchResult } from '../core/api/api-types';
 import { CityDirectory } from '../core/catalog/city-directory';
@@ -11,7 +11,11 @@ import { CityDirectory } from '../core/catalog/city-directory';
   template: `
     @let pkg = item();
     <article class="card package">
-      <div class="media" aria-hidden="true">
+      <div
+        class="media dusk-media"
+        [class]="'media dusk-media dusk-v' + variant()"
+        aria-hidden="true"
+      >
         @if (pkg.imageUrl) {
           <img [src]="pkg.imageUrl" alt="" loading="lazy" width="640" height="360" />
         }
@@ -51,14 +55,17 @@ import { CityDirectory } from '../core/catalog/city-directory';
   styles: `
     .package {
       display: grid;
+      grid-template-rows: auto 1fr;
+      align-content: start;
       padding: 0;
       overflow: hidden;
       position: relative;
+      border: 0;
+      box-shadow: var(--shadow);
       height: 100%;
     }
     .media {
       aspect-ratio: 16 / 9;
-      background: linear-gradient(135deg, #0b5d5b, #4fa3a0);
     }
     .media img {
       width: 100%;
@@ -67,11 +74,14 @@ import { CityDirectory } from '../core/catalog/city-directory';
     }
     .body {
       display: grid;
+      align-content: start;
       gap: var(--space-2);
       padding: var(--space-3);
     }
     h3 {
-      font-size: 1.125rem;
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 1.375rem;
     }
     /* O card inteiro é clicável, mas o link continua sendo o título (bom para leitor de tela). */
     h3 a {
@@ -114,4 +124,10 @@ import { CityDirectory } from '../core/catalog/city-directory';
 export class PackageCard {
   readonly item = input.required<PackageSearchResult>();
   protected readonly cities = inject(CityDirectory);
+  /** Variante de cor da ilustração provisória, estável por pacote. */
+  protected readonly variant = computed(() => {
+    let h = 0;
+    for (const ch of this.item().id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return h % 4;
+  });
 }

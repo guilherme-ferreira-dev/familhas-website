@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-13T00:00:00Z",
+  "title": "Design System: Familhas Loja",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Royal Flight Blue", "canonical": "#1d4fd7", "tonalRamp": ["#0a1a4d", "#10308f", "#143ba8", "#1d4fd7", "#4f7be6", "#86a3ee", "#bccdf6", "#e8eefc"] },
+      "night": { "role": "neutral", "displayName": "Night Navy", "canonical": "#0b1b45", "tonalRamp": ["#050c22", "#0b1b45", "#1a2d66", "#2f4488", "#5568a8", "#8793c3", "#bcc3de", "#e6e9f3"] },
+      "ground": { "role": "neutral", "displayName": "Cold Ground", "canonical": "#f3f7fd", "tonalRamp": ["#b9c6e0", "#cbd6ea", "#d3dcee", "#e0e8f5", "#e9effa", "#f3f7fd", "#f8fbff", "#ffffff"] },
+      "voe-yellow": { "role": "secondary", "displayName": "Voe Yellow", "canonical": "#ffc933", "tonalRamp": ["#7a5a00", "#a37800", "#cc9a0a", "#e6b31a", "#ffc933", "#ffd75e", "#ffe69a", "#fff4d1"] },
+      "accent-orange": { "role": "tertiary", "displayName": "Seat Alert Orange", "canonical": "#c2410c", "tonalRamp": ["#5a1e05", "#7c2b08", "#9e350a", "#c2410c", "#e0622a", "#ef8a5a", "#f8b896", "#fde3d4"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero title only, over the window glass." },
+      "headline": { "displayName": "Headline", "purpose": "Section titles (h2); white over the sky." },
+      "title": { "displayName": "Title", "purpose": "Card titles, prices, tile labels." },
+      "body": { "displayName": "Body", "purpose": "Running text in Hanken Grotesk." },
+      "label": { "displayName": "Label", "purpose": "Field labels and small notices." }
+    },
+    "shadows": [
+      { "name": "card-lift", "value": "0 8px 24px rgb(11 27 69 / 0.14)", "purpose": "Package cards and destination tiles." },
+      { "name": "card-rest", "value": "0 2px 10px rgb(11 27 69 / 0.06)", "purpose": "Generic cards on interior pages." },
+      { "name": "search-float", "value": "0 16px 40px rgb(7 18 46 / 0.35)", "purpose": "White search pill over the sky." },
+      { "name": "text-glow", "value": "0 2px 24px rgb(7 18 46 / 0.5)", "purpose": "Legibility for text over video." }
+    ],
+    "motion": [
+      { "name": "scroll-scrub", "value": "60 frames on a fixed canvas advanced by scroll; backdrop clip-path opens from inset(0.5rem 0.5rem 30% 0.5rem round 2rem); --dim 0.2 to 0.5", "purpose": "Hero window opens and flight clip advances with scroll; static first frame under prefers-reduced-motion." },
+      { "name": "reduced-motion", "value": "animation and transition duration 0.01ms", "purpose": "Global reduced-motion override." }
+    ],
+    "breakpoints": [
+      { "name": "md", "value": "48rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Default pill action.",
+      "html": "<button class=\"ds-btn\">Ver pacote</button>",
+      "css": ".ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:.5rem 1.5rem;border:2px solid #1d4fd7;border-radius:999px;background:#1d4fd7;color:#fff;font:600 1rem 'Hanken Grotesk',system-ui,sans-serif;cursor:pointer}.ds-btn:hover{background:#143ba8;border-color:#143ba8}.ds-btn:focus-visible{outline:3px solid #1f6feb;outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary pill action on light surfaces.",
+      "html": "<button class=\"ds-ghost\">Ver todos os pacotes</button>",
+      "css": ".ds-ghost{display:inline-flex;align-items:center;min-height:2.75rem;padding:.5rem 1.5rem;border:2px solid #1d4fd7;border-radius:999px;background:transparent;color:#1d4fd7;font:600 1rem 'Hanken Grotesk',system-ui,sans-serif;cursor:pointer}.ds-ghost:hover{background:rgba(29,79,215,.1);color:#143ba8}.ds-ghost:focus-visible{outline:3px solid #1f6feb;outline-offset:2px}"
+    },
+    {
+      "name": "Search Button",
+      "kind": "button",
+      "refersTo": "button-search",
+      "description": "Yellow submit of the hero search; the only yellow control.",
+      "html": "<button class=\"ds-search-btn\">Buscar pacotes</button>",
+      "css": ".ds-search-btn{min-height:3.5rem;padding:.5rem 2.5rem;border:2px solid #ffc933;border-radius:999px;background:#ffc933;color:#0b1b45;font:600 1rem 'Hanken Grotesk',system-ui,sans-serif;cursor:pointer}.ds-search-btn:hover{background:#ffd75e;border-color:#ffd75e}.ds-search-btn:focus-visible{outline:3px solid #1f6feb;outline-offset:2px}"
+    },
+    {
+      "name": "Search Pill",
+      "kind": "input",
+      "refersTo": "search-pill",
+      "description": "Destination and people selects with the yellow action, floating over the sky.",
+      "html": "<form class=\"ds-search\"><div class=\"ds-f\"><label>Para onde?</label><select><option>Todos os destinos</option></select></div><div class=\"ds-f\"><label>Pessoas</label><select><option>2 pessoas</option></select></div><button class=\"ds-go\" type=\"button\">Buscar pacotes</button></form>",
+      "css": ".ds-search{display:grid;grid-template-columns:2fr 1fr auto;gap:.25rem .5rem;align-items:center;padding:.5rem .5rem .5rem 1.5rem;border-radius:999px;background:#fff;color:#0b1b45;box-shadow:0 16px 40px rgba(7,18,46,.35);font-family:'Hanken Grotesk',system-ui,sans-serif}.ds-f{display:grid}.ds-f label{font-size:.8125rem;color:#4a5778}.ds-f select{border:0;background:transparent;font:600 1rem inherit;color:#0b1b45;min-height:2.75rem}.ds-go{min-height:3.5rem;padding:.5rem 2.5rem;border:0;border-radius:999px;background:#ffc933;color:#0b1b45;font-weight:600;cursor:pointer}.ds-go:hover{background:#ffd75e}.ds-go:focus-visible{outline:3px solid #1f6feb;outline-offset:2px}"
+    },
+    {
+      "name": "Package Card",
+      "kind": "card",
+      "refersTo": "package-card",
+      "description": "Offer card with provisional illustrated media, route, price and seat notice.",
+      "html": "<article class=\"ds-card\"><div class=\"ds-media\"></div><div class=\"ds-body\"><h3>Orlando em familia</h3><p class=\"ds-m\">Sao Paulo → Orlando · 10/02/2027</p><p><span class=\"ds-m\">A partir de</span> <strong>R$ 4.990,00</strong> <span class=\"ds-m\">por pessoa</span></p><p class=\"ds-seats\">Últimos 3 lugares</p></div></article>",
+      "css": ".ds-card{background:#fff;border-radius:1.25rem;overflow:hidden;box-shadow:0 8px 24px rgba(11,27,69,.14);max-width:19rem;font-family:'Hanken Grotesk',system-ui,sans-serif;color:#0b1b45}.ds-media{aspect-ratio:16/9;background:linear-gradient(180deg,#12263a,#2f6f8f 55%,#f2b36d)}.ds-body{display:grid;gap:.5rem;padding:1rem}.ds-body h3{margin:0;font:600 1.375rem 'Bricolage Grotesque',system-ui,sans-serif}.ds-body p{margin:0}.ds-m{color:#4a5778}.ds-body strong{font-size:1.375rem;color:#1d4fd7}.ds-seats{color:#c2410c;font-weight:600;font-size:.875rem}"
+    },
+    {
+      "name": "Destination Tile",
+      "kind": "custom",
+      "refersTo": "destination-tile",
+      "description": "Style tile on illustrated gradient, display label bottom-left.",
+      "html": "<a class=\"ds-tile\"><span>Praia</span></a>",
+      "css": ".ds-tile{display:flex;align-items:flex-end;min-height:11rem;width:12rem;padding:1rem;border-radius:1.25rem;color:#fff;text-decoration:none;background:linear-gradient(180deg,#0f2a2f,#2c7a7b 55%,#f1c27d);box-shadow:0 8px 24px rgba(11,27,69,.14)}.ds-tile span{font:600 1.5rem 'Bricolage Grotesque',system-ui,sans-serif;text-shadow:0 1px 10px rgba(7,18,46,.6)}.ds-tile:hover{filter:brightness(1.08)}.ds-tile:focus-visible{outline:3px solid #1f6feb;outline-offset:2px}"
+    },
+    {
+      "name": "Header Navigation",
+      "kind": "nav",
+      "refersTo": "site-header",
+      "description": "Brand lockup (provisional), pill nav links and ghost sign-in, on night navy.",
+      "html": "<header class=\"ds-h\"><span class=\"ds-brand\"><span class=\"ds-voe\">Voe</span><span class=\"ds-name\">Familhas</span></span><nav><a class=\"on\">Início</a><a>Buscar</a></nav><button>Entrar</button></header>",
+      "css": ".ds-h{display:flex;align-items:center;gap:1rem;padding:.5rem 1rem;background:#0b1b45;color:#fff;font-family:'Hanken Grotesk',system-ui,sans-serif}.ds-brand{display:inline-grid;line-height:1;margin-inline-end:auto;font-size:1.75rem}.ds-voe{font-size:.75em;font-weight:700;letter-spacing:.08em;color:#ffc933}.ds-name{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:700;letter-spacing:-.03em}.ds-h nav{display:flex;gap:.25rem}.ds-h nav a{display:inline-flex;align-items:center;min-height:2.75rem;padding-inline:1rem;border-radius:999px;font-weight:600}.ds-h nav a.on{background:rgba(255,255,255,.18)}.ds-h button{min-height:2.75rem;padding:.5rem 1.5rem;border:2px solid rgba(255,255,255,.7);border-radius:999px;background:transparent;color:#fff;font:600 1rem inherit;cursor:pointer}.ds-h button:hover{background:rgba(255,255,255,.16)}.ds-h button:focus-visible{outline:3px solid #1f6feb;outline-offset:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "A Janela do Avião",
+    "overview": "The store is the descent from a plane window. The first viewport is a rounded full-screen window onto a real flight clip, and the whole page is that sky seen while scrolling: the window opens as the visitor scrolls and the clip advances (60 frames drawn on a fixed canvas, scrubbed by scroll). Sections after the hero flow directly over the moving sky, with white headings and no boxes.\n\nDensity is low and mobile first. One cool light ground carries the interior pages; the sky is the signature of the home. Color is strict: night and royal blue for structure, white for surfaces, and the yellow of the logo's \"Voe\" as the single warm accent.",
+    "keyCharacteristics": [
+      "Fixed canvas backdrop scrubbed by scroll, clipped to a rounded window that opens with scroll; static first frame when reduced motion is requested.",
+      "Pill-shaped controls everywhere; containers at 1.25rem or 2rem radius.",
+      "Display type in Bricolage Grotesque 600 with tight tracking; body in Hanken Grotesk.",
+      "Depth by soft blue-tinted shadows and the photographic sky, never by hard offsets.",
+      "AA contrast, 44px touch targets, 3px blue focus ring."
+    ],
+    "rules": [
+      { "name": "The Single Yellow Rule", "body": "Yellow is the logo's colour and the one warm voice; it appears on the search action and highlighted hero words, never as a background for large areas or as a second CTA colour.", "section": "colors" },
+      { "name": "The Night On Yellow Rule", "body": "Any text on yellow is night navy (#0b1b45); white on yellow fails contrast.", "section": "colors" },
+      { "name": "The Display Is Display Rule", "body": "Bricolage is for titles, prices and tile labels; never for buttons, fields or body copy.", "section": "typography" },
+      { "name": "The Dim Before Text Rule", "body": "Any white text placed over the sky relies on the navy dim layer plus a text shadow; do not remove either.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep sections flowing over the sky on the home, with white headings and no boxed panels.",
+      "Do use pills for every interactive control and 1.25rem for content containers.",
+      "Do put night navy text on yellow and white text over the dimmed sky.",
+      "Do keep touch targets at least 2.75rem and the 3px focus ring.",
+      "Do respect reduced motion: show the first frame still, no scrubbing."
+    ],
+    "donts": [
+      "Don't put the search form in a white card on a flat colour block; it floats at the window's foot.",
+      "Don't use yellow for anything beyond the logo, hero emphasis and the search action.",
+      "Don't use hard offset shadows, glyph icons or invented testimonials, numbers or destination photos.",
+      "Don't set Bricolage on controls or body text."
+    ]
+  }
+}

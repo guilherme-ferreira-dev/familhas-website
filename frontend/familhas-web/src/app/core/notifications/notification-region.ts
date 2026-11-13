@@ -37,7 +37,7 @@ import { NotificationService } from './notification.service';
       background: var(--color-surface);
       color: var(--color-text);
       box-shadow: var(--shadow);
-      border-inline-start: 4px solid var(--color-primary);
+      border: 1px solid var(--color-primary);
       pointer-events: auto;
     }
     .notice--error {

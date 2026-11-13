@@ -98,7 +98,7 @@ import { cancellationText } from './booking-labels';
     }
     .status--warn {
       border-color: var(--color-accent);
-      background: #fff4e5;
+      background: #fff3e6;
     }
   `,
 })

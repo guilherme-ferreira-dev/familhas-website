@@ -17,7 +17,7 @@
 
 .status--warn {
   border-color: var(--color-accent);
-  background: #fff4e5;
+  background: #fff3e6;
 }
 
 .card {
@@ -59,8 +59,9 @@
 }
 
 .total {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
   padding-block-start: var(--space-2);
   border-block-start: 1px solid var(--color-border);
 }

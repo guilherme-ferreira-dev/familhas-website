@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "sfmono-regular",
+        "createdAt": "2026-11-13T13:05:35.404Z",
+        "reason": "Claude decided: monospace for short reservation/quote ids (.code), domain-appropriate data; predates the redesign"
+      }
+    ]
+  }
+}

@@ -1,9 +1,18 @@
-<section class="hero">
-  <div class="container hero-inner">
-    <h1>Viagens em família, sem complicação</h1>
-    <p>Pacotes com voo, hotel e carro, preço fechado e atendimento humano quando você precisar.</p>
+<div class="backdrop" #backdrop aria-hidden="true">
+  <canvas #canvas></canvas>
+  <div class="dim"></div>
+</div>
 
-    <form class="card quick-search" (ngSubmit)="search()" aria-label="Busca rápida de pacotes">
+<section class="hero" #hero aria-labelledby="hero-titulo">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <h1 id="hero-titulo">Viagens em família, <em>sem complicação</em></h1>
+      <p>
+        Pacotes com voo, hotel e carro, preço fechado e atendimento humano quando você precisar.
+      </p>
+    </div>
+
+    <form class="quick-search" (ngSubmit)="search()" aria-label="Busca rápida de pacotes">
       <div class="field">
         <label for="home-destino">Para onde?</label>
         <select
@@ -36,14 +45,19 @@
   </div>
 </section>
 
-<section class="container stack" aria-labelledby="ofertas-titulo">
-  <h2 id="ofertas-titulo">Ofertas da semana</h2>
+<section class="container stack offers" aria-labelledby="ofertas-titulo">
+  <div class="head">
+    <h2 id="ofertas-titulo">Ofertas da semana</h2>
+    <a class="button button--ghost" routerLink="/busca" [queryParams]="{ tipo: 'pacotes' }"
+      >Ver todos os pacotes</a
+    >
+  </div>
   @if (offers.error()) {
     <app-load-error [error]="offers.error()" (retry)="offers.reload()" />
   } @else if (offers.isLoading()) {
     <p class="muted" aria-busy="true">Carregando ofertas…</p>
   } @else if (offers.hasValue() && offers.value().length > 0) {
-    <ul class="grid">
+    <ul class="rail">
       @for (offer of offers.value(); track offer.id) {
         <li><app-package-card [item]="offer" /></li>
       }
@@ -58,17 +72,33 @@
 @if (categories.hasValue() && categories.value().length > 0) {
   <section class="container stack" aria-labelledby="categorias-titulo">
     <h2 id="categorias-titulo">Escolha pelo estilo</h2>
-    <ul class="chips">
-      @for (category of categories.value(); track category.id) {
+    <ul class="tiles">
+      @for (category of categories.value(); track category.id; let i = $index) {
         <li>
           <a
-            class="button button--ghost"
+            class="tile dusk-media"
+            [class]="'tile dusk-media dusk-v' + tileVariant(category.title, i)"
             routerLink="/busca"
             [queryParams]="{ tipo: 'pacotes', categoria: category.id }"
-            >{{ category.title }}</a
+            ><span>{{ category.title }}</span></a
           >
         </li>
       }
     </ul>
+  </section>
+}
+
+@if (whatsappUrl) {
+  <section class="container human" aria-labelledby="humano-titulo">
+    <div class="human-card">
+      <h2 id="humano-titulo">Do outro lado do WhatsApp tem gente</h2>
+      <p>
+        Conte para o Enéas quem vai viajar e quando. Ele ajuda a escolher o pacote antes de você
+        pagar e continua por perto depois.
+      </p>
+      <a class="button button--light" [href]="whatsappUrl" target="_blank" rel="noopener noreferrer"
+        >Conversar no WhatsApp<span class="visually-hidden"> (abre em nova aba)</span></a
+      >
+    </div>
   </section>
 }

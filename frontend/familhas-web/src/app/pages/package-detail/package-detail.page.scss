@@ -30,7 +30,6 @@
   aspect-ratio: 16 / 9;
   border-radius: var(--radius);
   overflow: hidden;
-  background: linear-gradient(135deg, #0b5d5b, #4fa3a0);
 }
 
 .media img {
@@ -53,7 +52,9 @@
 }
 
 .components h3 {
-  font-size: 1rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.25rem;
   color: var(--color-primary);
 }
 
@@ -70,7 +71,9 @@
 }
 
 .price strong {
-  font-size: 1.75rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 2.25rem;
   color: var(--color-primary);
 }
 

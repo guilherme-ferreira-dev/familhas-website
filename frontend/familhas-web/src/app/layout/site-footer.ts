@@ -1,13 +1,16 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { Brand } from './brand';
 
 @Component({
   selector: 'app-site-footer',
+  imports: [Brand],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <footer class="footer">
       <div class="container">
-        <p>Familhas: viagens em família, com atendimento de gente de verdade.</p>
-        <p class="muted">
+        <app-brand class="lead" />
+        <p>Viagens em família, com atendimento de gente de verdade.</p>
+        <p class="note">
           Pagamentos processados pelo Stripe. Seus dados de cartão não passam pela Familhas.
         </p>
       </div>
@@ -15,14 +18,29 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
   `,
   styles: `
     .footer {
-      margin-block-start: var(--space-5);
-      padding-block: var(--space-4) calc(var(--space-5) + 3.5rem);
-      border-block-start: 1px solid var(--color-border);
+      margin: var(--space-4) var(--space-2) var(--space-2);
+      padding-block: var(--space-3) calc(var(--space-3) + 3rem);
+      border-radius: 1.5rem;
+      background: var(--color-night);
+      color: #e8f0ff;
       font-size: 0.875rem;
     }
     .container {
       display: grid;
-      gap: var(--space-2);
+      gap: var(--space-1);
+    }
+    .lead {
+      font-size: 1.5rem;
+      margin-block-end: var(--space-1);
+    }
+    .note {
+      color: #c5d3f0;
+    }
+    @media (min-width: 48rem) {
+      .footer {
+        margin-inline: var(--space-3);
+        padding-block-end: var(--space-3);
+      }
     }
   `,
 })

@@ -32,7 +32,7 @@ import br.com.familhas.config.RestAuthenticationEntryPoint;
 import br.com.familhas.config.SecurityConfig;
 import br.com.familhas.enums.EntityStatus;
 import br.com.familhas.rating.RatingService;
-import br.com.familhas.rating.dto.RatingResponse;
+import br.com.familhas.rating.dto.MyRatingResponse;
 
 @WebMvcTest(MeController.class)
 @Import({SecurityConfig.class, RestAuthenticationEntryPoint.class, RestAccessDeniedHandler.class})
@@ -92,8 +92,8 @@ class MeControllerTests {
     @Test
     void clientRatingUsesClientIdFromTokenAndIgnoresBody() throws Exception {
         when(keycloakClientSyncService.syncClientId(any())).thenReturn(CLIENT_ID);
-        when(ratingService.createForClient(eq(CLIENT_ID), any())).thenReturn(new RatingResponse(
-                UUID.randomUUID(), 5, CLIENT_ID, UUID.randomUUID()));
+        when(ratingService.createForClient(eq(CLIENT_ID), any())).thenReturn(new MyRatingResponse(
+                UUID.randomUUID(), 5, null, null, null));
 
         String body = """
                 { "rating": 5, "travelPackageId": "bac00000-0000-4000-8000-000000000001",
@@ -105,7 +105,8 @@ class MeControllerTests {
                                 .authorities(new SimpleGrantedAuthority("ROLE_USER")))
                         .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.clientId").value(CLIENT_ID.toString()));
+                .andExpect(jsonPath("$.rating").value(5));
+        verify(ratingService).createForClient(eq(CLIENT_ID), any());
     }
 
     @Test

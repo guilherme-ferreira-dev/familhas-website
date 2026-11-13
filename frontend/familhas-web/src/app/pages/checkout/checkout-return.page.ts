@@ -52,7 +52,10 @@ import { cancellationText } from './booking-labels';
                   <strong>{{ shortId(b.id) }}</strong> garantida! Enviamos os detalhes para o seu
                   e-mail.
                 </p>
-                <p><a class="button" routerLink="/">Voltar para o início</a></p>
+                <p class="actions">
+                  <a class="button" routerLink="/minhas-viagens">Ver minhas viagens</a>
+                  <a class="button button--ghost" routerLink="/">Voltar para o início</a>
+                </p>
               }
               @case ('CANCELLED') {
                 <p class="status status--warn">{{ cancellationText(b) }}</p>
@@ -79,6 +82,11 @@ import { cancellationText } from './booking-labels';
     </div>
   `,
   styles: `
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
     .narrow {
       max-width: 44rem;
     }

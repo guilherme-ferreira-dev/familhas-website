@@ -17,7 +17,7 @@ export class ApiError extends Error {
   constructor(
     readonly kind: ApiErrorKind,
     readonly status: number,
-    /** Código estável de negócio (checkout.yaml). Decide a mensagem; `detail` nunca vai para a tela. */
+    /** Código estável de negócio (checkout.yaml, minhas-viagens.yaml). Decide a mensagem; `detail` nunca vai para a tela. */
     readonly code: ProblemCode | null,
     /** Erros de campo do 400 (campo -> mensagem técnica). */
     readonly fieldErrors: Readonly<Record<string, string>>,
@@ -70,6 +70,11 @@ const CODE_MESSAGES: Record<ProblemCode, string> = {
   PAYMENT_IN_PROGRESS:
     'Já existe um pagamento em processamento para esta reserva. Aguarde a confirmação.',
   PAYMENT_METHOD_UNAVAILABLE: 'Esta forma de pagamento está indisponível agora. Escolha outra.',
+  TRIP_NOT_FOUND: 'Não encontramos essa viagem entre as suas.',
+  PACKAGE_NOT_FOUND: 'Esse pacote saiu do catálogo e não pode ser favoritado.',
+  RATING_NOT_FOUND: 'Não encontramos essa avaliação entre as suas.',
+  RATING_ALREADY_EXISTS: 'Você já avaliou esse pacote. Altere a nota que já existe.',
+  RATING_NOT_ALLOWED: 'Só dá para avaliar pacotes de viagens que você já fez.',
 };
 
 const KIND_MESSAGES: Record<ApiErrorKind, string> = {

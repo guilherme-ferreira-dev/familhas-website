@@ -75,7 +75,7 @@ cd backend/familhas-email && ./mvnw verify
 | `*ServiceTests`, `CommonUtilitiesTests` | Regras de serviço com Mockito, moeda, ordenação, evento no primeiro login | Não |
 | `Outbox*Tests` (unitários) | Gravação no outbox, publisher (lote, backoff, `FAILED`), propriedades AMQP | Não |
 | `UserRegisteredEventContractTests` | JSON publicado contra `docs/events/user-registered.v1.schema.json` | Não |
-| `OracleMigrationIntegrationTests` | Migrations V1..V12, rota e preço do voo (V9), mapeamento JPA, seed, filtros, N+1, exclusão e vínculo com Keycloak em Oracle real | Sim (é pulado sem Docker) |
+| `OracleMigrationIntegrationTests` | Migrations V1..V13, rota e preço do voo (V9), mapeamento JPA, seed, filtros, N+1, exclusão e vínculo com Keycloak em Oracle real | Sim (é pulado sem Docker) |
 | `OutboxMessagingIntegrationTests` | Oracle + RabbitMQ: publicação com confirm, rollback, mensagem sem fila, evento só no primeiro login | Sim (é pulado sem Docker) |
 | `PricingServiceTests`, `MoneyTests` | Regras de preço parametrizadas: margem, promoção, taxa, arredondamento HALF_EVEN, moedas | Não |
 | `ProviderGatewayTests`, `MockProvidersTests` | Agregação, timeout, circuit breaker, cache e adapters mock | Não |
@@ -90,6 +90,9 @@ cd backend/familhas-email && ./mvnw verify
 | `BookingIntegrationTests` | Oracle: reserva (V11), assentos bloqueados e devolvidos, uma reserva por cotação, USD recusado | Sim (é pulado sem Docker) |
 | `StripeMockGatewayIntegrationTests` | Adapter Stripe contra o `stripe-mock`: sessão de cartão e Pix, expirar, consultar, estornar | Sim (é pulado sem Docker) |
 | `PaymentFlowIntegrationTests` | Oracle + stripe-mock, HTTP com JWT: cotação → reserva → checkout → webhook → `CONFIRMED`, replay sem duplicar, Pix, recusa, estorno parcial e total, webhook forjado, expiração | Sim (é pulado sem Docker) |
+| `Trip*Tests`, `Favorite*Tests`, `RatingServiceClientTests`, `Recommendation*Tests`, `RuleBasedRecommendationServiceTests` | Viagem futura x passada pela data, pagamento e parcelas, 401/403/404 com `code`, favoritos idempotentes, regras de avaliação, pesos e motivos da recomendação (parametrizados) | Não |
+| `MinhasViagensOpenApiContractTests` | `docs/api/minhas-viagens.yaml` é um OpenAPI 3.1 válido e tudo exige token | Não |
+| `MinhasViagensIntegrationTests` | Oracle (V13), HTTP com JWT: cada cliente só vê e só mexe nas próprias viagens, avaliações e favoritos; regra de viagem passada no banco; recomendação sem pacote reservado ou favoritado | Sim (é pulado sem Docker) |
 
 **familhas-email**
 
@@ -110,7 +113,7 @@ Detalhes em [ADR 0004](docs/adr/0004-seguranca-keycloak-rotas-problem-details.md
 | Área | Prefixo | Acesso |
 |---|---|---|
 | Catálogo da Loja | `/api/...` | Público, só GET, só itens ativos |
-| Área do cliente | `/api/me`, `/api/me/ratings`, `/api/me/quotes`, `/api/me/bookings` | Token com `ROLE_USER` ou `ROLE_ADMIN` |
+| Área do cliente | `/api/me`, `/api/me/quotes`, `/api/me/bookings`, `/api/me/trips`, `/api/me/favorites`, `/api/me/ratings`, `/api/me/recommendations` | Token com `ROLE_USER` ou `ROLE_ADMIN` |
 | Administração | `/api/admin/...` | Token com `ROLE_ADMIN` |
 | Webhook do Stripe | `POST /api/webhooks/stripe` | Público; autenticado pela `Stripe-Signature` |
 
@@ -194,6 +197,15 @@ cd backend/familhas-api && ./mvnw spring-boot:run
 
 Abra a `checkoutUrl` devolvida pelo checkout e pague com um [cartão de teste](https://docs.stripe.com/testing) (ex.: `4242 4242 4242 4242`, qualquer data futura e CVC). Os e-mails de reserva e pagamento aparecem no MailHog (`http://localhost:8025`). Para Pix, a conta precisa ter o método habilitado; com `STRIPE_PIX_ENABLED=false` a API responde 422 `PAYMENT_METHOD_UNAVAILABLE`.
 
+## Minhas viagens e recomendação
+
+Decisões em [ADR 0010](docs/adr/0010-minhas-viagens-e-recomendacao.md); contrato HTTP em [docs/api/minhas-viagens.yaml](docs/api/minhas-viagens.yaml). Tudo é do dono do token; recurso de outro cliente responde 404.
+
+- `GET /api/me/trips?when=UPCOMING|PAST`: viagens = reservas `CONFIRMED` ou `COMPLETED`, sem tabela própria. Passada quando `COMPLETED` ou quando o último dia já passou (America/Sao_Paulo). Cada viagem traz itens, total, pagamento (status, método, parcelas) e a avaliação do cliente. `GET /api/me/trips/{id}` devolve uma.
+- `GET /api/me/favorites`, `PUT` e `DELETE /api/me/favorites/{packageId}`: favoritos, idempotentes; só pacote ativo entra (`PACKAGE_NOT_FOUND`).
+- `/api/me/ratings`: só pacote de viagem passada pode ser avaliado (`RATING_NOT_ALLOWED`), uma vez por pacote (`RATING_ALREADY_EXISTS`).
+- `GET /api/me/recommendations?limit=6`: recomendação v1 por regras (`RecommendationService`): categoria e país de viagens, favoritos e avaliações, época do ano, média de avaliações e promoção, com `reasons`. Não repete pacote reservado, favoritado ou avaliado. A v2 (ML/embeddings) está só documentada no ADR.
+
 ## Mensageria e onboarding
 
 Detalhes em [ADR 0005](docs/adr/0005-mensageria-outbox-e-familhas-email.md) e contratos em [docs/events](docs/events/README.md).
@@ -225,7 +237,8 @@ npm run lint && npm run test:ci && npm run build
 
 - Login e logout pelo Keycloak (client `familhas-web`, Authorization Code + PKCE). O token só vai para a API.
 - URLs, Keycloak e número do WhatsApp ficam em `public/config.json`, por ambiente, sem rebuild.
-- Contratos em `docs/api`: `familhas-api.yaml` (catálogo e busca) e `checkout.yaml` (cotação, reserva e pagamento, Fase 6). Os tipos do front são gerados deles.
+- Contratos em `docs/api`: `familhas-api.yaml` (catálogo e busca), `checkout.yaml` (cotação, reserva e pagamento, Fase 6) e `minhas-viagens.yaml` (Fase 8). Os tipos do front são gerados deles.
+- "Minhas viagens" fica em `/minhas-viagens` (só logado), com link no cabeçalho; o coração de favoritar aparece nos cartões e no detalhe do pacote.
 
 ## Convenções
 

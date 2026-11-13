@@ -26,7 +26,7 @@ docker compose ps
 | RabbitMQ 3.13 | 5672 (AMQP), 15672 (painel) | `rabbitmq-diagnostics check_running` | volume `familhas_rabbitmq_data` |
 | Keycloak 26.4 | 8443 (HTTPS) | `GET /health/ready` na porta de gerenciamento 9000 | schema `KEYCLOAK` no Oracle |
 | MailHog | 1025 (SMTP), 8025 (UI) | `GET /` na UI | memória (descartável) |
-| familhas-email | 8081 (`/actuator/health`) | `GET /actuator/health` = `UP` (inclui banco, RabbitMQ e SMTP) | schema `FAMILHAS_EMAIL` no Oracle |
+| familhas-email | 8081 (`/actuator/health`) | `GET /actuator/health` = `UP` (banco e RabbitMQ; o SMTP fica de fora para não logar no Gmail a cada 15 s) | schema `FAMILHAS_EMAIL` no Oracle |
 
 O Keycloak depende do Oracle `healthy`. O `familhas-email` depende de Oracle, RabbitMQ e MailHog `healthy`. A imagem dele é construída a partir de `backend/familhas-email/Dockerfile`; depois de mudar o código, rode `docker compose up -d --build familhas-email`. A porta 9000 do Keycloak não é publicada no host. Ela fica só na rede do Docker, em HTTP (`KC_HTTP_MANAGEMENT_SCHEME=http`), para o healthcheck funcionar sem curl na imagem.
 
@@ -98,6 +98,26 @@ Topologia e contrato em [docs/events/README.md](../docs/events/README.md). Decis
 3. Obtenha um token desse usuário (veja "Token para testes manuais") e chame `GET http://localhost:8080/api/me` com `Authorization: Bearer <token>`.
 4. Em até alguns segundos o e-mail "Boas-vindas à Familhas" aparece em `http://localhost:8025`.
 5. Chamar `/api/me` de novo não gera outro e-mail.
+
+### Enviar para um e-mail real (Gmail)
+
+Por padrão o `familhas-email` entrega no MailHog. Para mandar de verdade:
+
+1. Na conta Google, ligue a verificação em duas etapas e gere uma **senha de app** (myaccount.google.com/apppasswords).
+2. No `.env` da raiz: `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`, `SMTP_AUTH=true`, `SMTP_STARTTLS=true`, `SMTP_USERNAME=<conta>`, `SMTP_PASSWORD=<senha de app, sem espaços>` e `EMAIL_FROM="Familhas <conta>"`.
+3. Recrie o container (só `restart` não relê o `.env`): `docker compose up -d --build familhas-email`.
+4. Confira o que o container recebeu: `docker compose exec familhas-email env | grep SMTP_HOST` deve mostrar `smtp.gmail.com`.
+
+Para testar pelo painel do RabbitMQ (`http://localhost:15672` > Exchanges > `familhas.events` > **Publish message**):
+
+- routing key `client.user-registered.v1`, propriedade `content_type` = `application/json`;
+- payload no contrato de [docs/events](../docs/events/README.md), com **um `eventId` novo a cada envio** (o consumidor ignora `eventId` já processado, inclusive os que foram para o MailHog):
+
+  ```json
+  {"eventId":"<uuid novo>","userId":"<uuid>","email":"voce@exemplo.com","firstName":"Teste","occurredAt":"2026-11-12T15:30:00Z","schemaVersion":1}
+  ```
+
+Payload fora do contrato (sem `eventId`, `name` em vez de `firstName`, `userId` que não é UUID) vai direto para a DLQ. O log do container mostra o motivo (`Mensagem enviada para a DLQ ... motivo=...`).
 
 ### Reprocessar
 

@@ -219,11 +219,10 @@ Decisões em [ADR 0010](adr/0010-minhas-viagens-e-recomendacao.md). Contrato em 
 ### Testes e validação
 - [x] Unitários e WebMvcTest: classificação por data, paginação, pagamento exibido, 401/403/404, favoritos, regras de avaliação, recomendação parametrizada
 - [x] Teste de contrato do `minhas-viagens.yaml`
-- [ ] `MinhasViagensIntegrationTests` (Oracle, HTTP com JWT, isolamento entre clientes) rodado nesta máquina: escrito, mas o Docker local não teve memória para um segundo Oracle (ver pendências)
+- [x] `MinhasViagensIntegrationTests` (Oracle, HTTP com JWT, isolamento entre clientes): 4 testes passando
 - [x] Loja: testes de tela com MSW (página, favoritos, detalhe do pacote), lint, formatação e build
 
 ### Pendências documentadas (fora da Fase 8)
-- [ ] Rodar `MinhasViagensIntegrationTests` com memória suficiente no Docker (ou no CI)
 - [ ] Marcar `COMPLETED` (job ou Admin) e remover `client_flights`: decisão de fase futura
 - [ ] Afinidade de destino além do país (região/tags em `CityEntity`) e pesos da recomendação validados com o Enéas
 - [ ] Parcelamento real no cartão continua adiado (ADR 0008); a tela já mostra a lista de parcelas quando houver mais de uma

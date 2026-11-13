@@ -5,8 +5,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import br.com.familhas.api.BusinessException;
 import br.com.familhas.client.ClientRepository;
 import br.com.familhas.common.BusinessTime;
 import br.com.familhas.common.PageResponse;
@@ -94,6 +97,22 @@ public class QuoteService {
 
     @Transactional
     public QuoteResponse create(UUID clientId, QuoteRequest request) {
+        return toResponse(build(clientId, request, null));
+    }
+
+    /**
+     * Cotação manual montada pelo admin para o cliente (ADR 0011). Mesmo cálculo da Loja (preços reconsultados
+     * no provedor, margem, promoção do pacote, taxa); o admin só pode tirar um desconto em valor, limitado à margem
+     * que sobra depois da promoção: o total nunca fica abaixo de custo + taxa de serviço.
+     *
+     * @return id da cotação criada
+     */
+    @Transactional
+    public UUID createManual(UUID clientId, QuoteRequest request, ManualQuoteTerms terms) {
+        return build(clientId, request, terms).getId();
+    }
+
+    private QuoteEntity build(UUID clientId, QuoteRequest request, ManualQuoteTerms terms) {
         if (request.travelPackageId() != null && request.hasItems()) {
             throw badRequest("Informe travelPackageId ou itens avulsos (flight, hotel, car), nao os dois");
         }
@@ -134,10 +153,38 @@ public class QuoteService {
         quote.setServiceFeeAmount(breakdown.serviceFee().amount());
         quote.setTotalAmount(breakdown.total().amount());
         quote.setExpiresAt(clock.instant().plus(properties.validity()));
+        if (terms != null) {
+            applyManualTerms(quote, terms);
+        }
         for (int i = 0; i < drafts.size(); i++) {
             quote.addItem(toEntity(drafts.get(i), breakdown.items().get(i)));
         }
-        return toResponse(quoteRepository.saveAndFlush(quote));
+        return quoteRepository.saveAndFlush(quote);
+    }
+
+    /** Desconto manual: no máximo a margem menos a promoção já aplicada (422 QUOTE_BELOW_COST acima disso). */
+    private void applyManualTerms(QuoteEntity quote, ManualQuoteTerms terms) {
+        BigDecimal manual = terms.manualDiscount() == null ? BigDecimal.ZERO
+                : terms.manualDiscount().setScale(2, RoundingMode.UNNECESSARY);
+        BigDecimal maxManual = quote.getMarginAmount().subtract(quote.getDiscountAmount()).max(BigDecimal.ZERO);
+        if (manual.compareTo(maxManual) > 0) {
+            throw new BusinessException(HttpStatus.UNPROCESSABLE_ENTITY, "QUOTE_BELOW_COST",
+                    "O desconto deixaria a cotacao abaixo do custo. Maximo: " + maxManual + " " + quote.getCurrency(),
+                    Map.of("maxManualDiscount", maxManual));
+        }
+        quote.setOrigin(QuoteOrigin.ADMIN);
+        quote.setManualDiscountAmount(manual);
+        quote.setDiscountAmount(quote.getDiscountAmount().add(manual));
+        quote.setTotalAmount(quote.getTotalAmount().subtract(manual));
+        if (terms.validity() != null) {
+            quote.setExpiresAt(clock.instant().plus(terms.validity()));
+        }
+        quote.setInternalNote(blankToNull(terms.internalNote()));
+        quote.setCreatedBy(terms.createdBy());
+    }
+
+    private static String blankToNull(String text) {
+        return text == null || text.isBlank() ? null : text.trim();
     }
 
     @Transactional

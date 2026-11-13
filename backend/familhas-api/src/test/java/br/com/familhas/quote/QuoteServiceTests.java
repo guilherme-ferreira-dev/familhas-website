@@ -38,6 +38,7 @@ import br.com.familhas.enums.Transmission;
 import br.com.familhas.flight.FlightEntity;
 import br.com.familhas.hotel.RoomOfferEntity;
 import br.com.familhas.pricing.PriceItemType;
+import br.com.familhas.api.BusinessException;
 import br.com.familhas.pricing.PricingProperties;
 import br.com.familhas.pricing.PricingService;
 import br.com.familhas.provider.ProviderGateway;
@@ -127,6 +128,68 @@ class QuoteServiceTests {
         assertThat(saved.getTotalAmount()).isEqualByComparingTo("7830.16");
         assertThat(response.items()).extracting(QuoteResponse.Item::endDate)
                 .containsExactly(DEPARTURE.plusDays(7), DEPARTURE.plusDays(7), DEPARTURE.plusDays(3));
+    }
+
+    @Test
+    void manualQuoteAppliesTheAdminDiscountAndKeepsItSeparate() {
+        service.createManual(CLIENT, separateItems(), new ManualQuoteTerms(new BigDecimal("100.00"),
+                Duration.ofHours(72), "  Negociado no WhatsApp  ", "admin.familhas"));
+
+        QuoteEntity saved = savedQuote();
+        assertThat(saved.getOrigin()).isEqualTo(QuoteOrigin.ADMIN);
+        assertThat(saved.getManualDiscountAmount()).isEqualByComparingTo("100.00");
+        assertThat(saved.getDiscountAmount()).isEqualByComparingTo("100.00");
+        assertThat(saved.getTotalAmount()).isEqualByComparingTo("5212.45");
+        assertThat(saved.getExpiresAt()).isEqualTo(NOW.plus(Duration.ofHours(72)));
+        assertThat(saved.getInternalNote()).isEqualTo("Negociado no WhatsApp");
+        assertThat(saved.getCreatedBy()).isEqualTo("admin.familhas");
+    }
+
+    @Test
+    void manualDiscountCanTakeTheWholeMarginButNeverGoBelowCost() {
+        // Margem de 10% sobre 4829.50 = 482.95: total mínimo = custo.
+        service.createManual(CLIENT, separateItems(), new ManualQuoteTerms(new BigDecimal("482.95"), null, null, "a"));
+        assertThat(savedQuote().getTotalAmount()).isEqualByComparingTo("4829.50");
+
+        assertThatThrownBy(() -> service.createManual(CLIENT, separateItems(),
+                new ManualQuoteTerms(new BigDecimal("482.96"), null, null, "a")))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(ex -> {
+                    BusinessException business = (BusinessException) ex;
+                    assertThat(business.code()).isEqualTo("QUOTE_BELOW_COST");
+                    assertThat(business.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                    assertThat(business.getBody().getProperties()).containsEntry("maxManualDiscount",
+                            new BigDecimal("482.95"));
+                });
+    }
+
+    @Test
+    void promotionAlreadyBeyondTheMarginLeavesNoRoomForManualDiscount() {
+        when(packages.findById(any())).thenReturn(Optional.of(maceioPackage()));
+        QuoteRequest request = new QuoteRequest(UUID.randomUUID(), 2, null, null, null);
+
+        assertThatThrownBy(() -> service.createManual(CLIENT, request,
+                new ManualQuoteTerms(new BigDecimal("0.01"), null, null, "a")))
+                .isInstanceOf(BusinessException.class);
+
+        service.createManual(CLIENT, request, new ManualQuoteTerms(null, null, null, "a"));
+        assertThat(savedQuote().getTotalAmount()).isEqualByComparingTo("7830.16");
+        assertThat(savedQuote().getOrigin()).isEqualTo(QuoteOrigin.ADMIN);
+    }
+
+    @Test
+    void customerQuoteHasNoManualTerms() {
+        service.create(CLIENT, separateItems());
+
+        assertThat(savedQuote().getOrigin()).isEqualTo(QuoteOrigin.CUSTOMER);
+        assertThat(savedQuote().getManualDiscountAmount()).isEqualByComparingTo("0");
+    }
+
+    private static QuoteRequest separateItems() {
+        return new QuoteRequest(null, 2,
+                new FlightSelection(CuratedFlightProvider.offerIdOf(FLIGHT_ID)),
+                new HotelSelection(CuratedHotelProvider.offerIdOf(ROOM_ID), DEPARTURE, DEPARTURE.plusDays(3)),
+                new CarSelection(CuratedCarRentalProvider.offerIdOf(CAR_ID), DEPARTURE, DEPARTURE.plusDays(3)));
     }
 
     @Test

@@ -43,10 +43,10 @@ public interface RecommendationService {
 
 `RuleBasedRecommendationService` monta o perfil do cliente e entrega candidatos a `RecommendationRules`, uma função pura e determinística, testada por parâmetros.
 
-Candidatos: pacotes ativos com voo ativo e embarque depois de hoje. Ficam de fora:
-- pacotes já reservados pelo cliente (qualquer reserva não cancelada);
+Candidatos: pacotes ativos com voo ativo e embarque a partir de amanhã. Ficam de fora:
+- pacotes já reservados pelo cliente (qualquer reserva não cancelada) ou de viagens dele;
 - os que ele já favoritou (aparecem na seção de favoritos);
-- os que ele avaliou com nota menor ou igual a 2.
+- os que ele já avaliou (conhece o pacote; a nota entra só como sinal de categoria e destino).
 
 Sinais do perfil:
 
@@ -64,7 +64,7 @@ Pontuação do candidato:
 - bem avaliado: +1 se a média das avaliações do pacote é ≥ 4 (`HIGHLY_RATED`);
 - promoção: +0,5 se `price_promotion` é menor que `price` (`ON_PROMOTION`).
 
-A ordem é: pontuação decrescente, embarque mais próximo, depois id, para ser determinística. O `limit` vai de 1 a 20 (padrão 6). Cliente sem histórico (cold start) recebe os mesmos candidatos ordenados só por avaliação, promoção e data. Cada recomendação traz `reasons[]`, para a Loja explicar o porquê ("Porque você gosta de praia").
+A ordem é: pontuação decrescente, embarque mais próximo, depois id, para ser determinística. O país é comparado sem acento e sem diferença de maiúsculas. O `limit` vai de 1 a 20 (padrão 6). Cliente sem histórico (cold start) recebe os mesmos candidatos ordenados só por avaliação, promoção e data. Cada recomendação traz `reasons[]`, para a Loja explicar o porquê ("Porque você gosta de praia").
 
 Os candidatos são carregados em memória: o catálogo é curado pelo Enéas (dezenas de pacotes). Os pesos ficam em constantes, documentados aqui. Ajustá-los é uma mudança de código com teste.
 

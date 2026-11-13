@@ -119,6 +119,34 @@ describe('PackageDetailPage', () => {
     expect(text(el)).toContain('Pacote não encontrado');
     expect(el.querySelector('a[href^="/busca"]')).not.toBeNull();
   });
+
+  it('favoritar sem sessão leva ao login e volta para o pacote', async () => {
+    const el = await open(`/pacotes/${pkg.id}`);
+    const heart = el.querySelector<HTMLButtonElement>('app-favorite-button button')!;
+    expect(heart.getAttribute('aria-pressed')).toBe('false');
+    heart.click();
+    expect(login).toHaveBeenCalledWith(`/pacotes/${pkg.id}`);
+  });
+
+  it('com sessão, favorita o pacote e marca o coração', async () => {
+    authenticated.set(true);
+    let favorited: unknown;
+    server.use(
+      http.put('*/api/me/favorites/:id', ({ params }) => {
+        favorited = params['id'];
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const el = await open(`/pacotes/${pkg.id}`);
+    const heart = () => el.querySelector<HTMLButtonElement>('app-favorite-button button')!;
+    heart().click();
+    await vi.waitFor(() => {
+      harness.detectChanges();
+      expect(heart().textContent).toContain('Nos favoritos');
+    });
+    await vi.waitFor(() => expect(favorited).toBe(pkg.id));
+    expect(heart().getAttribute('aria-pressed')).toBe('true');
+  });
 });
 
 describe('PackageDetailPage: SEO', () => {

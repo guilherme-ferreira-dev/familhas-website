@@ -28,6 +28,7 @@ import { CheckoutApi } from '../../core/checkout/checkout-api';
 import { ApiError, errorMessage } from '../../core/errors/api-error';
 import { Seo } from '../../core/seo/seo';
 import { WhatsappContextService } from '../../core/whatsapp/whatsapp';
+import { FavoriteButton } from '../../shared/favorite-button';
 import { LoadError } from '../../shared/load-error';
 import { BOARD_LABELS, CAR_LABELS } from '../search/search.page';
 
@@ -41,7 +42,7 @@ interface PackageDetail {
 @Component({
   selector: 'app-package-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, LoadError],
+  imports: [CurrencyPipe, DatePipe, FormsModule, RouterLink, LoadError, FavoriteButton],
   templateUrl: './package-detail.page.html',
   styleUrl: './package-detail.page.scss',
 })

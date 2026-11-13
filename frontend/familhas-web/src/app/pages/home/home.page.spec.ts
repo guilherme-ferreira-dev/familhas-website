@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { cities, CITY } from '../../../mocks/fixtures';
+import { provideTestAuth } from '../../../testing/test-auth';
 import { provideTestConfig, TEST_API } from '../../../testing/test-config';
 import { HomePage } from './home.page';
 
@@ -35,6 +36,7 @@ describe('HomePage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideTestConfig(),
+        provideTestAuth().provider,
       ],
     });
     backend = TestBed.inject(HttpTestingController);

@@ -19,6 +19,17 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./pages/dashboard/dashboard.page').then((m) => m.DashboardPage),
       },
+      {
+        path: 'clientes',
+        title: 'Clientes',
+        loadComponent: () => import('./pages/clients/clients.page').then((m) => m.ClientsPage),
+      },
+      {
+        path: 'clientes/:id',
+        title: 'Cliente',
+        loadComponent: () =>
+          import('./pages/clients/client-detail.page').then((m) => m.ClientDetailPage),
+      },
       { path: '**', component: NotFoundPage, title: 'Página não encontrada' },
     ],
   },

@@ -27,10 +27,10 @@ public class PricingService {
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
-    private final PricingProperties properties;
+    private final PricingRulesProvider rules;
 
-    public PricingService(PricingProperties properties) {
-        this.properties = properties;
+    public PricingService(PricingRulesProvider rules) {
+        this.rules = rules;
     }
 
     public PriceBreakdown price(PricingRequest request) {
@@ -40,6 +40,7 @@ public class PricingService {
         if (request.passengers() < 1) {
             throw new PricingException("Informe ao menos um passageiro");
         }
+        PricingProperties properties = rules.current();
         String currency = requireSingleCurrency(request.components());
         BigDecimal promotionPercent = normalizePromotion(request.promotionPercent());
 
@@ -51,7 +52,7 @@ public class PricingService {
                 .reduce(Money.zero(currency), Money::plus);
         Money margin = componentsTotal.percent(properties.marginPercent());
         Money discount = componentsTotal.plus(margin).percent(promotionPercent);
-        Money serviceFee = serviceFee(currency, request.passengers());
+        Money serviceFee = serviceFee(properties, currency, request.passengers());
         Money total = componentsTotal.plus(margin).minus(discount).plus(serviceFee);
 
         return new PriceBreakdown(items, componentsTotal, properties.marginPercent(), margin, promotionPercent,
@@ -64,7 +65,7 @@ public class PricingService {
      */
     public Money customerPrice(Money unitPrice, int quantity) {
         Money cost = unitPrice.times(quantity);
-        return cost.plus(cost.percent(properties.marginPercent()));
+        return cost.plus(cost.percent(rules.current().marginPercent()));
     }
 
     /**
@@ -79,7 +80,7 @@ public class PricingService {
         return price.subtract(pricePromotion).multiply(HUNDRED).divide(price, 4, RoundingMode.HALF_EVEN);
     }
 
-    private Money serviceFee(String currency, int passengers) {
+    private static Money serviceFee(PricingProperties properties, String currency, int passengers) {
         BigDecimal fee = properties.serviceFeePerPassenger();
         if (fee.signum() == 0) {
             return Money.zero(currency);

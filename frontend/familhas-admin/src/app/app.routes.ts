@@ -99,6 +99,11 @@ export const routes: Routes = [
           },
         ],
       },
+      {
+        path: 'auditoria',
+        title: 'Auditoria',
+        loadComponent: () => import('./pages/audit/audit.page').then((m) => m.AuditPage),
+      },
       { path: '**', component: NotFoundPage, title: 'Página não encontrada' },
     ],
   },

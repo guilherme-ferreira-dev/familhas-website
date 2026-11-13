@@ -13,7 +13,7 @@ import { Router } from '@angular/router';
 import { debounceTime, interval, tap } from 'rxjs';
 import type { PaymentMethod, PaymentStatus } from '../../core/api/api-types';
 import { AdminApi, ExportFormat, PaymentFilter } from '../../core/admin/admin-api';
-import { saveDownload } from '../../core/admin/download';
+import { exportFileName, saveDownload } from '../../core/admin/download';
 import { PaymentFeed } from '../../core/admin/payment-feed';
 import { errorMessage } from '../../core/errors/api-error';
 import { NotificationService } from '../../core/notifications/notification.service';
@@ -259,7 +259,7 @@ export class PaymentsPage {
     this.exporting.set(true);
     this.api.exportPayments(this.filter(), format).subscribe({
       next: (response) => {
-        saveDownload(response, `pagamentos.${format}`);
+        saveDownload(response, exportFileName('pagamentos', format));
         this.exporting.set(false);
       },
       error: (error: unknown) => {

@@ -1,5 +1,5 @@
 import { HttpHeaders, HttpResponse } from '@angular/common/http';
-import { fileNameFrom } from './download';
+import { exportFileName, fileNameFrom } from './download';
 import { queryParams } from './query-params';
 
 describe('queryParams', () => {
@@ -24,5 +24,13 @@ describe('fileNameFrom', () => {
     expect(fileNameFrom('attachment; filename="../../etc/passwd"', 'x')).toBe('.._.._etc_passwd');
     expect(fileNameFrom(null, 'pagamentos.xlsx')).toBe('pagamentos.xlsx');
     expect(new HttpResponse({ headers: new HttpHeaders() }).headers.get('x')).toBeNull();
+  });
+});
+
+describe('exportFileName', () => {
+  it('segue o formato da API no horário de São Paulo', () => {
+    expect(exportFileName('pagamentos', 'csv', new Date('2027-01-15T13:05:00Z'))).toBe(
+      'pagamentos-20270115-1005.csv',
+    );
   });
 });

@@ -37,7 +37,7 @@ public class AuditLogEntity {
     @Column(nullable = false, length = 20, updatable = false)
     private AuditAction action;
 
-    @Column(nullable = false, length = 60, updatable = false)
+    @Column(name = "resource_type", nullable = false, length = 60, updatable = false)
     private String resource;
 
     @Column(name = "resource_id", length = 64, updatable = false)

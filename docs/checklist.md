@@ -91,7 +91,7 @@ Decisões em [ADR 0006](adr/0006-provedores-preco-e-cotacao.md).
 
 ### Testes e validação
 - [x] Unitários nos services, WebMvcTest nos controllers e Testcontainers (Oracle) em busca e cotação
-- [x] `./mvnw verify` passa em `backend/familhas-api`
+- [x] `./mvnw verify` passa em `backend/familhas-api`, também depois do merge com a Fase 8 (431 testes, nenhum pulado)
 - [x] Migração V9 e V10 validada sobre o banco local existente (V8) e fluxo busca -> cotação validado com token real
 
 ### Pendências documentadas (fora da Fase 5)
@@ -230,7 +230,7 @@ Decisões em [ADR 0010](adr/0010-minhas-viagens-e-recomendacao.md). Contrato em 
 
 ## Fase 10: Admin
 
-Decisões em [ADR 0011](adr/0011-admin.md). Contrato em [docs/api/admin.yaml](api/admin.yaml). Rodou em paralelo à Fase 8 (V13 e ADR 0010 dela; V14+ e ADR 0011 aqui).
+Decisões em [ADR 0011](adr/0011-admin.md). Contrato em [docs/api/admin.yaml](api/admin.yaml). Rodou em paralelo à Fase 8 (V13 e ADR 0010 dela; V14+ e ADR 0011 aqui). Entrou na `main` pelo PR #25; correções depois no PR #26 (Admin) e no PR #27 (infra).
 
 ### Contrato e segurança
 - [x] `docs/api/admin.yaml` (OpenAPI 3.1) antes do código, validado por teste e lint; tipos do front gerados dele
@@ -259,13 +259,16 @@ Decisões em [ADR 0011](adr/0011-admin.md). Contrato em [docs/api/admin.yaml](ap
 - [x] Telas: dashboard, clientes, reservas, pagamentos, cotações (manual inclusive), catálogo (voos, hotéis, quartos, carros, pacotes, promoções, margem) e auditoria
 - [x] Planilha atualizada por SSE (token no header) e a cada 30 s; exportação com os filtros da tela
 - [x] Job `familhas-admin` no CI: contrato, tipos, lint, formatação, testes e build
+- [x] Tela "login indisponível" quando o Keycloak não responde, em vez do aviso genérico de erro na API (PR #26)
 
 ### Testes e validação
 - [x] Unitários e WebMvcTest do backend; Testcontainers com Oracle (`AdminIntegrationTests`) e RabbitMQ (`PaymentFeedIntegrationTests`)
 - [x] `./mvnw verify` passa em `backend/familhas-api`
 - [x] `npm run lint`, `format:check`, `test:ci` e `build` passam em `frontend/familhas-admin`
-- [ ] Validação manual no navegador com Keycloak real (login admin, "sem permissão" com `user.familhas`, planilha recebendo um pagamento de teste do Stripe)
-- [ ] Migrations V14 a V16 aplicadas sobre o banco local existente, depois da V13 da Fase 8
+- [x] Migrations V13 a V16 aplicadas sobre o banco local existente (Flyway em 13/11/2026); Hibernate validou o schema
+- [x] API no ar com a stack local: health `UP`, `/api/admin/**` sem token = 401, CORS liberado para `http://localhost:4300`, fila da planilha declarada no RabbitMQ
+- [ ] Validação manual no navegador com Keycloak real (login admin, "sem permissão" com `user.familhas`, cotação manual, exportação)
+- [ ] Planilha recebendo um pagamento de teste do Stripe em tempo real (o `.env` local não tem chaves do Stripe)
 
 ### Pendências documentadas (fora da Fase 10)
 - [ ] Conversas e handoffs: dependem do chat (Fase 9)
@@ -276,3 +279,5 @@ Decisões em [ADR 0011](adr/0011-admin.md). Contrato em [docs/api/admin.yaml](ap
 - [ ] Evento de estorno e de sessão expirada para a planilha atualizar na hora (hoje a recarga de 30 s cobre)
 - [ ] Sincronização com Google Sheets (desenho no ADR 0011; decidir antes quais colunas podem sair por LGPD)
 - [ ] Listas de opções do catálogo e da cotação manual carregam até 100 itens (trocar por busca quando o catálogo crescer)
+- [ ] `PRICING_*=` vazios no `.env` impedem `./mvnw spring-boot:run` com o `.env` carregado (o Spring não usa o padrão para variável vazia); no compose funciona. Problema anterior à Fase 10
+- [ ] `restart: unless-stopped` em Oracle, Keycloak e MailHog, e memória mínima do Docker Desktop no infra/README (PR #27, aguardando merge)

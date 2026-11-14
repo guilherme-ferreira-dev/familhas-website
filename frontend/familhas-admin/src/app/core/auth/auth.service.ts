@@ -18,6 +18,8 @@ export abstract class AuthService {
   abstract readonly isAuthenticated: Signal<boolean>;
   abstract readonly isAdmin: Signal<boolean>;
   abstract readonly user: Signal<AuthUser | null>;
+  /** O Keycloak não respondeu no bootstrap (fora do ar ou certificado recusado pelo navegador). */
+  abstract readonly unavailable: Signal<boolean>;
 
   /** Processa a volta do Keycloak (code + state) e restaura a sessão. Chamado no bootstrap. */
   abstract init(): Promise<void>;

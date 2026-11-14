@@ -22,7 +22,17 @@ export async function render<T>(
       provideHttpClientTesting(),
       provideRouter([]),
       provideLocale(),
-      { provide: APP_CONFIG, useValue: { apiBaseUrl: 'http://api' } as AppConfig },
+      {
+        provide: APP_CONFIG,
+        useValue: {
+          apiBaseUrl: 'http://api',
+          oidc: {
+            authority: 'https://kc/realms/familhas',
+            clientId: 'familhas-admin',
+            scope: 'openid',
+          },
+        } as AppConfig,
+      },
       {
         provide: AuthService,
         useValue: { getAccessToken: () => Promise.resolve('tok'), login: () => undefined },

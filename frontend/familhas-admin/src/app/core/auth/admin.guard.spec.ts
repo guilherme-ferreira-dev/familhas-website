@@ -13,15 +13,17 @@ describe('adminGuard', () => {
   const login = vi.fn();
   const authenticated = signal(false);
   const admin = signal(false);
+  const unavailable = signal(false);
 
   beforeEach(() => {
     login.mockReset();
+    unavailable.set(false);
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         {
           provide: AuthService,
-          useValue: { isAuthenticated: authenticated, isAdmin: admin, login },
+          useValue: { isAuthenticated: authenticated, isAdmin: admin, unavailable, login },
         },
       ],
     });
@@ -51,5 +53,12 @@ describe('adminGuard', () => {
     authenticated.set(true);
     admin.set(true);
     expect(run('/pagamentos')).toBe(true);
+  });
+
+  it('Keycloak fora do ar vai para "login indisponível" guardando a rota, sem tentar o login', () => {
+    unavailable.set(true);
+    const result = run('/pagamentos');
+    expect(String(result)).toBe('/login-indisponivel?voltar=%2Fpagamentos');
+    expect(login).not.toHaveBeenCalled();
   });
 });

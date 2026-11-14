@@ -28,6 +28,16 @@ import { Brand } from './brand';
                 >Buscar</a
               >
             </li>
+            @if (auth.isAuthenticated()) {
+              <li>
+                <a
+                  routerLink="/minhas-viagens"
+                  routerLinkActive="active"
+                  ariaCurrentWhenActive="page"
+                  >Minhas viagens</a
+                >
+              </li>
+            }
           </ul>
         </nav>
         <div class="account">

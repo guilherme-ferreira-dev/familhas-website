@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -34,4 +35,8 @@ public interface PaymentRepository extends JpaRepository<PaymentEntity, UUID> {
     @Query("select p.id from PaymentEntity p where p.status in :statuses and p.updatedAt <= :before order by p.updatedAt")
     List<UUID> findStaleIds(@Param("statuses") Collection<PaymentStatus> statuses, @Param("before") Instant before,
             Pageable pageable);
+
+    /** Todas as tentativas das reservas, com as parcelas (viagens do cliente, sem N+1). */
+    @EntityGraph(attributePaths = "installmentPlan")
+    List<PaymentEntity> findByBookingIdIn(Collection<UUID> bookingIds);
 }

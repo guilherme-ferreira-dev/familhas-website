@@ -23,7 +23,10 @@
             <img [src]="d.pkg.imageUrl" alt="" width="1280" height="720" />
           }
         </div>
-        <h1>{{ d.pkg.title }}</h1>
+        <div class="title-row">
+          <h1>{{ d.pkg.title }}</h1>
+          <app-favorite-button [packageId]="d.pkg.id" [packageTitle]="d.pkg.title" />
+        </div>
         <p class="muted">
           {{ cities.name(d.pkg.originCityId) }} → {{ cities.name(d.pkg.destinationCityId) }}
         </p>

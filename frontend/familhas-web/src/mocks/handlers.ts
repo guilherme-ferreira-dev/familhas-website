@@ -8,6 +8,7 @@ import type {
   CheckoutSessionRequest,
   FlightSearchResult,
   HotelSearchResult,
+  MyRating,
   PackageSearchResult,
   ProblemDetail,
   Quote,
@@ -25,6 +26,7 @@ import {
   travelPackages,
 } from './fixtures';
 import { MOCK_TOKEN_PREFIX } from './mock-token';
+import { createMyTripsHandlers } from './my-trips-handlers';
 
 /**
  * Handlers do MSW seguindo docs/api/familhas-api.yaml. Valem para qualquer host (`*`),
@@ -43,6 +45,9 @@ export interface MockState {
   bookings: Map<string, Booking>;
   /** Quantas vezes cada reserva com checkout aberto já foi consultada (simula o webhook). */
   polls: Map<string, number>;
+  /** Fase 8: ids dos pacotes favoritos e avaliações do cliente. */
+  favorites: Set<string>;
+  ratings: Map<string, MyRating>;
   /** Chamado depois de cada alteração (o build mock grava no sessionStorage). */
   save: () => void;
 }
@@ -51,6 +56,8 @@ export interface MockSnapshot {
   quotes: [string, Quote][];
   bookings: [string, Booking][];
   polls: [string, number][];
+  favorites?: string[];
+  ratings?: [string, MyRating][];
 }
 
 export function createMockState(
@@ -61,11 +68,15 @@ export function createMockState(
     quotes: new Map(snapshot?.quotes ?? []),
     bookings: new Map(snapshot?.bookings ?? []),
     polls: new Map(snapshot?.polls ?? []),
+    favorites: new Set(snapshot?.favorites ?? [travelPackages[2].id]),
+    ratings: new Map(snapshot?.ratings ?? []),
     save: () =>
       onSave?.({
         quotes: [...state.quotes],
         bookings: [...state.bookings],
         polls: [...state.polls],
+        favorites: [...state.favorites],
+        ratings: [...state.ratings],
       }),
   };
   return state;
@@ -423,10 +434,13 @@ export function createHandlers(state: MockState = createMockState(), latencyMs =
         return HttpResponse.json(session, { status: reused ? 200 : 201 });
       }),
     ),
+
+    // Fase 8 (docs/api/minhas-viagens.yaml): viagens, favoritos, avaliações e recomendação
+    ...createMyTripsHandlers(state, wait),
   ];
 }
 
-function authenticated<T extends Parameters<HttpResponseResolver>[0]>(
+export function authenticated<T extends Parameters<HttpResponseResolver>[0]>(
   resolver: (info: T) => Promise<Response>,
 ) {
   return (info: T) => {
@@ -549,18 +563,18 @@ function withQuoteStatus(quote: Quote, state: MockState): Quote {
   return Date.parse(quote.expiresAt) <= Date.now() ? { ...quote, status: 'EXPIRED' } : quote;
 }
 
-function coded(
+export function coded(
   request: Request,
   status: number,
   code: ProblemCode,
   detail: string,
   extra: Record<string, unknown> = {},
 ) {
-  const title = status === 409 ? 'Conflict' : 'Unprocessable Entity';
+  const title = status === 404 ? 'Not Found' : status === 409 ? 'Conflict' : 'Unprocessable Entity';
   return problem(request, status, title, detail, { code, ...extra });
 }
 
-function problem(
+export function problem(
   request: Request,
   status: number,
   title: string,
@@ -581,7 +595,7 @@ function problem(
   });
 }
 
-function notFound(request: Request) {
+export function notFound(request: Request) {
   return problem(request, 404, 'Not Found', 'Recurso não encontrado.');
 }
 

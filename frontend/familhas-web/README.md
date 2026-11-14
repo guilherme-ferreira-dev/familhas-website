@@ -51,13 +51,14 @@ O Keycloak já aceita `http(s)://localhost:4200` como redirect e web origin, e a
 - O login é simulado: "Entrar" cria a sessão na hora.
 - O "Stripe" volta direto para `/checkout/{id}/sucesso`, e a reserva confirma na segunda consulta, simulando o webhook.
 - Cenários de erro: busca de voos com 9 passageiros responde 503; cotação com 8 passageiros responde 422.
+- Minhas viagens: há uma viagem passada fixa (Porto Seguro) para testar a avaliação; reservas pagas no mock viram viagens futuras. "Inverno em Gramado" começa nos favoritos. Avaliar pacote sem viagem passada responde 422 `RATING_NOT_ALLOWED`, como na API.
 
 ## Estrutura
 
 ```
-src/app/core      config, auth (OIDC/mock), api (tipos gerados), catálogo, checkout, erros, SEO, WhatsApp
+src/app/core      config, auth (OIDC/mock), api (tipos gerados), catálogo, checkout, minhas viagens, erros, SEO, WhatsApp
 src/app/layout    cabeçalho e rodapé
-src/app/pages     home, busca, pacote, cotação, checkout, 404
+src/app/pages     home, busca, pacote, cotação, checkout, minhas viagens, 404
 src/app/shared    componentes reutilizáveis
 src/mocks         handlers e dados do MSW
 src/testing       helpers de teste

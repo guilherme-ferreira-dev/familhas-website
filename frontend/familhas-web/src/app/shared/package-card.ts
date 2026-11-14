@@ -3,11 +3,12 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { RouterLink } from '@angular/router';
 import type { PackageSearchResult } from '../core/api/api-types';
 import { CityDirectory } from '../core/catalog/city-directory';
+import { FavoriteButton } from './favorite-button';
 
 @Component({
   selector: 'app-package-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CurrencyPipe, DatePipe, RouterLink],
+  imports: [CurrencyPipe, DatePipe, RouterLink, FavoriteButton],
   template: `
     @let pkg = item();
     <article class="card package">
@@ -19,6 +20,9 @@ import { CityDirectory } from '../core/catalog/city-directory';
         @if (pkg.imageUrl) {
           <img [src]="pkg.imageUrl" alt="" loading="lazy" width="640" height="360" />
         }
+      </div>
+      <div class="favorite">
+        <app-favorite-button [packageId]="pkg.id" [packageTitle]="pkg.title" [compact]="true" />
       </div>
       <div class="body">
         <h3>
@@ -66,6 +70,13 @@ import { CityDirectory } from '../core/catalog/city-directory';
     }
     .media {
       aspect-ratio: 16 / 9;
+    }
+    /* Acima do link que cobre o card inteiro. */
+    .favorite {
+      position: absolute;
+      top: var(--space-2);
+      right: var(--space-2);
+      z-index: 1;
     }
     .media img {
       width: 100%;

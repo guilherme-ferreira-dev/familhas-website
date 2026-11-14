@@ -1,0 +1,281 @@
+<div class="container stack">
+  <header class="intro">
+    <h1>Minhas viagens</h1>
+    <p class="muted">Suas reservas confirmadas, avaliações, favoritos e ideias para a próxima.</p>
+  </header>
+
+  <p class="visually-hidden" aria-live="polite">{{ status() }}</p>
+
+  <section aria-labelledby="viagens-titulo" class="stack">
+    <h2 id="viagens-titulo" class="visually-hidden">Viagens</h2>
+    <nav class="tabs" aria-label="Viagens">
+      <a
+        routerLink="/minhas-viagens"
+        [queryParams]="{ aba: 'proximas' }"
+        [attr.aria-current]="aba() === 'proximas' ? 'page' : null"
+        >Próximas</a
+      >
+      <a
+        routerLink="/minhas-viagens"
+        [queryParams]="{ aba: 'passadas' }"
+        [attr.aria-current]="aba() === 'passadas' ? 'page' : null"
+        >Já realizadas</a
+      >
+    </nav>
+
+    @if (trips.error()) {
+      <app-load-error [error]="trips.error()" (retry)="trips.reload()" />
+    } @else if (trips.isLoading() && !trips.hasValue()) {
+      <p class="muted" aria-busy="true">Carregando suas viagens…</p>
+    } @else if (trips.hasValue()) {
+      @let page = trips.value();
+      @if (page.content.length === 0) {
+        <div class="empty card">
+          @if (aba() === 'proximas') {
+            <p>Você ainda não tem viagens marcadas.</p>
+            <p><a class="button" routerLink="/busca">Encontrar um pacote</a></p>
+          } @else {
+            <p>As viagens que você fizer com a Familhas aparecem aqui.</p>
+          }
+        </div>
+      } @else {
+        <ul class="trips">
+          @for (trip of page.content; track trip.id) {
+            <li>
+              <article class="card trip" [attr.aria-labelledby]="'viagem-' + trip.id">
+                <div class="trip-head">
+                  <h3 [id]="'viagem-' + trip.id">{{ trip.title }}</h3>
+                  <span class="badge" [class.badge--live]="trip.inProgress">{{
+                    tripBadge(trip)
+                  }}</span>
+                </div>
+                <p class="muted">
+                  @if (trip.startDate) {
+                    {{ trip.startDate | date: 'dd/MM/yyyy' }}
+                    @if (trip.endDate && trip.endDate !== trip.startDate) {
+                      a {{ trip.endDate | date: 'dd/MM/yyyy' }}
+                    }
+                    ·
+                  }
+                  {{ trip.passengers }} {{ trip.passengers === 1 ? 'pessoa' : 'pessoas' }} · Reserva
+                  {{ shortId(trip.id) }}
+                </p>
+
+                <ul class="items">
+                  @for (item of trip.items; track $index) {
+                    <li>{{ item.description }}</li>
+                  }
+                </ul>
+
+                <dl class="payment">
+                  <div>
+                    <dt>Total</dt>
+                    <dd>
+                      <strong>{{ trip.total | currency: trip.currency }}</strong>
+                    </dd>
+                  </div>
+                  @if (trip.payment; as pay) {
+                    <div>
+                      <dt>Pagamento</dt>
+                      <dd>
+                        <span class="pay-status" [attr.data-status]="pay.status">{{
+                          paymentLabels[pay.status]
+                        }}</span>
+                        · {{ methodLabels[pay.method] }}
+                        @if (pay.paidAt) {
+                          em {{ pay.paidAt | date: 'dd/MM/yyyy' }}
+                        }
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Parcelas</dt>
+                      <dd>
+                        @if (pay.installments === 1) {
+                          À vista: 1x de
+                          {{
+                            pay.installmentPlan[0]?.amount ?? pay.amount | currency: pay.currency
+                          }}
+                        } @else {
+                          <ol class="installments">
+                            @for (part of pay.installmentPlan; track part.number) {
+                              <li>
+                                {{ part.number }}ª parcela:
+                                {{ part.amount | currency: part.currency }}
+                              </li>
+                            }
+                          </ol>
+                        }
+                        @if (pay.refundedAmount > 0) {
+                          <br />Estornado: {{ pay.refundedAmount | currency: pay.currency }}
+                        }
+                      </dd>
+                    </div>
+                  } @else {
+                    <div>
+                      <dt>Pagamento</dt>
+                      <dd>Confirmado pela equipe da Familhas</dd>
+                    </div>
+                  }
+                </dl>
+
+                @if (trip.myRating; as mine) {
+                  <p class="my-rating">
+                    Sua avaliação:
+                    <span aria-hidden="true" class="stars">{{ stars(mine.rating) }}</span>
+                    <span class="visually-hidden">{{ mine.rating }} de 5</span>
+                  </p>
+                } @else if (trip.canRate) {
+                  <form class="rate" (ngSubmit)="rateTrip(trip)">
+                    <fieldset>
+                      <legend>Como foi a viagem?</legend>
+                      <div class="rate-options">
+                        @for (n of ratingOptions; track n) {
+                          <label>
+                            <input
+                              type="radio"
+                              [name]="'nota-' + trip.id"
+                              [value]="n"
+                              [ngModel]="draft(trip.id)"
+                              (ngModelChange)="setDraft(trip.id, $event)"
+                            />
+                            {{ n }}
+                            <span class="visually-hidden">de 5</span>
+                          </label>
+                        }
+                      </div>
+                    </fieldset>
+                    <button type="submit" class="button" [disabled]="saving() === trip.id">
+                      Enviar avaliação
+                    </button>
+                    @if (ratingError()?.id === trip.id) {
+                      <p class="alert" role="alert">{{ ratingError()!.message }}</p>
+                    }
+                  </form>
+                }
+
+                @if (trip.travelPackage?.active) {
+                  <p>
+                    <a [routerLink]="['/pacotes', trip.travelPackage!.id]">Ver o pacote</a>
+                  </p>
+                }
+              </article>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </section>
+
+  <section aria-labelledby="sugestoes-titulo" class="stack">
+    <h2 id="sugestoes-titulo">Sugestões para você</h2>
+    @if (recommendations.error()) {
+      <app-load-error [error]="recommendations.error()" (retry)="recommendations.reload()" />
+    } @else if (recommendations.hasValue()) {
+      @if (recommendations.value().length === 0) {
+        <p class="muted">Ainda não temos sugestões. Explore a <a routerLink="/busca">busca</a>.</p>
+      } @else {
+        <ul class="grid">
+          @for (rec of recommendations.value(); track rec.travelPackage.id) {
+            <li>
+              <app-package-summary-card [item]="rec.travelPackage">
+                @if (rec.reasons.length) {
+                  <ul class="reasons" aria-label="Por que sugerimos">
+                    @for (reason of rec.reasons; track reason) {
+                      <li>{{ reasonLabels[reason] }}</li>
+                    }
+                  </ul>
+                }
+              </app-package-summary-card>
+            </li>
+          }
+        </ul>
+      }
+    } @else {
+      <p class="muted" aria-busy="true">Carregando sugestões…</p>
+    }
+  </section>
+
+  <section aria-labelledby="favoritos-titulo" class="stack">
+    <h2 id="favoritos-titulo">Favoritos</h2>
+    @if (favorites.error()) {
+      <app-load-error [error]="favorites.error()" (retry)="favorites.reload()" />
+    } @else if (favorites.hasValue()) {
+      @if (visibleFavorites().length === 0) {
+        <p class="muted">
+          Toque no coração de um pacote para guardar aqui.
+          <a routerLink="/busca">Ver pacotes</a>
+        </p>
+      } @else {
+        <ul class="grid">
+          @for (pkg of visibleFavorites(); track pkg.id) {
+            <li><app-package-summary-card [item]="pkg" /></li>
+          }
+        </ul>
+      }
+    } @else {
+      <p class="muted" aria-busy="true">Carregando favoritos…</p>
+    }
+  </section>
+
+  <section aria-labelledby="avaliacoes-titulo" class="stack">
+    <h2 id="avaliacoes-titulo">Suas avaliações</h2>
+    @if (ratings.error()) {
+      <app-load-error [error]="ratings.error()" (retry)="ratings.reload()" />
+    } @else if (ratings.hasValue()) {
+      @if (ratings.value().content.length === 0) {
+        <p class="muted">Depois de viajar, conte para a gente como foi.</p>
+      } @else {
+        <ul class="ratings">
+          @for (rating of ratings.value().content; track rating.id) {
+            <li class="card rating">
+              <div>
+                <h3>{{ rating.travelPackage.title }}</h3>
+                <p>
+                  <span aria-hidden="true" class="stars">{{ stars(rating.rating) }}</span>
+                  <span class="visually-hidden">Nota {{ rating.rating }} de 5</span>
+                </p>
+              </div>
+              <form class="rating-edit" (ngSubmit)="updateRating(rating)">
+                <div class="field">
+                  <label [for]="'nota-' + rating.id">Nova nota</label>
+                  <select
+                    [id]="'nota-' + rating.id"
+                    [name]="'nota-' + rating.id"
+                    [ngModel]="draft(rating.id, rating.rating)"
+                    (ngModelChange)="setDraft(rating.id, $event)"
+                  >
+                    @for (n of ratingOptions; track n) {
+                      <option [ngValue]="n">{{ n }} de 5</option>
+                    }
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  class="button button--ghost"
+                  [disabled]="saving() === rating.id"
+                >
+                  Salvar
+                </button>
+                <button
+                  type="button"
+                  class="button button--ghost danger"
+                  [disabled]="saving() === rating.id"
+                  (click)="deleteRating(rating)"
+                >
+                  Apagar<span class="visually-hidden">
+                    avaliação de {{ rating.travelPackage.title }}</span
+                  >
+                </button>
+              </form>
+              @if (ratingError()?.id === rating.id) {
+                <p class="alert" role="alert">{{ ratingError()!.message }}</p>
+              }
+            </li>
+          }
+        </ul>
+      }
+    } @else {
+      <p class="muted" aria-busy="true">Carregando avaliações…</p>
+    }
+  </section>
+</div>

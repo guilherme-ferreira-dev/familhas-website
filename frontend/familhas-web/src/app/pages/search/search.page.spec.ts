@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { cities, CITY } from '../../../mocks/fixtures';
+import { provideTestAuth } from '../../../testing/test-auth';
 import { provideTestConfig, TEST_API } from '../../../testing/test-config';
 import { SearchPage } from './search.page';
 
@@ -36,6 +37,7 @@ describe('SearchPage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideTestConfig(),
+        provideTestAuth().provider,
       ],
     });
     backend = TestBed.inject(HttpTestingController);

@@ -1,0 +1,237 @@
+:host {
+  display: block;
+  padding-block: var(--space-4) var(--space-5);
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding-inline: var(--space-3);
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.tabs a[aria-current='page'] {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.trips,
+.items,
+.grid,
+.ratings,
+.reasons,
+.installments {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trips {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.trip {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.trip-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.trip-head h3 {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.badge {
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: rgb(26 127 55 / 0.12);
+  color: var(--color-success);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.badge--live {
+  background: rgb(255 201 51 / 0.3);
+  color: var(--color-text);
+}
+
+.items {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.items li::before {
+  content: '• ';
+  color: var(--color-muted);
+}
+
+.payment {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: calc(var(--radius) / 2);
+  background: var(--color-bg);
+}
+
+.payment div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.payment dt {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.payment dd {
+  margin: 0;
+}
+
+.pay-status {
+  font-weight: 700;
+}
+
+.pay-status[data-status='SUCCEEDED'] {
+  color: var(--color-success);
+}
+
+.pay-status[data-status='FAILED'],
+.pay-status[data-status='REFUNDED'],
+.pay-status[data-status='PARTIALLY_REFUNDED'] {
+  color: var(--color-danger);
+}
+
+.stars {
+  color: var(--color-accent);
+  letter-spacing: 0.1em;
+}
+
+.rate {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.rate fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rate legend {
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+
+.rate-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rate-options label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding-inline: var(--space-2);
+  border: 2px solid var(--color-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.rate-options label:has(input:checked) {
+  border-color: var(--color-primary);
+  background: rgb(29 79 215 / 0.08);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.reasons li {
+  padding: var(--space-1) var(--space-2);
+  border-radius: 999px;
+  background: rgb(29 79 215 / 0.1);
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.ratings {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.rating {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.rating h3 {
+  font-size: 1.125rem;
+}
+
+.rating-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.empty {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+@media (min-width: 48rem) {
+  .payment {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rating {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+}

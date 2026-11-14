@@ -51,6 +51,13 @@ export const routes: Routes = [
       import('./pages/checkout/checkout-return.page').then((m) => m.CheckoutReturnPage),
   },
   {
+    path: 'minhas-viagens',
+    title: 'Minhas viagens | Familhas',
+    data: { noindex: true },
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/my-trips/my-trips.page').then((m) => m.MyTripsPage),
+  },
+  {
     path: '**',
     title: 'Página não encontrada | Familhas',
     data: { noindex: true },

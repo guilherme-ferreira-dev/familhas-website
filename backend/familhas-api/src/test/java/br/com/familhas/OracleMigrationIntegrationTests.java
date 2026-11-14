@@ -150,14 +150,14 @@ class OracleMigrationIntegrationTests {
         PageRequest page = PageRequest.of(0, 20, Sort.by("title"));
 
         assertThat(ids(travelPackageService.findAll(
-                new TravelPackageFilter(null, CITY_MACEIO, null, null, null, null, null), page)))
+                new TravelPackageFilter(null, CITY_MACEIO, null, null, null, null, null, null), page)))
                 .containsExactly(PACKAGE_MACEIO);
         // Maceio custa 2799.90 com promoção (3299.90 cheio); Buenos Aires 3099.00
         assertThat(ids(travelPackageService.findAll(
-                new TravelPackageFilter(null, null, null, null, null, new BigDecimal("3000"), null), page)))
+                new TravelPackageFilter(null, null, null, null, null, new BigDecimal("3000"), null, null), page)))
                 .containsExactly(PACKAGE_MACEIO);
         assertThat(ids(travelPackageService.findAll(
-                new TravelPackageFilter(null, null, null, null, null, null, "BUENOS"), page)))
+                new TravelPackageFilter(null, null, null, null, null, null, "BUENOS", null), page)))
                 .containsExactly(PACKAGE_BUENOS_AIRES);
     }
 

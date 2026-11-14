@@ -148,7 +148,8 @@ Decisões em [ADR 0007](adr/0007-reserva-checkout-e-webhooks-stripe.md) e [ADR 0
 
 ### Pendências documentadas (fora da Fase 6)
 - [ ] Conta Stripe Brasil: Pix habilitado, parcelamento, taxas e verificação da empresa (guia, seção 11)
-- [ ] Estorno pelo Admin e planilha de pagamentos alimentada pelos eventos (Fase 10)
+- [x] Planilha de pagamentos alimentada pelos eventos (feito na Fase 10)
+- [ ] Estorno pelo Admin (ficou como pendência da Fase 10)
 - [ ] `COMPLETED` quando a viagem termina e "Minhas viagens" (Fase 8)
 - [ ] Estoque por data de hotel e carro no catálogo curado (pendência da Fase 5)
 - [ ] Retenção de `stripe_webhook_events` e de reservas canceladas (Fase 11)
@@ -227,3 +228,51 @@ Decisões em [ADR 0010](adr/0010-minhas-viagens-e-recomendacao.md). Contrato em 
 - [ ] Afinidade de destino além do país (região/tags em `CityEntity`) e pesos da recomendação validados com o Enéas
 - [ ] Parcelamento real no cartão continua adiado (ADR 0008); a tela já mostra a lista de parcelas quando houver mais de uma
 
+## Fase 10: Admin
+
+Decisões em [ADR 0011](adr/0011-admin.md). Contrato em [docs/api/admin.yaml](api/admin.yaml). Rodou em paralelo à Fase 8 (V13 e ADR 0010 dela; V14+ e ADR 0011 aqui).
+
+### Contrato e segurança
+- [x] `docs/api/admin.yaml` (OpenAPI 3.1) antes do código, validado por teste e lint; tipos do front gerados dele
+- [x] **Cliente comum recebe 403** em toda rota `/api/admin/**` (`AdminSecurityTests` varre as rotas registradas; anônimo 401); repetido com Oracle real em `AdminIntegrationTests`
+- [x] Toda rota admin do código está no contrato (checado no mesmo teste)
+- [x] Login no client `familhas-admin` (PKCE) exigindo `ROLE_ADMIN`: Keycloak nega, o guard leva a "sem permissão" e a API responde 403
+
+### Auditoria
+- [x] V14 `audit_logs` (só inserção): quem, ação, recurso, id, método, caminho, status final e data, sem corpo da requisição (LGPD)
+- [x] Toda escrita em `/api/admin/**` (inclusive o CRUD antigo do catálogo) e toda exportação, com os filtros usados
+- [x] `GET /api/admin/audit-logs` e tela de auditoria
+
+### Backend (`/api/admin`)
+- [x] Dashboard: receita bruta, estornada e líquida por moeda e por dia; pagamentos e reservas por status; clientes novos; reservas aguardando pagamento; cotações válidas
+- [x] Clientes: abas novos, ativos e passados (`segment`) com contagem, busca e detalhe
+- [x] Reservas: lista por status, cliente e período; detalhe com snapshot de preço e tentativas de pagamento
+- [x] Pagamentos: filtros por período (criação ou pagamento), status, método, parcelas, cliente e reserva
+- [x] Exportação XLSX (Apache POI SXSSF) e CSV em streaming, com proteção contra injeção de fórmula
+- [x] Tempo real: fila anônima por instância em `payment.#` + SSE em `/api/admin/payments/stream`
+- [x] V15 `pricing_settings`: margem e taxa editáveis, com variáveis de ambiente como padrão
+- [x] Promoções: filtro `onPromotion` nos pacotes
+- [x] V16 e `POST /api/admin/quotes`: cotação manual com desconto limitado à margem (422 `QUOTE_BELOW_COST`), visível para o cliente na Loja
+
+### Frontend (`frontend/familhas-admin`)
+- [x] Angular 22 standalone e zoneless, ESLint com acessibilidade, Prettier, Vitest e `config.json` de runtime
+- [x] Telas: dashboard, clientes, reservas, pagamentos, cotações (manual inclusive), catálogo (voos, hotéis, quartos, carros, pacotes, promoções, margem) e auditoria
+- [x] Planilha atualizada por SSE (token no header) e a cada 30 s; exportação com os filtros da tela
+- [x] Job `familhas-admin` no CI: contrato, tipos, lint, formatação, testes e build
+
+### Testes e validação
+- [x] Unitários e WebMvcTest do backend; Testcontainers com Oracle (`AdminIntegrationTests`) e RabbitMQ (`PaymentFeedIntegrationTests`)
+- [x] `./mvnw verify` passa em `backend/familhas-api`
+- [x] `npm run lint`, `format:check`, `test:ci` e `build` passam em `frontend/familhas-admin`
+- [ ] Validação manual no navegador com Keycloak real (login admin, "sem permissão" com `user.familhas`, planilha recebendo um pagamento de teste do Stripe)
+- [ ] Migrations V14 a V16 aplicadas sobre o banco local existente, depois da V13 da Fase 8
+
+### Pendências documentadas (fora da Fase 10)
+- [ ] Conversas e handoffs: dependem do chat (Fase 9)
+- [ ] Estorno pelo Admin (hoje pelo Dashboard do Stripe; o webhook mantém a API em dia)
+- [ ] Tela ou endpoint para reprocessar outbox `FAILED` e DLQ (pendência da Fase 4)
+- [ ] Alinhar o preço de vitrine dos pacotes com os componentes (pendência da Fase 5)
+- [ ] Evento `BookingConfirmed` (se algum consumidor precisar; hoje `PaymentConfirmed` já implica reserva confirmada)
+- [ ] Evento de estorno e de sessão expirada para a planilha atualizar na hora (hoje a recarga de 30 s cobre)
+- [ ] Sincronização com Google Sheets (desenho no ADR 0011; decidir antes quais colunas podem sair por LGPD)
+- [ ] Listas de opções do catálogo e da cotação manual carregam até 100 itens (trocar por busca quando o catálogo crescer)

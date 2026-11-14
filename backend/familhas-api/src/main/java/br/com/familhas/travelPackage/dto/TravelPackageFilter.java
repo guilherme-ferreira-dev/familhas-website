@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 /**
  * Filtros de GET /travel-packages. Todos opcionais e combinados com AND.
  * minPrice/maxPrice comparam o preço efetivo: pricePromotion quando existir, senão price.
+ * onPromotion=true: só pacotes com pricePromotion menor que price (aba "Promoções" do Admin, Fase 10).
  */
 public record TravelPackageFilter(
         UUID originCityId,
@@ -19,15 +20,16 @@ public record TravelPackageFilter(
         EntityStatus status,
         @DecimalMin("0.0") BigDecimal minPrice,
         @DecimalMin("0.0") BigDecimal maxPrice,
-        @Size(max = 100) String q) {
+        @Size(max = 100) String q,
+        Boolean onPromotion) {
 
     public static TravelPackageFilter empty() {
-        return new TravelPackageFilter(null, null, null, null, null, null, null);
+        return new TravelPackageFilter(null, null, null, null, null, null, null, null);
     }
 
     /** Catalogo publico: mantem os filtros pedidos e forca somente pacotes ATIVOS. */
     public TravelPackageFilter activeOnly() {
         return new TravelPackageFilter(originCityId, destinationCityId, categoryId, EntityStatus.ACTIVE,
-                minPrice, maxPrice, q);
+                minPrice, maxPrice, q, onPromotion);
     }
 }

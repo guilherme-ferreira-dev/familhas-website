@@ -171,7 +171,7 @@ class TravelPackageServiceTests {
     @Test
     void findAllRejectsInvertedPriceRange() {
         TravelPackageFilter filter = new TravelPackageFilter(
-                null, null, null, null, new BigDecimal("5000"), new BigDecimal("1000"), null);
+                null, null, null, null, new BigDecimal("5000"), new BigDecimal("1000"), null, null);
 
         assertThatThrownBy(() -> service.findAll(filter, PageRequest.of(0, 20)))
                 .isInstanceOf(ResponseStatusException.class)

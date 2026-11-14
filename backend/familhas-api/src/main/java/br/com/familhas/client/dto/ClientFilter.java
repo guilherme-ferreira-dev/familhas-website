@@ -1,15 +1,17 @@
 package br.com.familhas.client.dto;
 
+import br.com.familhas.client.ClientSegment;
 import br.com.familhas.enums.EntityStatus;
 
 import jakarta.validation.constraints.Size;
 
-/** Filtros de GET /clients (somente ADMIN). q busca em nome ou e-mail. */
+/** Filtros de GET /clients (somente ADMIN). q busca em nome ou e-mail; segment é a aba do Admin. */
 public record ClientFilter(
         EntityStatus status,
-        @Size(max = 100) String q) {
+        @Size(max = 100) String q,
+        ClientSegment segment) {
 
     public static ClientFilter empty() {
-        return new ClientFilter(null, null);
+        return new ClientFilter(null, null, null);
     }
 }

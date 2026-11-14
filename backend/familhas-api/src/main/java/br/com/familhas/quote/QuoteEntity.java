@@ -81,6 +81,22 @@ public class QuoteEntity extends AuditableEntity {
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
+    /** CUSTOMER (Loja) ou ADMIN (cotação manual), V16. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private QuoteOrigin origin = QuoteOrigin.CUSTOMER;
+
+    /** Parte de discountAmount dada pelo admin; o resto é promoção. */
+    @Column(name = "manual_discount_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal manualDiscountAmount = BigDecimal.ZERO;
+
+    /** Só para o Admin. */
+    @Column(name = "internal_note", length = 500)
+    private String internalNote;
+
+    @Column(name = "created_by", length = 180)
+    private String createdBy;
+
     @OneToMany(mappedBy = "quote", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("position ASC")
     private List<QuoteItemEntity> items = new ArrayList<>();

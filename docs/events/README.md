@@ -10,8 +10,8 @@ O JSON Schema de cada evento é a fonte da verdade. Os dois serviços têm as pr
 |---|---|---|---|---|---|
 | `UserRegistered` | 1 | `client.user-registered.v1` | [user-registered.v1.schema.json](user-registered.v1.schema.json) | familhas-api (primeiro login) | familhas-email (boas-vindas) |
 | `BookingCreated` | 1 | `booking.booking-created.v1` | [booking-created.v1.schema.json](booking-created.v1.schema.json) | familhas-api (reserva criada) | familhas-email (reserva aguardando pagamento) |
-| `PaymentConfirmed` | 1 | `payment.payment-confirmed.v1` | [payment-confirmed.v1.schema.json](payment-confirmed.v1.schema.json) | familhas-api (webhook ou reconciliação) | familhas-email (reserva confirmada); Admin na Fase 10 |
-| `PaymentFailed` | 1 | `payment.payment-failed.v1` | [payment-failed.v1.schema.json](payment-failed.v1.schema.json) | familhas-api (webhook ou reconciliação) | familhas-email (pagamento não aprovado); Admin na Fase 10 |
+| `PaymentConfirmed` | 1 | `payment.payment-confirmed.v1` | [payment-confirmed.v1.schema.json](payment-confirmed.v1.schema.json) | familhas-api (webhook ou reconciliação) | familhas-email (reserva confirmada); familhas-api, planilha do Admin (fila anônima `familhas-api.admin-payment-feed.*`) |
+| `PaymentFailed` | 1 | `payment.payment-failed.v1` | [payment-failed.v1.schema.json](payment-failed.v1.schema.json) | familhas-api (webhook ou reconciliação) | familhas-email (pagamento não aprovado); familhas-api, planilha do Admin |
 
 Decisões dos eventos de reserva e pagamento em [ADR 0007](../adr/0007-reserva-checkout-e-webhooks-stripe.md) (D10). `PaymentConfirmed` já implica reserva confirmada; um `BookingConfirmed` separado fica para a Fase 10, se o Admin precisar.
 
@@ -57,6 +57,7 @@ familhas.events.unrouted (fanout) ──► familhas.events.unrouted (fila): men
 
 - O exchange `familhas.events` é declarado pelos dois serviços com os mesmos argumentos. Se os argumentos divergirem, o RabbitMQ recusa a declaração (`PRECONDITION_FAILED`).
 - A fila do consumidor, o DLX e a DLQ são do consumidor. A convenção de nomes é `<servico>.<evento>` e `<servico>.<evento>.dlq`.
+- Exceção: a planilha do Admin (ADR 0011) usa uma fila anônima por instância da `familhas-api` (`familhas-api.admin-payment-feed.<aleatório>`, exclusiva e apagada ao desconectar), ligada a `payment.#`. É só um aviso para as telas abertas: sem DLQ e sem idempotência, porque a grade relê a tabela `payments`.
 - Mensagens publicadas antes de qualquer consumidor existir vão para `familhas.events.unrouted` e não se perdem.
 
 ## Regras de versionamento

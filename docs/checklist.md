@@ -280,4 +280,4 @@ Decisões em [ADR 0011](adr/0011-admin.md). Contrato em [docs/api/admin.yaml](ap
 - [ ] Sincronização com Google Sheets (desenho no ADR 0011; decidir antes quais colunas podem sair por LGPD)
 - [ ] Listas de opções do catálogo e da cotação manual carregam até 100 itens (trocar por busca quando o catálogo crescer)
 - [ ] `PRICING_*=` vazios no `.env` impedem `./mvnw spring-boot:run` com o `.env` carregado (o Spring não usa o padrão para variável vazia); no compose funciona. Problema anterior à Fase 10
-- [ ] `restart: unless-stopped` em Oracle, Keycloak e MailHog, e memória mínima do Docker Desktop no infra/README (PR #27, aguardando merge)
+- [x] `restart: unless-stopped` em Oracle, Keycloak e MailHog, e memória mínima do Docker Desktop no infra/README (PR #27)

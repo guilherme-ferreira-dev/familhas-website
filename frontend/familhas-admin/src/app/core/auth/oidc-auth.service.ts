@@ -17,6 +17,8 @@ export class OidcAuthService extends AuthService {
   private readonly oidc = inject(OidcSecurityService);
   private readonly router = inject(Router);
   private readonly roles = signal<readonly string[]>([]);
+  private readonly unreachable = signal(false);
+  readonly unavailable = this.unreachable.asReadonly();
 
   readonly isAuthenticated = computed(() => this.oidc.authenticated().isAuthenticated);
   readonly isAdmin = computed(() => this.isAuthenticated() && this.roles().includes(ADMIN_ROLE));
@@ -40,7 +42,9 @@ export class OidcAuthService extends AuthService {
         await this.router.navigateByUrl(returnUrl, { replaceUrl: true });
       }
     } catch (error) {
+      // Sem Keycloak não há login: as telas mostram "login indisponível" em vez de um erro genérico.
       console.error('Falha ao verificar a sessão no Keycloak', error);
+      this.unreachable.set(true);
     }
   }
 

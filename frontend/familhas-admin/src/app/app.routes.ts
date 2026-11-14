@@ -1,11 +1,13 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/auth/admin.guard';
 import { Shell } from './layout/shell';
+import { LoginUnavailablePage } from './pages/login-unavailable.page';
 import { NoPermissionPage } from './pages/no-permission.page';
 import { NotFoundPage } from './pages/not-found.page';
 
 export const routes: Routes = [
   { path: 'sem-permissao', component: NoPermissionPage, title: 'Sem permissão' },
+  { path: 'login-indisponivel', component: LoginUnavailablePage, title: 'Login indisponível' },
   {
     path: '',
     component: Shell,

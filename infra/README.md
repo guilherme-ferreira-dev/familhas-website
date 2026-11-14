@@ -18,6 +18,8 @@ Para conferir o estado:
 docker compose ps
 ```
 
+Todos os serviços usam `restart: unless-stopped`: voltam sozinhos quando o Docker reinicia (ou o Mac acorda) e quando um processo morre, por exemplo por falta de memória na VM do Docker Desktop. Quem foi parado com `docker compose stop` continua parado. Com a infra e os testes de integração (Testcontainers) rodando juntos, dê ao Docker Desktop pelo menos 6 GB de memória (Settings > Resources).
+
 ## Serviços, portas e healthchecks
 
 | Serviço | Porta(s) no host | Healthcheck | Persistência |

@@ -2,6 +2,7 @@ services:
   oracle:
     image: gvenzl/oracle-free:23-slim
     container_name: familhas-oracle
+    restart: unless-stopped
     environment:
       ORACLE_PASSWORD: ${ORACLE_PASSWORD:-oracle}
       ORACLE_DATABASE: ${ORACLE_DATABASE:-FAMILHASPDB}
@@ -49,6 +50,8 @@ services:
       dockerfile: Dockerfile
     image: familhas-keycloak:26.4.0-oracle
     container_name: familhas-keycloak
+    # Volta sozinho se o Docker reiniciar ou o processo morrer (ex.: falta de memória na VM do Docker Desktop).
+    restart: unless-stopped
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
@@ -88,6 +91,7 @@ services:
   mailhog:
     image: mailhog/mailhog:v1.0.1
     container_name: familhas-mailhog
+    restart: unless-stopped
     ports:
       - "${MAILHOG_SMTP_PORT:-1025}:1025"
       - "${MAILHOG_UI_PORT:-8025}:8025"

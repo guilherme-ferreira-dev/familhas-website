@@ -20,8 +20,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpConnectException;
 import org.springframework.transaction.PlatformTransactionManager;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class OutboxPublisherTests {
@@ -41,11 +44,13 @@ class OutboxPublisherTests {
             Duration.ofSeconds(5), 3, Duration.ofSeconds(2), Duration.ofSeconds(5));
 
     private OutboxPublisher publisher;
+    private SimpleMeterRegistry meterRegistry;
 
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
         publisher = new OutboxPublisher(repository, sender, properties, Clock.fixed(NOW, ZoneOffset.UTC),
-                transactionManager);
+                transactionManager, meterRegistry);
     }
 
     @Test
@@ -62,6 +67,7 @@ class OutboxPublisherTests {
             assertThat(row.getPublishedAt()).isEqualTo(NOW);
             assertThat(row.getAttempts()).isEqualTo(1);
         });
+        assertThat(meterRegistry.counter("familhas.outbox.published").count()).isEqualTo(2);
     }
 
     @Test
@@ -95,6 +101,24 @@ class OutboxPublisherTests {
 
         assertThat(row.getAttempts()).isEqualTo(3);
         assertThat(row.getStatus()).isEqualTo(OutboxStatus.FAILED);
+        assertThat(meterRegistry.counter("familhas.outbox.publish.failures").count()).isEqualTo(3);
+        assertThat(meterRegistry.counter("familhas.outbox.abandoned").count()).isEqualTo(1);
+    }
+
+    @Test
+    void publisherLogsWithTheEventCorrelationIdAndCleansTheMdc() {
+        OutboxEventEntity row = pending();
+        when(repository.lockNextBatch(any(), anyInt())).thenReturn(List.of(row));
+        java.util.concurrent.atomic.AtomicReference<String> seen = new java.util.concurrent.atomic.AtomicReference<>();
+        org.mockito.Mockito.doAnswer(invocation -> {
+            seen.set(MDC.get(OutboxService.CORRELATION_ID_MDC_KEY));
+            return null;
+        }).when(sender).send(row);
+
+        publisher.publishPending();
+
+        assertThat(seen.get()).isEqualTo(row.getCorrelationId());
+        assertThat(MDC.get(OutboxService.CORRELATION_ID_MDC_KEY)).isNull();
     }
 
     @Test

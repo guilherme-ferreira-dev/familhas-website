@@ -38,6 +38,7 @@ describe('ApiError', () => {
     [403, 'forbidden'],
     [404, 'not-found'],
     [422, 'unprocessable'],
+    [429, 'rate-limited'],
     [503, 'unavailable'],
     [500, 'server'],
   ])('status %i -> %s', (status, kind) => {
@@ -54,6 +55,13 @@ describe('errorMessage', () => {
 
   it('cai na mensagem do tipo de erro quando não há code', () => {
     expect(errorMessage(ApiError.from(response(0, null)))).toContain('conexão');
+  });
+
+  it('429 do rate limit (code RATE_LIMITED) pede para esperar', () => {
+    const error = ApiError.from(
+      response(429, { code: 'RATE_LIMITED', detail: 'Muitas requisicoes' }),
+    );
+    expect(errorMessage(error)).toContain('Aguarde alguns segundos');
   });
 
   it('tem mensagem genérica para erro que não veio da API', () => {

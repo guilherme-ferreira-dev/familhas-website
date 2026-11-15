@@ -9,6 +9,7 @@ export type ApiErrorKind =
   | 'not-found'
   | 'conflict'
   | 'unprocessable'
+  | 'rate-limited'
   | 'unavailable'
   | 'server';
 
@@ -52,6 +53,7 @@ export function kindOf(status: number): ApiErrorKind {
   if (status === 404) return 'not-found';
   if (status === 409) return 'conflict';
   if (status === 422) return 'unprocessable';
+  if (status === 429) return 'rate-limited';
   if (status === 502 || status === 503 || status === 504) return 'unavailable';
   return 'server';
 }
@@ -86,6 +88,7 @@ const KIND_MESSAGES: Record<ApiErrorKind, string> = {
   conflict: 'Essa ação não pode ser feita agora. Atualize a página e tente de novo.',
   unprocessable:
     'Não foi possível calcular essa combinação. Tente outras opções ou fale com a gente.',
+  'rate-limited': 'Muitas tentativas em pouco tempo. Aguarde alguns segundos e tente de novo.',
   unavailable: 'Um dos nossos fornecedores está fora do ar. Tente de novo em instantes.',
   server: 'Algo deu errado do nosso lado. Tente de novo em instantes.',
 };

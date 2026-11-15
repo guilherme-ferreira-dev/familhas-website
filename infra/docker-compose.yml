@@ -124,6 +124,11 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_DEBUG: ${SMTP_DEBUG:-false}
       EMAIL_FROM: ${EMAIL_FROM:-Familhas <nao-responda@familhas.com.br>}
+      # Observabilidade e retenção (ADR 0012): LOG_FORMAT=ecs liga logs JSON; métricas em :8081/actuator/prometheus
+      LOG_FORMAT: ${LOG_FORMAT:-}
+      EMAIL_RETENTION_ENABLED: ${EMAIL_RETENTION_ENABLED:-true}
+      EMAIL_RETENTION_CRON: ${EMAIL_RETENTION_CRON:-0 45 3 * * *}
+      EMAIL_RETENTION_PROCESSED_EVENT: ${EMAIL_RETENTION_PROCESSED_EVENT:-P90D}
     depends_on:
       oracle:
         condition: service_healthy

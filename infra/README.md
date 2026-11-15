@@ -41,7 +41,8 @@ Realm `familhas` importado de `infra/keycloak/data/import/familhas-realm.json` (
 - Papéis: `ROLE_USER` (todo usuário recebe pelo papel padrão do realm) e `ROLE_ADMIN`.
 - Clients:
   - `familhas-web`: Loja, público, PKCE S256, `http://localhost:4200`.
-  - `familhas-admin`: Admin, público, PKCE S256, `http://localhost:4300`. O fluxo de login nega quem não tem `ROLE_ADMIN`.
+  - `familhas-admin`: Admin, público, PKCE S256, `http://localhost:4300`. O fluxo `familhas admin browser` primeiro identifica o usuário (sessão ou usuário e senha, no subfluxo `familhas admin identify`) e depois nega quem não tem `ROLE_ADMIN`, inclusive quem já está logado na Loja.
+    - Até 15/11/2026 o fluxo tinha o passo condicional no mesmo nível das alternativas, e o Keycloak ignorava as alternativas: nenhum login no Admin passava. Um Keycloak criado antes disso guarda o fluxo antigo (o import usa `IGNORE_EXISTING`). Para corrigir, recrie o realm (abaixo) ou, no console, mova Cookie e Username Password Form para um subfluxo `REQUIRED` antes de `familhas admin role check`.
   - `familhas-api`: só a audiência dos tokens (bearer-only, sem segredo).
 - Verificação de e-mail ligada, com e-mails enviados pelo MailHog (`http://localhost:8025`).
 - Política de senha: no mínimo 8 caracteres e diferente do usuário. Proteção contra força bruta ligada.

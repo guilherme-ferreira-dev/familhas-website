@@ -155,9 +155,32 @@
     {
       "id": "6a1d3b6e-2f0c-4a8e-9c1e-7d2f3a4b5c61",
       "alias": "familhas admin browser",
-      "description": "Login do familhas-admin: igual ao browser padrao, mas nega quem nao tem ROLE_ADMIN.",
+      "description": "Login do familhas-admin: identifica (sessao ou usuario e senha) e depois nega quem nao tem ROLE_ADMIN. A checagem fica num nivel separado porque, com CONDITIONAL ao lado de ALTERNATIVE, o Keycloak ignora as alternativas.",
       "providerId": "basic-flow",
       "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "flowAlias": "familhas admin identify",
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "flowAlias": "familhas admin role check",
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "alias": "familhas admin identify",
+      "description": "Sessao existente (cookie) ou usuario e senha.",
+      "providerId": "basic-flow",
+      "topLevel": false,
       "builtIn": false,
       "authenticationExecutions": [
         {
@@ -172,13 +195,6 @@
           "authenticatorFlow": false,
           "requirement": "ALTERNATIVE",
           "priority": 20,
-          "userSetupAllowed": false
-        },
-        {
-          "flowAlias": "familhas admin role check",
-          "authenticatorFlow": true,
-          "requirement": "CONDITIONAL",
-          "priority": 30,
           "userSetupAllowed": false
         }
       ]

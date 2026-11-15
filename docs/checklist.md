@@ -55,9 +55,9 @@ Decisões em [ADR 0005](adr/0005-mensageria-outbox-e-familhas-email.md).
 - [x] `./mvnw verify` passa em `backend/familhas-api` e `backend/familhas-email`
 
 ### Pendências documentadas (fora da Fase 4)
-- [ ] Filtro de `correlationId` nas requisições HTTP (Fase 11)
-- [ ] Retenção e limpeza de `outbox_event` e `processed_event` (Fase 11)
-- [ ] Métricas de outbox e DLQ no Actuator (Fase 11)
+- [x] Filtro de `correlationId` nas requisições HTTP (feito na Fase 11)
+- [x] Retenção e limpeza de `outbox_event` e `processed_event` (feito na Fase 11)
+- [x] Métricas de outbox e DLQ no Actuator (feito na Fase 11)
 - [ ] Tela ou endpoint admin para reprocessar outbox `FAILED` e DLQ (Fase 10)
 - [ ] Listener de eventos do Keycloak via SPI (evolução, se necessário)
 - [ ] Confiança da API no certificado self-signed do Keycloak local (truststore). Hoje há só o contorno manual no infra/README; lacuna herdada da Fase 3
@@ -100,7 +100,7 @@ Decisões em [ADR 0006](adr/0006-provedores-preco-e-cotacao.md).
 - [ ] Provedores reais de voos (Duffel ou Amadeus) e carros (Rentcars)
 - [ ] Disponibilidade por data no catálogo curado de hotéis e carros
 - [x] Reserva de assento e reverificação de disponibilidade (feito na Fase 6)
-- [ ] Retenção de cotações expiradas (Fase 11)
+- [x] Retenção de cotações expiradas (feito na Fase 11)
 
 ## Fase 6: Reserva, checkout e pagamento (Stripe)
 
@@ -152,7 +152,7 @@ Decisões em [ADR 0007](adr/0007-reserva-checkout-e-webhooks-stripe.md) e [ADR 0
 - [ ] Estorno pelo Admin (ficou como pendência da Fase 10)
 - [ ] `COMPLETED` quando a viagem termina e "Minhas viagens" (Fase 8)
 - [ ] Estoque por data de hotel e carro no catálogo curado (pendência da Fase 5)
-- [ ] Retenção de `stripe_webhook_events` e de reservas canceladas (Fase 11)
+- [x] Retenção de `stripe_webhook_events` (feito na Fase 11); reservas canceladas ficam, por serem registro financeiro (ADR 0012, D8)
 - [ ] Chave live e conta em produção (novo ADR)
 
 ## Fase 7: Frontend da Loja
@@ -281,3 +281,48 @@ Decisões em [ADR 0011](adr/0011-admin.md). Contrato em [docs/api/admin.yaml](ap
 - [ ] Listas de opções do catálogo e da cotação manual carregam até 100 itens (trocar por busca quando o catálogo crescer)
 - [ ] `PRICING_*=` vazios no `.env` impedem `./mvnw spring-boot:run` com o `.env` carregado (o Spring não usa o padrão para variável vazia); no compose funciona. Problema anterior à Fase 10
 - [x] `restart: unless-stopped` em Oracle, Keycloak e MailHog, e memória mínima do Docker Desktop no infra/README (PR #27)
+
+## Fase 11: Qualidade final
+
+Decisões em [ADR 0012](adr/0012-qualidade-final.md).
+
+### Documentação
+- [x] OpenAPI gerado do código por grupo (`public` e `admin`), Swagger UI em `/swagger-ui.html`, só no perfil local
+- [x] Coleção Postman em `docs/postman` (PKCE nos clients `familhas-web` e `familhas-admin`, sem segredo), testada contra as rotas e os contratos
+- [x] README com execução local passo a passo (infra, API, Loja, Admin, Postman, parar)
+- [x] `CONTRIBUTING.md`: branches, Conventional Commits e o que conferir antes do PR
+- [x] [Checklist E2E local](e2e-checklist.md) com os critérios de aceite globais do guia
+
+### Observabilidade
+- [x] `X-Correlation-Id` em toda requisição e resposta (inclusive 401, 403 e 429), no MDC, no outbox e nos logs do publisher
+- [x] Logs estruturados (`LOG_FORMAT=ecs`) na API e no `familhas-email`, validados com a API no ar
+- [x] Actuator: `metrics` e `prometheus` (só `ROLE_ADMIN` na API); detalhe do health só para ADMIN
+- [x] Métricas de outbox (pendentes, `FAILED`, publicados, falhas), rate limit, retenção, DLQ (profundidade) e mensagens mandadas para a DLQ
+
+### Segurança
+- [x] [Revisão OWASP Top 10](seguranca/revisao-owasp.md), com pendências e CSP recomendada para os frontends
+- [x] Headers: CSP, `Referrer-Policy`, `Permissions-Policy` e HSTS com subdomínios, além dos padrões do Spring Security
+- [x] Rate limiting por usuário ou IP, 429 em Problem Details com `Retry-After`; mensagem em português nos dois frontends
+- [x] CORS: `X-Correlation-Id` liberado e exposto, junto com `Retry-After` e `Content-Disposition`
+- [x] Dependabot (Maven, npm, Actions, Docker); `npm audit` sem vulnerabilidades nos dois frontends
+
+### Retenção e backup
+- [x] V17: índices da retenção; job diário para outbox publicado (30 dias), webhooks (90) e cotações vencidas sem reserva (90)
+- [x] `familhas-email`: retenção de `processed_event` (90 dias)
+- [x] `infra/oracle/backup.sh` e `restore.sh` (com `--verify`), [documentados](operacao/backup-restore.md) e validados na stack local
+- [x] V17 aplicada sobre o banco local existente (Flyway, 15/11/2026)
+
+### Testes e validação
+- [x] Unitários: `CorrelationIdFilterTests`, `RateLimiterTests` (política por rota parametrizada), `OutboxPublisherTests` com métricas
+- [x] Contexto inteiro: `ApiHardeningTests`, `GeneratedOpenApiGroupsTests`, `PostmanCollectionTests`
+- [ ] `RetentionIntegrationTests` (Oracle) e `ObservabilityAndRetentionIntegrationTests` (Oracle + RabbitMQ)
+- [ ] `./mvnw verify` passa em `backend/familhas-api` e `backend/familhas-email`
+- [x] `familhas-web` e `familhas-admin`: lint, formatação, testes e build
+
+### Pendências documentadas (fora da Fase 11)
+- [ ] **Fase 9 (chatbot com IA e WhatsApp) não foi feita**; conversas e handoffs do Admin dependem dela
+- [ ] LGPD: registro de consentimento, exportação e exclusão/anonimização dos dados do cliente (guia, seção 6 item 9)
+- [ ] Rate limit global (gateway ou Redis) quando houver mais de uma instância
+- [ ] Alertas sobre outbox `FAILED`, DLQ e 5xx; tracing distribuído (OpenTelemetry)
+- [ ] Análise de dependências Java no CI (OWASP Dependency-Check) e varredura de imagens
+- [ ] Hospedagem dos frontends com os headers recomendados; backup físico com recuperação até um ponto no tempo em produção

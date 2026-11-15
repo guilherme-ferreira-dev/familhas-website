@@ -59,7 +59,9 @@ O `--import-realm` só importa quando o realm não existe. Depois de alterar o J
 
 ### Token para testes manuais (sem frontend)
 
-Os clients usam só authorization code + PKCE. Para testar com curl ou Postman, ligue temporariamente **Direct access grants** no `familhas-web` (console admin > Clients > familhas-web > Settings) e desligue ao terminar. Nunca faça isso em produção.
+Os clients usam só authorization code + PKCE. O Postman faz esse fluxo sozinho: use a coleção em [docs/postman](../docs/postman/README.md), sem mudar nada no realm.
+
+Só para curl: ligue temporariamente **Direct access grants** no `familhas-web` (console admin > Clients > familhas-web > Settings) e desligue ao terminar. Nunca faça isso em produção.
 
 ## Imagem do Keycloak
 
@@ -146,8 +148,14 @@ O usuário `FAMILHAS_EMAIL` é criado por `oracle/init/02-create-familhas-email-
 - Token endpoint: `https://localhost:8443/realms/familhas/protocol/openid-connect/token`
 - RabbitMQ: `http://localhost:15672` (guest/guest)
 - MailHog: `http://localhost:8025`
-- familhas-email: `http://localhost:8081/actuator/health`
+- familhas-email: `http://localhost:8081/actuator/health` e métricas em `http://localhost:8081/actuator/prometheus` (`familhas_email_dlq_messages`, `familhas_email_dead_lettered_total`)
 - API (com `mvnw spring-boot:run` em `backend/familhas-api`): `http://localhost:8080/actuator/health`
+- Swagger UI da API: `http://localhost:8080/swagger-ui.html`
+- Métricas da API: `http://localhost:8080/actuator/prometheus` (token com `ROLE_ADMIN`)
+
+## Backup e restore do Oracle
+
+`infra/oracle/backup.sh` e `infra/oracle/restore.sh` (Data Pump, com modo `--verify`). Passo a passo em [docs/operacao/backup-restore.md](../docs/operacao/backup-restore.md).
 
 ## Observação sobre Oracle
 

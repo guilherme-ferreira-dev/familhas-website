@@ -13,6 +13,10 @@ infra/                   Docker Compose: Oracle, RabbitMQ, Keycloak, MailHog e f
 docs/adr/                Registro de decisões de arquitetura
 docs/events/             Contratos versionados dos eventos (JSON Schema)
 docs/api/                Contratos HTTP (OpenAPI) consumidos pelos frontends
+docs/postman/            Coleção Postman da API
+docs/seguranca/          Revisão de segurança (OWASP Top 10)
+docs/operacao/           Backup e restore do Oracle
+docs/e2e-checklist.md    Checklist E2E local
 docs/checklist.md        Checklist das fases
 .github/workflows/       CI (build e testes de cada aplicação)
 ```
@@ -26,35 +30,83 @@ docs/checklist.md        Checklist das fases
 
 Não é preciso instalar Maven: use o wrapper (`mvnw` / `mvnw.cmd`).
 
-## Executando localmente
+## Executando localmente (passo a passo)
 
-1. Crie o arquivo `.env` na raiz a partir do `.env.example`. O `.env` é ignorado pelo Git e nunca deve ser commitado. Variável vazia usa o padrão local do compose.
+Do zero até Loja e Admin funcionando. Depois de subir, valide com a [checklist E2E](docs/e2e-checklist.md).
 
-   ```bash
-   cp .env.example .env
-   ```
+### 1. Configuração
 
-2. Suba a infraestrutura na raiz do repositório:
+```bash
+git clone https://github.com/guilherme-ferreira-dev/familhas-website.git
+cd familhas-website
+cp .env.example .env
+```
 
-   ```bash
-   docker compose up -d --wait
-   ```
+O `.env` é ignorado pelo Git e nunca deve ser commitado. Variável vazia usa o padrão local. O Docker Desktop precisa de pelo menos 4 GB de memória ([infra/README.md](infra/README.md)).
 
-   O `--wait` só retorna quando Oracle, RabbitMQ, Keycloak, MailHog e `familhas-email` estão `healthy`. Na primeira execução o Oracle leva alguns minutos e a imagem do `familhas-email` é construída a partir do código. Detalhes de Keycloak, HTTPS, filas e usuários de teste estão em [infra/README.md](infra/README.md).
+### 2. Infraestrutura
 
-   Depois de mudar o código do `familhas-email`, reconstrua a imagem com `docker compose up -d --build familhas-email`.
+```bash
+docker compose up -d --wait
+docker compose ps          # todos healthy
+```
 
-3. Rode a API:
+Sobe Oracle, RabbitMQ, Keycloak, MailHog e o `familhas-email`. O `--wait` só retorna com tudo `healthy`; na primeira vez o Oracle leva alguns minutos e a imagem do `familhas-email` é construída a partir do código. Depois de mudar o código do `familhas-email`: `docker compose up -d --build familhas-email`.
 
-   ```bash
-   cd backend/familhas-api
-   ./mvnw spring-boot:run        # Linux/macOS
-   mvnw.cmd spring-boot:run      # Windows
-   ```
+| Serviço | Endereço | Acesso |
+|---|---|---|
+| Keycloak | https://localhost:8443 | `admin` / `admin` (aceite o certificado self-signed) |
+| RabbitMQ | http://localhost:15672 | `guest` / `guest` |
+| MailHog | http://localhost:8025 | e-mails enviados |
+| familhas-email | http://localhost:8081/actuator/health | métricas em `/actuator/prometheus` |
 
-   O Flyway aplica as migrations ao subir, e o Hibernate valida o schema (`ddl-auto=validate`).
+### 3. API
 
-4. Verifique: `GET http://localhost:8080/actuator/health` deve retornar `UP`.
+```bash
+cd backend/familhas-api
+./mvnw spring-boot:run        # Linux/macOS
+mvnw.cmd spring-boot:run      # Windows
+```
+
+O Flyway aplica as migrations e o Hibernate valida o schema. Confira:
+
+- `curl localhost:8080/actuator/health` → `{"status":"UP"}`
+- Swagger UI: http://localhost:8080/swagger-ui.html (grupos **public** e **admin**)
+
+A API não lê o `.env` sozinha. Para mudar algo (Stripe, logs em JSON, limites), exporte a variável no shell antes, por exemplo `export LOG_FORMAT=ecs`. Pagamento de teste: [Reserva e pagamento](#reserva-e-pagamento-stripe).
+
+### 4. Loja e Admin
+
+Em dois terminais (Node 24):
+
+```bash
+cd frontend/familhas-web && npm ci && npm start      # http://localhost:4200
+cd frontend/familhas-admin && npm ci && npm start    # http://localhost:4300
+```
+
+Usuários de teste do Keycloak:
+
+| Usuário | Senha | Papel |
+|---|---|---|
+| `user.familhas` | `user12345` | cliente (`ROLE_USER`) |
+| `admin.familhas` | `admin1234` | administrador (`ROLE_ADMIN`) |
+
+Sem backend, a Loja também roda com mocks: `npm run start:mock`.
+
+### 5. Explorar a API
+
+- Coleção Postman: [docs/postman](docs/postman/README.md) (tokens pelo próprio Keycloak, com PKCE).
+- Contratos escritos à mão, fonte dos tipos dos frontends: [docs/api](docs/api).
+
+### 6. Parar
+
+```bash
+docker compose stop        # mantém os dados
+docker compose down        # remove containers; volumes ficam
+docker compose down -v     # apaga também os dados (Oracle, RabbitMQ)
+```
+
+Antes de um `down -v`, faça backup: [docs/operacao/backup-restore.md](docs/operacao/backup-restore.md).
 
 ## Testes
 
@@ -96,6 +148,11 @@ cd backend/familhas-email && ./mvnw verify
 | `PaymentFlowIntegrationTests` | Oracle + stripe-mock, HTTP com JWT: cotação → reserva → checkout → webhook → `CONFIRMED`, replay sem duplicar, Pix, recusa, estorno parcial e total, webhook forjado, expiração | Sim (é pulado sem Docker) |
 | `Trip*Tests`, `Favorite*Tests`, `RatingServiceClientTests`, `Recommendation*Tests`, `RuleBasedRecommendationServiceTests` | Viagem futura x passada pela data, pagamento e parcelas, 401/403/404 com `code`, favoritos idempotentes, regras de avaliação, pesos e motivos da recomendação (parametrizados) | Não |
 | `MinhasViagensOpenApiContractTests` | `docs/api/minhas-viagens.yaml` é um OpenAPI 3.1 válido e tudo exige token | Não |
+| `CorrelationIdFilterTests`, `RateLimiterTests` | correlationId aceito ou trocado (log injection), token bucket, política por rota | Não |
+| `ApiHardeningTests` | Contexto inteiro: headers de segurança, 429 por IP e por usuário, webhook fora do limite, CORS com `X-Correlation-Id`, Actuator só ADMIN | Não |
+| `GeneratedOpenApiGroupsTests` | Swagger por grupo: public sem rota admin, admin só `/api/admin`, bearer nos dois | Não |
+| `PostmanCollectionTests` | Toda requisição da coleção bate numa rota real e só usa query params do contrato | Não |
+| `RetentionIntegrationTests` | Oracle (V17): retenção em lotes de outbox, webhooks e cotações vencidas, sem tocar em FAILED, PENDING ou cotação reservada | Sim (é pulado sem Docker) |
 | `MinhasViagensIntegrationTests` | Oracle (V13), HTTP com JWT: cada cliente só vê e só mexe nas próprias viagens, avaliações e favoritos; regra de viagem passada no banco; recomendação sem pacote reservado ou favoritado | Sim (é pulado sem Docker) |
 
 **familhas-email**
@@ -108,6 +165,7 @@ cd backend/familhas-email && ./mvnw verify
 | `UserRegisteredFlowIntegrationTests` | Oracle + RabbitMQ + MailHog: e-mail entregue, reprocessamento sem duplicar, DLQ para payload inválido, logs sem dados pessoais | Sim (é pulado sem Docker) |
 | `EmailFailureHandlingIntegrationTests` | Retry com backoff, tentativas esgotadas e falha permanente indo para a DLQ, reprocessamento a partir da DLQ | Sim (é pulado sem Docker) |
 | `CheckoutEmailsTests`, `CheckoutEventsContractTests` | Textos dos e-mails de reserva e pagamento; consumidor contra os schemas de reserva e pagamento | Não |
+| `ObservabilityAndRetentionIntegrationTests` | Oracle + RabbitMQ: métrica de profundidade da DLQ e contador de mensagens na DLQ; retenção de `processed_event` | Sim (é pulado sem Docker) |
 | `CheckoutEmailFlowIntegrationTests` | Oracle + RabbitMQ + MailHog: os três e-mails, reprocessamento sem duplicar, DLQ para valor inválido | Sim (é pulado sem Docker) |
 
 ## API: áreas e segurança
@@ -120,6 +178,9 @@ Detalhes em [ADR 0004](docs/adr/0004-seguranca-keycloak-rotas-problem-details.md
 | Área do cliente | `/api/me`, `/api/me/quotes`, `/api/me/bookings`, `/api/me/trips`, `/api/me/favorites`, `/api/me/ratings`, `/api/me/recommendations` | Token com `ROLE_USER` ou `ROLE_ADMIN` |
 | Administração | `/api/admin/...` | Token com `ROLE_ADMIN`; toda escrita e exportação vai para a auditoria ([ADR 0011](docs/adr/0011-admin.md)) |
 | Webhook do Stripe | `POST /api/webhooks/stripe` | Público; autenticado pela `Stripe-Signature` |
+| Health e info | `/actuator/health`, `/actuator/info` | Público (só o status; detalhes com `ROLE_ADMIN`) |
+| Métricas | `/actuator/metrics`, `/actuator/prometheus` | Token com `ROLE_ADMIN` |
+| OpenAPI | `/swagger-ui.html`, `/v3/api-docs/{public,admin}` | Público, só no perfil local ([ADR 0012](docs/adr/0012-qualidade-final.md)) |
 
 Tokens são emitidos pelo Keycloak (realm `familhas`). A API valida assinatura, issuer e a audiência `familhas-api`. Sem token, a resposta é 401; sem permissão, 403. Todos os erros saem como Problem Details (`application/problem+json`), com `title`, `status` e `detail`.
 
@@ -260,8 +321,37 @@ npm run lint && npm run test:ci && npm run build
 - A planilha de pagamentos atualiza sozinha: avisos por SSE (`/api/admin/payments/stream`) a partir dos eventos `payment.*` e recarga a cada 30 s. Exporta XLSX ou CSV com os filtros da tela.
 - Variáveis novas da API: `ADMIN_PAYMENT_FEED_ENABLED` (padrão `true`) e `MVC_ASYNC_REQUEST_TIMEOUT` (padrão `PT10M`, para exportações grandes).
 
+## Observabilidade
+
+Detalhes em [ADR 0012](docs/adr/0012-qualidade-final.md).
+
+- Toda resposta da API tem `X-Correlation-Id`. Mande o mesmo header para seguir a requisição: o id vai para os logs da API, para o outbox, para a mensagem no RabbitMQ e para os logs do `familhas-email`.
+- `LOG_FORMAT=ecs` (ou `logstash`) liga logs JSON nos dois serviços; vazio mantém o texto legível.
+- Métricas do Actuator em `/actuator/metrics` e `/actuator/prometheus`: na API exigem token `ROLE_ADMIN`; no `familhas-email`, porta 8081 (só rede interna fora do local). As da Familhas: `familhas_outbox_events{status}`, `familhas_outbox_published_total`, `familhas_ratelimit_rejected_total`, `familhas_retention_deleted_total`, `familhas_email_dlq_messages` e `familhas_email_dead_lettered_total`.
+- Retenção diária: `outbox_event` publicados (30 dias), `stripe_webhook_events` (90), cotações vencidas sem reserva (90) e `processed_event` (90). Reservas e pagamentos nunca são apagados.
+
+## Segurança
+
+- Revisão OWASP Top 10, pendências e CSP recomendada para os frontends: [docs/seguranca/revisao-owasp.md](docs/seguranca/revisao-owasp.md).
+- Rate limit por minuto, por usuário ou IP: 300 no catálogo e na leitura do cliente, 30 na escrita do cliente, 600 no Admin. Acima disso, 429 com `Retry-After` (`RATE_LIMIT_*`).
+- Headers: CSP restrita, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, HSTS em HTTPS.
+- Swagger só no perfil local (`SPRINGDOC_ENABLED`). Health público só com o status; detalhes só para ADMIN.
+- Dependabot semanal para Maven, npm, Actions e Docker.
+
+## Backup e restore
+
+```bash
+infra/oracle/backup.sh                                   # dump dos 3 schemas em backups/
+infra/oracle/restore.sh --verify backups/familhas-...dmp # testa o dump em schemas temporários
+infra/oracle/restore.sh backups/familhas-...dmp          # restore (apaga os dados atuais)
+```
+
+Passo a passo em [docs/operacao/backup-restore.md](docs/operacao/backup-restore.md).
+
 ## Convenções
 
+Branches, Conventional Commits e o que conferir antes do PR: [CONTRIBUTING.md](CONTRIBUTING.md).
+
 - Uma branch por fase: `feat/fase-N-descricao`. Nada direto na `main`.
-- Commits no padrão [Conventional Commits](https://www.conventionalcommits.org/), em português: `feat: adicionando ...`, `fix: corrigindo ...`, `refactor: ...`, `docs: ...`, `test: ...`, `ci: ...`.
+- Commits no padrão [Conventional Commits](https://www.conventionalcommits.org/), em português, com escopo: `feat(admin): ...`, `fix(keycloak): ...`, `docs(checklist): ...`.
 - Decisões relevantes viram um ADR curto em `docs/adr/`.

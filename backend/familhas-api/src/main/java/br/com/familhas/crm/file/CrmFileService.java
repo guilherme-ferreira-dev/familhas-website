@@ -170,7 +170,7 @@ public class CrmFileService {
         });
     }
 
-    /** Link de download assinado. Registrado na auditoria (DOWNLOAD), com a categoria nos detalhes. */
+    /** Link de download assinado. Registrado na auditoria (DOWNLOAD), com a categoria; menos a logo oficial. */
     @Transactional(readOnly = true)
     public FileLinkResponse createLink(UUID id) {
         CrmFileEntity entity = find(id);
@@ -178,7 +178,8 @@ public class CrmFileService {
         Instant expiresAt = clock.instant().plus(properties.linkTtl()).truncatedTo(ChronoUnit.SECONDS);
         long expires = expiresAt.getEpochSecond();
         AuditService audit = auditService.getIfAvailable();
-        if (audit != null) {
+        // A logo oficial não é dado sensível e é lida a cada sessão: fica fora da auditoria de downloads.
+        if (audit != null && entity.getCategory() != FileCategory.BRAND_ASSET) {
             audit.record(AuditActor.current(), new AuditEntry(AuditAction.DOWNLOAD, "crm/files", id.toString(), "POST",
                     "/api/crm/files/" + id + "/link", 200, "categoria=" + entity.getCategory()));
         }

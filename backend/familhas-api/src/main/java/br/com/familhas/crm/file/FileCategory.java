@@ -15,11 +15,19 @@ public enum FileCategory {
     FLIGHT_ATTACHMENT(CrmResource.CLIENT_FLIGHTS,
             EnumSet.of(StoredFileType.PDF, StoredFileType.JPEG, StoredFileType.PNG)),
     VOUCHER_SOURCE(CrmResource.VOUCHERS, EnumSet.of(StoredFileType.PDF, StoredFileType.JPEG, StoredFileType.PNG)),
-    /** Imagens dos posts de cotação e de cruzeiros. */
-    POST_IMAGE(CrmResource.QUOTE_POSTS, EnumSet.of(StoredFileType.JPEG, StoredFileType.PNG, StoredFileType.WEBP)),
+    /** Imagens e PDFs de orçamento dos posts de cotação e de cruzeiros. */
+    POST_IMAGE(CrmResource.QUOTE_POSTS,
+            EnumSet.of(StoredFileType.PDF, StoredFileType.JPEG, StoredFileType.PNG, StoredFileType.WEBP)),
     INSTAGRAM_MEDIA(CrmResource.INSTAGRAM_POSTS,
             EnumSet.of(StoredFileType.JPEG, StoredFileType.PNG, StoredFileType.WEBP, StoredFileType.MP4)),
-    ITINERARY_PHOTO(CrmResource.ITINERARIES, EnumSet.of(StoredFileType.JPEG, StoredFileType.PNG, StoredFileType.WEBP));
+    /** Fotos do roteiro e o PDF do orçamento importado. */
+    ITINERARY_PHOTO(CrmResource.ITINERARIES,
+            EnumSet.of(StoredFileType.PDF, StoredFileType.JPEG, StoredFileType.PNG, StoredFileType.WEBP)),
+    /**
+     * Logo oficial (PNG/WEBP com transparência). Toda a equipe lê (painel, posts); só quem cria no painel troca
+     * (admin e gestor).
+     */
+    BRAND_ASSET(CrmResource.DASHBOARD, EnumSet.of(StoredFileType.PNG, StoredFileType.WEBP));
 
     private final CrmResource resource;
     private final Set<StoredFileType> allowedTypes;

@@ -7,6 +7,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -61,6 +62,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "Operation conflicts with related records");
         problem.setTitle("Conflict");
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return problem;
+    }
+
+    /**
+     * Duas pessoas salvaram o mesmo registro ao mesmo tempo (trava otimista, @Version): a segunda recebe 409 com
+     * code VERSION_CONFLICT e recarrega antes de salvar de novo (ADR 0015).
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ProblemDetail handleOptimisticLock(ObjectOptimisticLockingFailureException ex, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                "Registro alterado por outra pessoa. Recarregue antes de salvar.");
+        problem.setTitle("Conflict");
+        problem.setProperty("code", "VERSION_CONFLICT");
         problem.setInstance(URI.create(request.getRequestURI()));
         return problem;
     }

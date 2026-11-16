@@ -18,6 +18,7 @@ docs/seguranca/          Revisão de segurança (OWASP Top 10)
 docs/operacao/           Backup e restore do Oracle
 docs/e2e-checklist.md    Checklist E2E local
 docs/checklist.md        Checklist das fases
+docs/requirements-matrix.md  Matriz JSON do CRM interno -> código -> lacuna -> ação
 .github/workflows/       CI (build e testes de cada aplicação)
 ```
 
@@ -93,6 +94,8 @@ Usuários de teste do Keycloak:
 
 Sem backend, a Loja também roda com mocks: `npm run start:mock`.
 
+CRM interno (realm `voe-familhas-crm`, [ADR 0013](docs/adr/0013-crm-interno-identidade-e-acesso.md)): `admin.crm` / `AdminCrm.2026` (pede TOTP), `gestor.crm`, `atendente.crm` e `marketing.crm`. A lista completa está em [infra/README.md](infra/README.md#realm-do-crm-interno-voe-familhas-crm). O frontend do CRM chega na Etapa 2; até lá, a API do CRM fica em `/api/crm/**`.
+
 ### 5. Explorar a API
 
 - Coleção Postman: [docs/postman](docs/postman/README.md) (tokens pelo próprio Keycloak, com PKCE).
@@ -141,6 +144,7 @@ cd backend/familhas-email && ./mvnw verify
 | `BookingIntegrationTests` | Oracle: reserva (V11), assentos bloqueados e devolvidos, uma reserva por cotação, USD recusado | Sim (é pulado sem Docker) |
 | `StripeMockGatewayIntegrationTests` | Adapter Stripe contra o `stripe-mock`: sessão de cartão e Pix, expirar, consultar, estornar | Sim (é pulado sem Docker) |
 | `AdminSecurityTests` | **Cliente comum recebe 403** (e anônimo 401) em toda rota `/api/admin/**` registrada; toda rota admin está em `docs/api/admin.yaml` | Não |
+| `CrmSecurityTests`, `JwtValidationTests`, `CrmRoleTests`, `Crm*ConverterTests`, `StoreJwtConverterTests`, `CrmPermissionLiteralsTests` | CRM (ADR 0013): toda rota `/api/crm` dá 401 sem token e 403 para cliente e admin da Loja; issuer escolhe decoder e papéis; assinatura, issuer, audiência e expiração reais; matriz papel × permissão | Não |
 | `AdminOpenApiContractTests` | `docs/api/admin.yaml` é um OpenAPI 3.1 válido, só com rotas admin e bearer token | Não |
 | `Admin*ControllerTests`, `AdminAuditInterceptorTests`, `PricingSettingsServiceTests`, `AdminDashboardServiceTests`, `PaymentExportWriterTests`, `PaymentFeedListenerTests` | Filtros e validação do Admin, auditoria, margem em cache, receita por dia, XLSX/CSV (injeção de fórmula), SSE e leitura dos eventos | Não |
 | `AdminIntegrationTests` | Oracle: V14..V16, filtros de reservas e pagamentos, abas de clientes, exportação auditada, dashboard, margem salva mudando a próxima cotação, cotação manual vista pelo cliente sem a nota interna | Sim (é pulado sem Docker) |

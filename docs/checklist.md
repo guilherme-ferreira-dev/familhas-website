@@ -327,3 +327,33 @@ Decisões em [ADR 0012](adr/0012-qualidade-final.md).
 - [ ] Alertas sobre outbox `FAILED`, DLQ e 5xx; tracing distribuído (OpenTelemetry)
 - [ ] Análise de dependências Java no CI (OWASP Dependency-Check) e varredura de imagens
 - [ ] Hospedagem dos frontends com os headers recomendados; backup físico com recuperação até um ponto no tempo em produção
+
+## CRM interno Voe Familhas, Etapa 1: identidade, acesso e segredos
+
+Prompt mestre do CRM e JSON funcional. Diagnóstico e plano em [requirements-matrix.md](requirements-matrix.md); decisões em [ADR 0013](adr/0013-crm-interno-identidade-e-acesso.md).
+
+### Keycloak
+- [x] Realm `voe-familhas-crm` sem autocadastro, política de senha de 12+, força bruta, refresh rotativo, eventos por 90 dias
+- [x] Papéis `crm-admin`, `crm-gestor`, `crm-atendente`, `crm-marketing` (compostos com `crm-equipe`); sem papel é barrado no login
+- [x] TOTP obrigatório para `crm-admin`, com cadastro no primeiro login
+- [x] Client `familhas-crm` público com PKCE S256 e audiência `familhas-api`
+- [x] `provision-crm-user.sh`: senha temporária aleatória, troca de senha e TOTP obrigatórios no primeiro acesso
+
+### API
+- [x] Dois issuers (`JwtIssuerAuthenticationManagerResolver`), cada um com decoder (JWKS, issuer, audiência, exp) e papéis próprios
+- [x] `/api/crm/**` só com `ROLE_CRM_*`, antes do `GET /api/**` público; `ROLE_CRM_*` vindo do realm da Loja é descartado
+- [x] Matriz papel × `crm:<recurso>:<ação>`, `@EnableMethodSecurity`, `GET /api/crm/me`
+- [x] `crm-admin` mantém `/api/admin/**` e `/actuator/**` (telas da Loja preservadas); `/api/me/**` segue só da Loja
+- [x] Grupo `crm` no OpenAPI; rate limit de equipe em `/api/crm/**`
+
+### Infra
+- [x] Portas do compose publicadas só em `127.0.0.1`
+- [x] Variáveis `KEYCLOAK_CRM_*` no `.env.example` (sem valores)
+
+### Testes e validação
+- [x] `CrmSecurityTests`, `JwtValidationTests`, `CrmRoleTests`, `CrmJwtGrantedAuthoritiesConverterTests`, `StoreJwtConverterTests`, `CrmPermissionLiteralsTests`
+- [x] Ponta a ponta com Keycloak e API locais (login PKCE real): os 4 papéis, MFA do admin (cadastro, código errado recusado, código certo aceito), usuário sem papel barrado, tokens da Loja com 403 no CRM, payload adulterado com 401, bloqueio depois de 5 senhas erradas, primeiro acesso de usuário provisionado exigindo TOTP e troca de senha
+
+### Pendências documentadas (próximas etapas)
+- [ ] Etapa 2: `familhas-admin` logando no realm do CRM, shell com os 4 grupos, storage privado, upload seguro, guarda SSRF, auditoria do CRM, adapters "não configurados"
+- [ ] Bloqueados: "Salvar Imagens" (app Story Image Saver) e "Importar dados" (amostras do legado)

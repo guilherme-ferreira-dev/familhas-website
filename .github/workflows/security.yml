@@ -1,0 +1,148 @@
+name: Segurança
+
+# Análise estática, segredos e dependências (prompt mestre, Etapa 6; ADR 0018).
+# Cada job tem só a permissão de que precisa; nenhum usa segredo do repositório.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Toda segunda às 06:00 (UTC): vulnerabilidades novas aparecem sem mudança no código.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [java-kotlin, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java sem build (build-mode none): analisa o código-fonte sem rodar Maven nem testes.
+      - name: Iniciar CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+          queries: security-extended
+
+      - name: Analisar
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
+
+  segredos:
+    name: Segredos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Imagem oficial em versão fixa (a action do gitleaks exige licença para organizações). Exceções em .gitleaks.toml.
+      - name: Procurar segredos no histórico
+        run: |
+          docker run --rm -v "$PWD":/repo:ro zricethezav/gitleaks:v8.28.0 \
+            git /repo --no-banner --redact --config /repo/.gitleaks.toml
+
+  dependencias:
+    name: Dependências e configuração (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Falha com vulnerabilidade HIGH ou CRITICAL que já tem correção (sem correção não há o que fazer no PR).
+      - name: Varrer dependências, Dockerfiles e compose
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      - name: Relatório SARIF para a aba Security
+        if: always()
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          severity: MEDIUM,HIGH,CRITICAL
+          format: sarif
+          output: trivy.sarif
+          exit-code: '0'
+          skip-setup-trivy: true
+
+      - name: Enviar SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy.sarif
+          category: trivy
+
+  imagem:
+    name: Imagem do familhas-email e jar da API (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir imagem
+        run: docker build -t familhas-email:ci backend/familhas-email
+
+      # Falha com HIGH/CRITICAL corrigível no sistema base ou nas bibliotecas dentro do jar.
+      - name: Varrer imagem
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: familhas-email:ci
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+
+      # A API ainda não tem imagem: varre o jar, que traz as dependências transitivas que o pom.xml não mostra.
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Empacotar a API
+        working-directory: backend/familhas-api
+        run: ./mvnw -B -q -DskipTests package
+
+      - name: Varrer jar da API
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: rootfs
+          scan-ref: backend/familhas-api/target/familhas-api-0.0.1-SNAPSHOT.jar
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+          format: table
+          skip-setup-trivy: true

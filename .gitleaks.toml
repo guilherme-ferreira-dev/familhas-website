@@ -1,0 +1,8 @@
+# gitleaks (CI, job "segredos"; ADR 0018). Regras padrão + exceções revisadas uma a uma.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Segredo fictício de teste (32 caracteres em sequência), não é credencial"
+paths = ['''backend/familhas-api/src/test/java/br/com/familhas/crm/file/FileLinkSignerTests\.java''']
+regexes = ['''0123456789abcdef0123456789abcdef''']

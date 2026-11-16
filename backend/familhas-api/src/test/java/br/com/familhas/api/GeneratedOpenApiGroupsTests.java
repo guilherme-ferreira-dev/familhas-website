@@ -38,7 +38,15 @@ class GeneratedOpenApiGroupsTests {
 
         assertThat(paths).contains("/api/travel-packages", "/api/search/packages", "/api/me/bookings",
                 "/api/me/trips", "/api/webhooks/stripe");
-        assertThat(paths).noneMatch(path -> path.startsWith("/api/admin"));
+        assertThat(paths).noneMatch(path -> path.startsWith("/api/admin") || path.startsWith("/api/crm"));
+    }
+
+    @Test
+    void crmGroupHasOnlyCrmRoutes() throws Exception {
+        List<String> paths = paths("crm");
+
+        assertThat(paths).contains("/api/crm/me");
+        assertThat(paths).allMatch(path -> path.startsWith("/api/crm/"));
     }
 
     @Test
@@ -50,8 +58,8 @@ class GeneratedOpenApiGroupsTests {
     }
 
     @Test
-    void bothGroupsDeclareTheBearerScheme() throws Exception {
-        for (String group : List.of("public", "admin")) {
+    void everyGroupDeclaresTheBearerScheme() throws Exception {
+        for (String group : List.of("public", "admin", "crm")) {
             JsonNode doc = document(group);
             assertThat(doc.at("/components/securitySchemes/bearer-jwt/scheme").asText()).isEqualTo("bearer");
             assertThat(doc.at("/info/title").asText()).isEqualTo("Familhas API");

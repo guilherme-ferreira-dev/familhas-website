@@ -1,0 +1,381 @@
+{
+  "realm": "voe-familhas-crm",
+  "enabled": true,
+  "displayName": "Voe Familhas CRM",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "verifyEmail": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "maxDeltaTimeSeconds": 43200,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "passwordPolicy": "length(12) and notUsername and notEmail and upperCase(1) and digits(1) and passwordHistory(3)",
+  "otpPolicyType": "totp",
+  "otpPolicyAlgorithm": "HmacSHA1",
+  "otpPolicyDigits": 6,
+  "otpPolicyPeriod": 30,
+  "internationalizationEnabled": true,
+  "supportedLocales": [
+    "pt-BR"
+  ],
+  "defaultLocale": "pt-BR",
+  "eventsEnabled": true,
+  "eventsExpiration": 7776000,
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": false,
+  "smtpServer": {
+    "host": "mailhog",
+    "port": "1025",
+    "from": "no-reply@familhas.tur.br",
+    "fromDisplayName": "Voe Familhas CRM",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
+  "roles": {
+    "realm": [
+      {
+        "name": "crm-equipe",
+        "description": "Base de todo membro da equipe. Quem nao tem (direto ou por papel composto) e barrado no login."
+      },
+      {
+        "name": "crm-admin",
+        "description": "Administrador: tudo, inclusive equipe e restauracao de backup. Exige MFA (TOTP).",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "crm-equipe"
+          ]
+        }
+      },
+      {
+        "name": "crm-gestor",
+        "description": "Gestor: operacao e marketing completos; exporta backup, nao restaura.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "crm-equipe"
+          ]
+        }
+      },
+      {
+        "name": "crm-atendente",
+        "description": "Atendimento: voos, pesquisas, vouchers, roteiros e documentos.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "crm-equipe"
+          ]
+        }
+      },
+      {
+        "name": "crm-marketing",
+        "description": "Marketing: posts, imagens e publicacao no Instagram.",
+        "composite": true,
+        "composites": {
+          "realm": [
+            "crm-equipe"
+          ]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "familhas-api",
+      "name": "Familhas API (resource server)",
+      "description": "Apenas audiencia dos tokens. Nao emite tokens nem possui segredo.",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "familhas-crm",
+      "name": "Voe Familhas CRM",
+      "description": "SPA Angular do CRM interno: Authorization Code + PKCE S256, sem segredo.",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://localhost:4300/*",
+        "https://localhost:4300/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4300",
+        "https://localhost:4300"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:4300/*##https://localhost:4300/*"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "basic"
+      ],
+      "optionalClientScopes": [],
+      "protocolMappers": [
+        {
+          "name": "familhas-api-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "familhas-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "browserFlow": "crm browser",
+  "authenticationFlows": [
+    {
+      "alias": "crm browser",
+      "description": "Login do CRM: sessao existente (cookie) ou formulario com checagem de equipe e MFA do admin.",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-cookie"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "flowAlias": "crm forms"
+        }
+      ]
+    },
+    {
+      "alias": "crm forms",
+      "description": "Usuario e senha; nega quem nao e da equipe; TOTP obrigatorio para crm-admin.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "auth-username-password-form"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "flowAlias": "crm sem equipe"
+        },
+        {
+          "authenticatorFlow": true,
+          "requirement": "CONDITIONAL",
+          "priority": 30,
+          "userSetupAllowed": false,
+          "flowAlias": "crm mfa admin"
+        }
+      ]
+    },
+    {
+      "alias": "crm sem equipe",
+      "description": "Nega acesso a quem nao tem crm-equipe (nenhum papel do CRM).",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "crm-sem-equipe"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "deny-access-authenticator",
+          "authenticatorConfig": "crm-acesso-negado"
+        }
+      ]
+    },
+    {
+      "alias": "crm mfa admin",
+      "description": "crm-admin sempre passa pelo TOTP; sem TOTP configurado, o Keycloak pede o cadastro.",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticator": "conditional-user-role",
+          "authenticatorConfig": "crm-e-admin"
+        },
+        {
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false,
+          "authenticator": "auth-otp-form"
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "alias": "crm-sem-equipe",
+      "config": {
+        "condUserRole": "crm-equipe",
+        "negate": "true"
+      }
+    },
+    {
+      "alias": "crm-acesso-negado",
+      "config": {
+        "denyErrorMessage": "Acesso restrito a equipe da Voe Familhas."
+      }
+    },
+    {
+      "alias": "crm-e-admin",
+      "config": {
+        "condUserRole": "crm-admin",
+        "negate": "false"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin.crm",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Dev",
+      "email": "admin.crm@familhas.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "AdminCrm.2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-voe-familhas-crm",
+        "crm-admin"
+      ]
+    },
+    {
+      "username": "gestor.crm",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Gestor",
+      "lastName": "Dev",
+      "email": "gestor.crm@familhas.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "GestorCrm.2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-voe-familhas-crm",
+        "crm-gestor"
+      ]
+    },
+    {
+      "username": "atendente.crm",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Atendente",
+      "lastName": "Dev",
+      "email": "atendente.crm@familhas.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "AtendenteCrm.2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-voe-familhas-crm",
+        "crm-atendente"
+      ]
+    },
+    {
+      "username": "marketing.crm",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Marketing",
+      "lastName": "Dev",
+      "email": "marketing.crm@familhas.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "MarketingCrm.2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-voe-familhas-crm",
+        "crm-marketing"
+      ]
+    },
+    {
+      "username": "semacesso.crm",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Sem acesso",
+      "lastName": "Dev",
+      "email": "semacesso.crm@familhas.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "SemAcesso.2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "default-roles-voe-familhas-crm"
+      ]
+    }
+  ]
+}

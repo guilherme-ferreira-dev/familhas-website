@@ -64,6 +64,8 @@ class RateLimiterTests {
             "DELETE,  /api/me/favorites/1,           CLIENT_WRITE",
             "GET,     /api/admin/payments,           ADMIN",
             "POST,    /api/admin/quotes,             ADMIN",
+            "GET,     /api/crm/me,                   ADMIN",
+            "POST,    /api/crm/vouchers,             ADMIN",
             "POST,    /api/webhooks/stripe,          NONE",
             "OPTIONS, /api/me/quotes,                NONE",
             "GET,     /actuator/health,              NONE",

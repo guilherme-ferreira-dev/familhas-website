@@ -22,6 +22,8 @@ Todos os serviços usam `restart: unless-stopped`: voltam sozinhos quando o Dock
 
 ## Serviços, portas e healthchecks
 
+Todas as portas são publicadas só em `127.0.0.1` (ADR 0013): nada da infra local fica acessível pela rede.
+
 | Serviço | Porta(s) no host | Healthcheck | Persistência |
 |---|---|---|---|
 | Oracle Free 23 | 1521 | `healthcheck.sh` da imagem | volume `familhas_oracle_data` |
@@ -50,11 +52,41 @@ Realm `familhas` importado de `infra/keycloak/data/import/familhas-realm.json` (
   - `admin.familhas` / `admin1234`
   - `user.familhas` / `user12345`
 
+## Realm do CRM interno (`voe-familhas-crm`)
+
+Importado de `infra/keycloak/data/import/voe-familhas-crm-realm.json`. Decisões em [ADR 0013](../docs/adr/0013-crm-interno-identidade-e-acesso.md).
+
+- Sem autocadastro. Política de senha com no mínimo 12 caracteres, maiúscula, número e histórico de 3. Bloqueio depois de 5 senhas erradas (espera crescente de 1 a 15 min).
+- Papéis: `crm-admin`, `crm-gestor`, `crm-atendente`, `crm-marketing`, todos compostos com `crm-equipe`. Quem não tem nenhum deles é barrado no login.
+- MFA: `crm-admin` sempre informa o TOTP. No primeiro login, o Keycloak pede o cadastro num app autenticador.
+- Client `familhas-crm`: público, PKCE S256, `http://localhost:4300` (o `familhas-admin` passa a usar este client na Etapa 2). Client `familhas-api`: só audiência.
+- Eventos de login e administrativos guardados por 90 dias.
+- Usuários de teste (**só no ambiente local**):
+
+| Usuário | Senha | Papel |
+|---|---|---|
+| `admin.crm` | `AdminCrm.2026` | `crm-admin` (pede TOTP) |
+| `gestor.crm` | `GestorCrm.2026` | `crm-gestor` |
+| `atendente.crm` | `AtendenteCrm.2026` | `crm-atendente` |
+| `marketing.crm` | `MarketingCrm.2026` | `crm-marketing` |
+| `semacesso.crm` | `SemAcesso.2026` | nenhum (deve ser barrado) |
+
+### Criar membros da equipe fora do ambiente local
+
+Fora do ambiente local, importe o realm **sem** a lista `users`. Depois crie cada pessoa com o script:
+
+```bash
+KC_URL=https://<keycloak> KC_CACERT=<ca.pem> \
+  infra/keycloak/scripts/provision-crm-user.sh <usuario> <email> <nome> <sobrenome> crm-admin
+```
+
+O script pede a senha do admin do Keycloak sem eco e gera uma senha temporária aleatória, mostrada uma única vez. No primeiro acesso, o Keycloak exige trocar a senha e, para `crm-admin`, cadastrar o TOTP. A senha temporária deve ser entregue por um canal seguro.
+
 ### Aplicar mudanças do realm em um Keycloak já criado
 
 O `--import-realm` só importa quando o realm não existe. Depois de alterar o JSON, recrie o realm local. Isso apaga os usuários criados à mão nesse realm:
 
-1. Abra `https://localhost:8443`, entre no console com `admin` / `admin`, selecione o realm `familhas` e use **Realm settings > Action > Delete**.
+1. Abra `https://localhost:8443`, entre no console com `admin` / `admin`, selecione o realm (`familhas` ou `voe-familhas-crm`) e use **Realm settings > Action > Delete**.
 2. Rode `docker compose restart keycloak`. Na subida, o realm é importado de novo a partir do JSON.
 
 ### Token para testes manuais (sem frontend)

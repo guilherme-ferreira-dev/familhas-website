@@ -15,7 +15,9 @@ public enum CrmResource {
     DATA_IMPORT("importacao"),
     DOCUMENTS("documentos"),
     BACKUP("backup"),
-    AUDIT("auditoria");
+    AUDIT("auditoria"),
+    /** LGPD: relatório e anonimização de titular, registro de incidentes (ADR 0018). Só admin. */
+    PRIVACY("privacidade");
 
     private final String key;
 

@@ -1,0 +1,1379 @@
+{
+  "info": {
+    "_postman_id": "fe53f98d-ce40-5a1c-966d-0c2b7d62cf27",
+    "name": "Familhas API",
+    "description": "Coleção da familhas-api para o ambiente local (guia, Fase 11). Instruções em docs/postman/README.md.\n\nToda requisição manda um X-Correlation-Id novo (script da coleção): procure o mesmo id nos logs da API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.request.headers.upsert({ key: 'X-Correlation-Id', value: 'postman-' + pm.variables.replaceIn('{{$guid}}') });"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "keycloakUrl",
+      "value": "https://localhost:8443"
+    },
+    {
+      "key": "cityId",
+      "value": ""
+    },
+    {
+      "key": "originCityId",
+      "value": ""
+    },
+    {
+      "key": "packageId",
+      "value": ""
+    },
+    {
+      "key": "quoteId",
+      "value": ""
+    },
+    {
+      "key": "bookingId",
+      "value": ""
+    },
+    {
+      "key": "clientId",
+      "value": ""
+    },
+    {
+      "key": "adminQuoteId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Saúde e documentação",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Health",
+          "id": "eafbcb4b-95ef-50c7-be92-b49f2b7bbc51",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Sempre público. Detalhe de banco e broker só com token ADMIN."
+          }
+        },
+        {
+          "name": "OpenAPI do grupo public",
+          "id": "5e734f94-9623-5a54-a766-98eab782da68",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs/public",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs",
+                "public"
+              ]
+            },
+            "description": "Só no perfil local (SPRINGDOC_ENABLED). Swagger UI: {{baseUrl}}/swagger-ui.html"
+          }
+        },
+        {
+          "name": "OpenAPI do grupo admin",
+          "id": "708d09d9-f8b0-52c3-98d8-455cc9154920",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/v3/api-docs/admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v3",
+                "api-docs",
+                "admin"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Loja (público)",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Cidade de destino",
+          "id": "9e51e45b-89a9-5a38-9e22-aa3c1552b243",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cities?q=Mac",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cities"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Mac"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const value = body.content && body.content[0] && body.content[0].id;",
+                  "  if (value) { pm.collectionVariables.set('cityId', value); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cidade de origem",
+          "id": "28960a2a-e99a-5e02-bbca-7c7ce0285bb3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cities?q=Bras",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cities"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Bras"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const value = body.content && body.content[0] && body.content[0].id;",
+                  "  if (value) { pm.collectionVariables.set('originCityId', value); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Categorias",
+          "id": "45111a85-a040-5faa-9443-3e3409544592",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pacotes",
+          "id": "68188159-295a-5c2f-90b4-4500b8f6aaea",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/travel-packages?size=5&sort=price,asc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "travel-packages"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "5"
+                },
+                {
+                  "key": "sort",
+                  "value": "price,asc"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const value = body.content && body.content[0] && body.content[0].id;",
+                  "  if (value) { pm.collectionVariables.set('packageId', value); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalhe do pacote",
+          "id": "80b715d9-9029-5705-abea-5a7a3dadbea2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/travel-packages/{{packageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "travel-packages",
+                "{{packageId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Busca de pacotes",
+          "id": "3c9eec1e-db3f-5ef3-9de7-66f5f688176c",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/packages?departureFrom=2027-01-01&departureTo=2027-12-31&passengers=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "packages"
+              ],
+              "query": [
+                {
+                  "key": "departureFrom",
+                  "value": "2027-01-01"
+                },
+                {
+                  "key": "departureTo",
+                  "value": "2027-12-31"
+                },
+                {
+                  "key": "passengers",
+                  "value": "2"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Busca de voos",
+          "id": "422b1954-0e84-56f8-a7f0-ae3de54ad00b",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/flights?originCityId={{originCityId}}&destinationCityId={{cityId}}&departureDate=2027-07-01&passengers=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "flights"
+              ],
+              "query": [
+                {
+                  "key": "originCityId",
+                  "value": "{{originCityId}}"
+                },
+                {
+                  "key": "destinationCityId",
+                  "value": "{{cityId}}"
+                },
+                {
+                  "key": "departureDate",
+                  "value": "2027-07-01"
+                },
+                {
+                  "key": "passengers",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Busca de hotéis",
+          "id": "4074a25c-d886-5baa-a14e-63d6517f4d93",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/hotels?cityId={{cityId}}&checkIn=2027-07-01&checkOut=2027-07-05&guests=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "hotels"
+              ],
+              "query": [
+                {
+                  "key": "cityId",
+                  "value": "{{cityId}}"
+                },
+                {
+                  "key": "checkIn",
+                  "value": "2027-07-01"
+                },
+                {
+                  "key": "checkOut",
+                  "value": "2027-07-05"
+                },
+                {
+                  "key": "guests",
+                  "value": "2"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Busca de carros",
+          "id": "fbb1556b-ed9e-5207-a81e-8e75db96c175",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/cars?cityId={{cityId}}&pickUpDate=2027-07-01&dropOffDate=2027-07-05",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "search",
+                "cars"
+              ],
+              "query": [
+                {
+                  "key": "cityId",
+                  "value": "{{cityId}}"
+                },
+                {
+                  "key": "pickUpDate",
+                  "value": "2027-07-01"
+                },
+                {
+                  "key": "dropOffDate",
+                  "value": "2027-07-05"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Cliente (token do familhas-web)",
+      "auth": {
+        "type": "oauth2",
+        "oauth2": [
+          {
+            "key": "grant_type",
+            "value": "authorization_code_with_pkce",
+            "type": "string"
+          },
+          {
+            "key": "challengeAlgorithm",
+            "value": "S256",
+            "type": "string"
+          },
+          {
+            "key": "authUrl",
+            "value": "{{keycloakUrl}}/realms/familhas/protocol/openid-connect/auth",
+            "type": "string"
+          },
+          {
+            "key": "accessTokenUrl",
+            "value": "{{keycloakUrl}}/realms/familhas/protocol/openid-connect/token",
+            "type": "string"
+          },
+          {
+            "key": "clientId",
+            "value": "familhas-web",
+            "type": "string"
+          },
+          {
+            "key": "redirect_uri",
+            "value": "http://localhost:4200/",
+            "type": "string"
+          },
+          {
+            "key": "scope",
+            "value": "openid",
+            "type": "string"
+          },
+          {
+            "key": "tokenName",
+            "value": "familhas-web (user.familhas)",
+            "type": "string"
+          },
+          {
+            "key": "addTokenTo",
+            "value": "header",
+            "type": "string"
+          },
+          {
+            "key": "client_authentication",
+            "value": "body",
+            "type": "string"
+          },
+          {
+            "key": "useBrowser",
+            "value": false,
+            "type": "boolean"
+          }
+        ]
+      },
+      "description": "Token de cliente: na aba Authorization da pasta, \"Get New Access Token\" e login com user.familhas / user12345.",
+      "item": [
+        {
+          "name": "Meu perfil",
+          "id": "ceb0d365-9ab9-507f-88cb-422edc77ba99",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me"
+              ]
+            },
+            "description": "No primeiro acesso cria o cliente local e dispara o e-mail de boas-vindas (MailHog)."
+          }
+        },
+        {
+          "name": "Criar cotação do pacote",
+          "id": "6fffe858-1d03-5cdf-8ed6-c335fc9ef3aa",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "quotes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"travelPackageId\": \"{{packageId}}\",\n  \"passengers\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const value = body.id;",
+                  "  if (value) { pm.collectionVariables.set('quoteId', value); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Minhas cotações",
+          "id": "4d0d5948-fae6-57cb-90bd-f164b83371c0",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "quotes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalhe da cotação",
+          "id": "a17328f8-fb99-5ac5-9e1d-6d5f75a764a4",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/quotes/{{quoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "quotes",
+                "{{quoteId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reservar a cotação",
+          "id": "d0418500-1a75-55e4-bb9d-a4ccd18c9bb1",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "bookings"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quoteId\": \"{{quoteId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const value = body.id;",
+                  "  if (value) { pm.collectionVariables.set('bookingId', value); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Minhas reservas",
+          "id": "dacfd309-7bc2-5f1f-98aa-a17a31f1f4ad",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/bookings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "bookings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalhe da reserva",
+          "id": "ba301262-6f44-59c2-bcae-2aa0234e4599",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/bookings/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "bookings",
+                "{{bookingId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Abrir checkout (Stripe)",
+          "id": "378f6558-dc9c-5765-bb24-f23aacba9ae9",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/bookings/{{bookingId}}/checkout-session",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "bookings",
+                "{{bookingId}}",
+                "checkout-session"
+              ]
+            },
+            "description": "Precisa de STRIPE_SECRET_KEY de teste; sem chave responde 503. Abra o checkoutUrl no navegador e pague com 4242 4242 4242 4242.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentMethod\": \"CREDIT_CARD\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Viagens futuras",
+          "id": "32e85431-7419-580e-a4c1-4aa498702dc2",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/trips?when=UPCOMING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "trips"
+              ],
+              "query": [
+                {
+                  "key": "when",
+                  "value": "UPCOMING"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Viagens passadas",
+          "id": "17e2ead8-29f2-5f90-85ff-a635839014cb",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/trips?when=PAST",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "trips"
+              ],
+              "query": [
+                {
+                  "key": "when",
+                  "value": "PAST"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Favoritar pacote",
+          "id": "b8c1f076-d7d3-5db3-a496-18f9731a9b3c",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/favorites/{{packageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorites",
+                "{{packageId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Meus favoritos",
+          "id": "a820da80-79a8-579f-ac76-7633f812b254",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/favorites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorites"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Desfavoritar pacote",
+          "id": "0376300c-304e-586a-8000-9c851d9d22d7",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/favorites/{{packageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "favorites",
+                "{{packageId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Minhas avaliações",
+          "id": "14828316-d2b8-5df5-b25f-e1d21830e2cb",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/ratings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "ratings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recomendações",
+          "id": "d5416e3f-738e-590d-bf14-1e6212f49b58",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/me/recommendations?limit=6",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "me",
+                "recommendations"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "6"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Admin (token do familhas-admin)",
+      "auth": {
+        "type": "oauth2",
+        "oauth2": [
+          {
+            "key": "grant_type",
+            "value": "authorization_code_with_pkce",
+            "type": "string"
+          },
+          {
+            "key": "challengeAlgorithm",
+            "value": "S256",
+            "type": "string"
+          },
+          {
+            "key": "authUrl",
+            "value": "{{keycloakUrl}}/realms/familhas/protocol/openid-connect/auth",
+            "type": "string"
+          },
+          {
+            "key": "accessTokenUrl",
+            "value": "{{keycloakUrl}}/realms/familhas/protocol/openid-connect/token",
+            "type": "string"
+          },
+          {
+            "key": "clientId",
+            "value": "familhas-admin",
+            "type": "string"
+          },
+          {
+            "key": "redirect_uri",
+            "value": "http://localhost:4300/",
+            "type": "string"
+          },
+          {
+            "key": "scope",
+            "value": "openid",
+            "type": "string"
+          },
+          {
+            "key": "tokenName",
+            "value": "familhas-admin (admin.familhas)",
+            "type": "string"
+          },
+          {
+            "key": "addTokenTo",
+            "value": "header",
+            "type": "string"
+          },
+          {
+            "key": "client_authentication",
+            "value": "body",
+            "type": "string"
+          },
+          {
+            "key": "useBrowser",
+            "value": false,
+            "type": "boolean"
+          }
+        ]
+      },
+      "description": "Token de admin: \"Get New Access Token\" na aba Authorization da pasta, login com admin.familhas / admin1234. Toda escrita vai para a auditoria.",
+      "item": [
+        {
+          "name": "Dashboard",
+          "id": "b615b287-c287-5876-99b7-4ab4521ae50f",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/dashboard?from=2026-01-01&to=2027-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2027-12-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Clientes por aba",
+          "id": "f7cd842a-a910-5772-9129-fc4bc925a48d",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clients/segments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clients",
+                "segments"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Clientes",
+          "id": "bfb6de36-b12d-55af-a0dd-26fa8d7eb0b3",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clients?segment=NEW&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clients"
+              ],
+              "query": [
+                {
+                  "key": "segment",
+                  "value": "NEW"
+                },
+                {
+                  "key": "size",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const value = body.content && body.content[0] && body.content[0].id;",
+                  "  if (value) { pm.collectionVariables.set('clientId', value); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalhe do cliente",
+          "id": "7a92bb76-26b2-54f5-8d0e-13db50d29945",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/clients/{{clientId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "clients",
+                "{{clientId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reservas",
+          "id": "bf57173a-ec38-57d1-b337-80ff47595bda",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bookings?status=CONFIRMED",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bookings"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "CONFIRMED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Detalhe da reserva",
+          "id": "f5ce19e4-16ad-53a5-b7bb-122522d6230a",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/bookings/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "bookings",
+                "{{bookingId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Planilha de pagamentos",
+          "id": "1bc20dfd-6abf-5d50-a153-69a471670ba8",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/payments?from=2026-01-01&to=2027-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "payments"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2027-12-31"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Exportar planilha (CSV)",
+          "id": "2b8018cf-cb7f-58d1-8076-d5b750b1bc1a",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/payments/export?format=CSV&from=2026-01-01&to=2027-12-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "payments",
+                "export"
+              ],
+              "query": [
+                {
+                  "key": "format",
+                  "value": "CSV"
+                },
+                {
+                  "key": "from",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "to",
+                  "value": "2027-12-31"
+                }
+              ]
+            },
+            "description": "Use \"Send and Download\" para salvar o arquivo. XLSX: format=XLSX."
+          }
+        },
+        {
+          "name": "Cotações",
+          "id": "6af94be0-2b3e-5d40-8216-299ceac778b1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/quotes?origin=ADMIN",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "quotes"
+              ],
+              "query": [
+                {
+                  "key": "origin",
+                  "value": "ADMIN"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cotação manual",
+          "id": "1d4c51f4-5187-59b3-83d0-01a9b9ebd8f8",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/quotes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "quotes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{clientId}}\",\n  \"travelPackageId\": \"{{packageId}}\",\n  \"passengers\": 2,\n  \"manualDiscount\": 100.0,\n  \"validityHours\": 48,\n  \"internalNote\": \"Negociado pelo WhatsApp\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  const value = body.id;",
+                  "  if (value) { pm.collectionVariables.set('adminQuoteId', value); }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalhe da cotação (custo e margem)",
+          "id": "5b6e837c-edee-5d6a-a508-2bf01e5cd481",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/quotes/{{adminQuoteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "quotes",
+                "{{adminQuoteId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Margem e taxa em vigor",
+          "id": "dae34182-6141-5f07-b9d3-f1349a9ac1cc",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/pricing-settings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "pricing-settings"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Pacotes (catálogo)",
+          "id": "06188135-bc00-5acc-acb3-2043d08a7c37",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/travel-packages?onPromotion=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "travel-packages"
+              ],
+              "query": [
+                {
+                  "key": "onPromotion",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Voos (catálogo)",
+          "id": "7085ff7d-b80a-57af-8c06-e9c02da12dec",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/flights",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "flights"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Auditoria",
+          "id": "7f78f4a6-ffdd-56de-885c-6eb8cfbf8c6d",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/audit-logs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "audit-logs"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Métricas (Prometheus)",
+          "id": "bea4ef57-0594-545b-813b-a1c810fb64b6",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/prometheus",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "prometheus"
+              ]
+            },
+            "description": "familhas_outbox_events, familhas_ratelimit_rejected_total, familhas_retention_deleted_total, http_server_requests_seconds..."
+          }
+        },
+        {
+          "name": "Health com detalhes",
+          "id": "c1841996-50e4-5eae-893f-0e532b7737a8",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

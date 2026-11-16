@@ -107,7 +107,7 @@ Na primeira resposta da fase, cinco perguntas ficaram em aberto. O responsável 
 - **Cache de 2 minutos:** mudanças feitas pelo Admin no catálogo curado podem levar até 2 minutos para aparecer na busca. A cotação sempre lê o preço atual.
 - **Paginação em memória:** serve para o volume do catálogo curado. Com provedores externos de muitos resultados, o próximo passo é limitar por provedor e paginar no provedor.
 - **Cotação não reserva assento:** a disponibilidade é checada de novo na reserva (Fase 6).
-- **Sem limpeza de cotações:** cotações expiradas ficam no banco. Retenção fica para a Fase 11.
+- **Sem limpeza de cotações:** cotações expiradas ficam no banco. Retenção fica para a Fase 11. *Atualização (Fase 11): cotações vencidas há mais de 90 dias e sem reserva são apagadas ([ADR 0012](0012-qualidade-final.md), D8).*
 - **Evoluções só documentadas:**
   - adapter HotelDO (D3);
   - Duffel ou Amadeus para voos e Rentcars para carros (guia, seção 11);

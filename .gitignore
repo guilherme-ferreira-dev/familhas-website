@@ -41,3 +41,6 @@ infra/keycloak/keystore/*
 
 ### macOS ###
 .DS_Store
+
+### Backups locais do Oracle (infra/oracle/backup.sh) ###
+backups/

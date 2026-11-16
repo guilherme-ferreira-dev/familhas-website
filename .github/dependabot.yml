@@ -1,0 +1,52 @@
+# Atualizações de dependências (guia, Fase 11; ADR 0012, D10). Um PR por ecossistema e semana, agrupando
+# minor e patch; major vem em PR separado para revisão com calma.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /backend/familhas-api
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      minor-e-patch: { update-types: [minor, patch] }
+    commit-message: { prefix: chore(api) }
+
+  - package-ecosystem: maven
+    directory: /backend/familhas-email
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      minor-e-patch: { update-types: [minor, patch] }
+    commit-message: { prefix: chore(email) }
+
+  - package-ecosystem: npm
+    directory: /frontend/familhas-web
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      angular: { patterns: ["@angular/*", "@angular-devkit/*", "@schematics/angular"] }
+      minor-e-patch: { update-types: [minor, patch] }
+    commit-message: { prefix: chore(web) }
+
+  - package-ecosystem: npm
+    directory: /frontend/familhas-admin
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      angular: { patterns: ["@angular/*", "@angular-devkit/*", "@schematics/angular"] }
+      minor-e-patch: { update-types: [minor, patch] }
+    commit-message: { prefix: chore(admin) }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: ci }
+
+  - package-ecosystem: docker
+    directory: /backend/familhas-email
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: chore(email) }
+
+  - package-ecosystem: docker
+    directory: /infra/keycloak
+    schedule: { interval: weekly, day: monday }
+    commit-message: { prefix: chore(infra) }

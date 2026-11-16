@@ -49,7 +49,7 @@ Na primeira resposta da fase, cinco perguntas ficaram em aberto. O responsável 
 - Na primeira falha, o lote para. A linha que falhou ganha backoff exponencial (2 s, dobrando até 5 min). Depois de 20 tentativas, vira `FAILED`.
 - O Oracle não aceita `FETCH FIRST` com `FOR UPDATE`, então o limite do lote usa `ROWNUM`. A ordem de publicação é aproximada.
 - O exchange `familhas.events` (topic) tem o alternate exchange `familhas.events.unrouted`. Uma mensagem publicada antes de existir qualquer fila ligada fica guardada lá e não se perde.
-- O `correlationId` vem do MDC (chave `correlationId`). Como o filtro que preenche essa chave só entra na Fase 11, hoje o valor é o próprio `eventId`.
+- O `correlationId` vem do MDC (chave `correlationId`). Como o filtro que preenche essa chave só entra na Fase 11, hoje o valor é o próprio `eventId`. *Atualização (Fase 11): o `CorrelationIdFilter` preenche a chave em toda requisição HTTP ([ADR 0012](0012-qualidade-final.md), D3); o `eventId` continua como padrão fora de requisição.*
 
 **Consumidor (familhas-email)**
 - Fila `familhas-email.user-registered`, com DLX `familhas.events.dlx` e DLQ `familhas-email.user-registered.dlq`. O consumidor declara a própria fila, a DLX e a DLQ.
@@ -80,6 +80,6 @@ Na primeira resposta da fase, cinco perguntas ficaram em aberto. O responsável 
   - DLQ: corrigir a causa e mover as mensagens de volta pelo painel do RabbitMQ (Queues > DLQ > Move messages), ou por shovel. Como o rollback libera o `eventId`, a mensagem reprocessada envia normalmente.
 - **Volume do Oracle já existente:** os scripts de `infra/oracle/init` só rodam na criação do volume. Quem já tinha o volume precisa recriá-lo (`docker compose down -v`) ou rodar o script à mão (passo a passo no `infra/README.md`).
 - **Argumentos do exchange duplicados:** o `familhas.events` é declarado pelos dois serviços com os mesmos argumentos. Se um lado mudar e o outro não, o RabbitMQ recusa a declaração (`PRECONDITION_FAILED`). Qualquer mudança no exchange precisa ser feita nos dois serviços ao mesmo tempo.
-- **Sem limpeza automática:** `outbox_event` (linhas `PUBLISHED`) e `processed_event` crescem sem limpeza. Retenção e job de limpeza ficam para a Fase 11. Os dois têm índice por data para isso.
+- **Sem limpeza automática:** `outbox_event` (linhas `PUBLISHED`) e `processed_event` crescem sem limpeza. Retenção e job de limpeza ficam para a Fase 11. Os dois têm índice por data para isso. *Atualização (Fase 11): retenção diária, 30 dias para `PUBLISHED` e 90 para `processed_event` ([ADR 0012](0012-qualidade-final.md), D8).*
 - **Retry bloqueante:** o retry segura o consumidor por até ~15 s por mensagem. Com volume maior, a evolução é usar filas de espera com TTL (delayed retry).
-- **Evoluções só documentadas:** evento do Keycloak via SPI, filtro de `correlationId` (Fase 11), métricas de outbox e DLQ (Fase 11), e template HTML para os e-mails.
+- **Evoluções só documentadas:** evento do Keycloak via SPI, filtro de `correlationId` (Fase 11), métricas de outbox e DLQ (Fase 11, feitos no [ADR 0012](0012-qualidade-final.md)), e template HTML para os e-mails.

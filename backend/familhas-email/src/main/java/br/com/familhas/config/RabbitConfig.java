@@ -8,6 +8,8 @@ import java.util.Map;
 import org.aopalliance.aop.Advice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
@@ -120,16 +122,16 @@ public class RabbitConfig {
     @Bean
     SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
             SimpleRabbitListenerContainerFactoryConfigurer configurer, ConnectionFactory connectionFactory,
-            EmailProperties properties) {
+            EmailProperties properties, MeterRegistry meterRegistry) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         configurer.configure(factory, connectionFactory);
         factory.setDefaultRequeueRejected(false);
-        factory.setAdviceChain(retryAdvice(properties.retry()));
+        factory.setAdviceChain(retryAdvice(properties.retry(), meterRegistry));
         factory.setErrorHandler(new SafeLoggingErrorHandler());
         return factory;
     }
 
-    static Advice retryAdvice(EmailProperties.Retry retry) {
+    static Advice retryAdvice(EmailProperties.Retry retry, MeterRegistry meterRegistry) {
         // traverseCauses: o listener lança ListenerExecutionFailedException com a exceção real como causa.
         SimpleRetryPolicy policy = new SimpleRetryPolicy(retry.maxAttempts(),
                 Map.of(TransientProcessingException.class, true), true, false);
@@ -140,14 +142,21 @@ public class RabbitConfig {
         return RetryInterceptorBuilder.stateless()
                 .retryPolicy(policy)
                 .backOffPolicy(backOff)
-                .recoverer(deadLetterRecoverer())
+                .recoverer(deadLetterRecoverer(meterRegistry))
                 .build();
     }
 
-    /** Fim da linha: registra o motivo sem dados pessoais e rejeita sem requeue (vai para a DLQ). */
-    static MessageRecoverer deadLetterRecoverer() {
+    /**
+     * Fim da linha: registra o motivo sem dados pessoais, conta na métrica familhas.email.dead-lettered (por fila
+     * de origem e tipo da falha, ADR 0012) e rejeita sem requeue (vai para a DLQ).
+     */
+    static MessageRecoverer deadLetterRecoverer(MeterRegistry meterRegistry) {
         return (message, cause) -> {
             Throwable reason = unwrap(cause);
+            String queue = message.getMessageProperties().getConsumerQueue();
+            meterRegistry.counter("familhas.email.dead-lettered",
+                    "queue", queue == null ? "unknown" : queue,
+                    "reason", reason.getClass().getSimpleName()).increment();
             log.error("Mensagem enviada para a DLQ: {} motivo={}", EventLogContext.describe(message),
                     safeReason(reason));
             throw new AmqpRejectAndDontRequeueException("Enviada para a DLQ");

@@ -8,7 +8,7 @@ RUN mvn -B -ntp -q dependency:go-offline
 COPY src src
 RUN mvn -B -ntp -q package -DskipTests && cp target/familhas-email-*.jar app.jar
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S familhas && adduser -S familhas -G familhas
 WORKDIR /app
 COPY --from=build /build/app.jar app.jar

@@ -315,8 +315,9 @@ Decisões em [ADR 0012](adr/0012-qualidade-final.md).
 ### Testes e validação
 - [x] Unitários: `CorrelationIdFilterTests`, `RateLimiterTests` (política por rota parametrizada), `OutboxPublisherTests` com métricas
 - [x] Contexto inteiro: `ApiHardeningTests`, `GeneratedOpenApiGroupsTests`, `PostmanCollectionTests`
-- [ ] `RetentionIntegrationTests` (Oracle) e `ObservabilityAndRetentionIntegrationTests` (Oracle + RabbitMQ)
-- [ ] `./mvnw verify` passa em `backend/familhas-api` e `backend/familhas-email`
+- [x] `RetentionIntegrationTests` (Oracle) e `ObservabilityAndRetentionIntegrationTests` (Oracle + RabbitMQ)
+- [x] `./mvnw verify` passa em `backend/familhas-api` (474 testes, nenhum pulado) e `backend/familhas-email` (47)
+- [x] `familhas-email` reconstruído no compose: `familhas_email_dlq_messages` no `/actuator/prometheus`
 - [x] `familhas-web` e `familhas-admin`: lint, formatação, testes e build
 
 ### Pendências documentadas (fora da Fase 11)

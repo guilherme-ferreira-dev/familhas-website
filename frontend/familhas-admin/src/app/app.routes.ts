@@ -9,6 +9,15 @@ import { NotFoundPage } from './pages/not-found.page';
 export const routes: Routes = [
   { path: 'sem-permissao', component: NoPermissionPage, title: 'Sem permissão' },
   { path: 'login-indisponivel', component: LoginUnavailablePage, title: 'Login indisponível' },
+  // Voucher A4 fora do layout do CRM (sem menu na impressão).
+  {
+    path: 'vouchers/:id/imprimir',
+    title: 'Voucher para impressão',
+    canActivate: [teamGuard, permissionGuard],
+    data: { permission: 'crm:vouchers:ler' },
+    loadComponent: () =>
+      import('./pages/vouchers/voucher-print.page').then((m) => m.VoucherPrintPage),
+  },
   {
     path: '',
     component: Shell,
@@ -24,9 +33,39 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/overview/overview.page').then((m) => m.OverviewPage),
       },
       pending('backup', 'crm:backup:ler', PENDING_MODULES.backup),
-      pending('voos-clientes', 'crm:voos-clientes:ler', PENDING_MODULES.voosClientes),
-      pending('pesquisar-voos', 'crm:pesquisa-voos:ler', PENDING_MODULES.pesquisarVoos),
-      pending('vouchers', 'crm:vouchers:ler', PENDING_MODULES.vouchers),
+      crm('voos-clientes', 'Voos Clientes', 'crm:voos-clientes:ler', () =>
+        import('./pages/client-flights/client-flights.page').then((m) => m.ClientFlightsPage),
+      ),
+      crm('voos-clientes/novo', 'Novo voo', 'crm:voos-clientes:criar', () =>
+        import('./pages/client-flights/client-flight-form.page').then(
+          (m) => m.ClientFlightFormPage,
+        ),
+      ),
+      crm('voos-clientes/:id', 'Voo', 'crm:voos-clientes:ler', () =>
+        import('./pages/client-flights/client-flight-detail.page').then(
+          (m) => m.ClientFlightDetailPage,
+        ),
+      ),
+      crm('voos-clientes/:id/editar', 'Editar voo', 'crm:voos-clientes:editar', () =>
+        import('./pages/client-flights/client-flight-form.page').then(
+          (m) => m.ClientFlightFormPage,
+        ),
+      ),
+      crm('pesquisar-voos', 'Pesquisar Voos', 'crm:pesquisa-voos:ler', () =>
+        import('./pages/flight-search/flight-search.page').then((m) => m.FlightSearchPage),
+      ),
+      crm('vouchers', 'Emitir Voucher', 'crm:vouchers:ler', () =>
+        import('./pages/vouchers/vouchers.page').then((m) => m.VouchersPage),
+      ),
+      crm('vouchers/novo', 'Emitir voucher', 'crm:vouchers:criar', () =>
+        import('./pages/vouchers/voucher-form.page').then((m) => m.VoucherFormPage),
+      ),
+      crm('vouchers/:id', 'Voucher', 'crm:vouchers:ler', () =>
+        import('./pages/vouchers/voucher-detail.page').then((m) => m.VoucherDetailPage),
+      ),
+      crm('vouchers/:id/editar', 'Corrigir voucher', 'crm:vouchers:editar', () =>
+        import('./pages/vouchers/voucher-form.page').then((m) => m.VoucherFormPage),
+      ),
       pending('posts-cotacao', 'crm:posts-cotacao:ler', PENDING_MODULES.postsCotacao),
       pending('posts-cruzeiros', 'crm:posts-cruzeiros:ler', PENDING_MODULES.postsCruzeiros),
       pending('salvar-imagens', 'crm:imagens:ler', PENDING_MODULES.salvarImagens),
@@ -34,7 +73,9 @@ export const routes: Routes = [
       pending('roteiros', 'crm:roteiros:ler', PENDING_MODULES.roteiros),
       pending('equipe', 'crm:equipe:criar', PENDING_MODULES.equipe),
       pending('importar-dados', 'crm:importacao:ler', PENDING_MODULES.importarDados),
-      pending('documentos', 'crm:documentos:ler', PENDING_MODULES.documentos),
+      crm('documentos', 'Documentos', 'crm:documentos:ler', () =>
+        import('./pages/documents/documents.page').then((m) => m.DocumentsPage),
+      ),
       {
         path: 'auditoria',
         title: 'Auditoria',
@@ -153,4 +194,14 @@ function pending(path: string, permission: string, module: PendingModule): Route
     canActivate: [permissionGuard],
     loadComponent: () => import('./pages/pending-module.page').then((m) => m.PendingModulePage),
   };
+}
+
+/** Rota de módulo do CRM: exige a permissão em `data.permission`. */
+function crm(
+  path: string,
+  title: string,
+  permission: string,
+  loadComponent: NonNullable<Routes[number]['loadComponent']>,
+): Routes[number] {
+  return { path, title, data: { permission }, canActivate: [permissionGuard], loadComponent };
 }

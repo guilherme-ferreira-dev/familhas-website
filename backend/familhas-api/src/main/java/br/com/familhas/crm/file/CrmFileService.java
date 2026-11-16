@@ -10,7 +10,9 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Collection;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -110,6 +112,38 @@ public class CrmFileService {
         CrmFileEntity entity = find(id);
         CrmAccess.require(entity.getCategory().resource(), CrmAction.READ);
         return CrmFileResponse.of(entity);
+    }
+
+    /**
+     * Metadados de arquivos já ligados a um registro (anexos de voo, origem de voucher). Quem chama já conferiu a
+     * permissão do registro; ids de outra categoria são ignorados.
+     */
+    @Transactional(readOnly = true)
+    public List<CrmFileResponse> findAttached(FileCategory category, Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return repository.findAllById(ids).stream().filter(f -> f.getCategory() == category)
+                .sorted(java.util.Comparator.comparing(CrmFileEntity::getCreatedAt))
+                .map(CrmFileResponse::of).toList();
+    }
+
+    /** Conteúdo para processamento no servidor (ex.: extração). Exige ler a categoria do arquivo. */
+    @Transactional(readOnly = true)
+    public byte[] readContent(UUID id) {
+        CrmFileEntity entity = find(id);
+        CrmAccess.require(entity.getCategory().resource(), CrmAction.READ);
+        try (InputStream in = storage.open(entity.getStorageKey())) {
+            return in.readAllBytes();
+        } catch (IOException e) {
+            throw new IllegalStateException("Arquivo sem conteudo no storage: " + id, e);
+        }
+    }
+
+    /** Categoria do arquivo, para o módulo conferir se o id enviado é mesmo do tipo esperado. */
+    @Transactional(readOnly = true)
+    public FileCategory categoryOf(UUID id) {
+        return find(id).getCategory();
     }
 
     @Transactional(readOnly = true)

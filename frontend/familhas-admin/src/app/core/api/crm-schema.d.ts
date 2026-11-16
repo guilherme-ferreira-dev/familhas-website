@@ -132,6 +132,343 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/crm/dashboard': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Voos próximos, voos por mês e vouchers do mês
+     * @description Exige `crm:dashboard:ler`. `flights` vem null sem `crm:voos-clientes:ler`; `vouchers`, sem `crm:vouchers:ler`.
+     */
+    get: operations['getCrmDashboard'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/client-flights': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Voos pela data da ida (ativos) ou mais recentes primeiro (arquivados)
+     * @description Exige `crm:voos-clientes:ler`. `q`: busca rápida por passageiro, sem acento e com as palavras em qualquer
+     *     ordem (todas no nome do mesmo passageiro), ou o localizador exato.
+     */
+    get: operations['searchClientFlights'];
+    put?: never;
+    /**
+     * Cadastra voo com passageiros
+     * @description Exige `crm:voos-clientes:criar`. Erros: `CPF_INVALID`, `RETURN_BEFORE_OUTBOUND` (422).
+     */
+    post: operations['createClientFlight'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/client-flights/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Voo com passageiros (CPF mascarado) e anexos */
+    get: operations['getClientFlight'];
+    /**
+     * Edita voo
+     * @description Exige `crm:voos-clientes:editar` e `version` atual (senão 409 `VERSION_CONFLICT`).
+     */
+    put: operations['updateClientFlight'];
+    post?: never;
+    /**
+     * Exclui voo e anexos
+     * @description Exige `crm:voos-clientes:excluir`.
+     */
+    delete: operations['deleteClientFlight'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/client-flights/{id}/archive': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Arquiva (vai para o histórico) */
+    post: operations['archiveClientFlight'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/client-flights/{id}/unarchive': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Volta para os ativos */
+    post: operations['unarchiveClientFlight'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/client-flights/{id}/attachments': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Anexa documento do voo (PDF, JPG, PNG)
+     * @description Exige `crm:voos-clientes:editar` e `criar`. Até 20 anexos (`TOO_MANY_ATTACHMENTS`). Mesmas regras de `/api/crm/files`.
+     */
+    post: operations['attachToClientFlight'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/client-flights/{id}/attachments/{fileId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /**
+     * Remove e exclui o anexo
+     * @description Exige `crm:voos-clientes:excluir`.
+     */
+    delete: operations['detachFromClientFlight'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/flight-search/options': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Origens fixas e se a SerpApi está configurada */
+    get: operations['getFlightSearchOptions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/flight-search': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Cota ida e volta para cada destino
+     * @description Exige `crm:pesquisa-voos:criar`. Sem chave da SerpApi: 503 `INTEGRATION_NOT_CONFIGURED`.
+     *     Erros: `ORIGIN_NOT_ALLOWED`, `SAME_ORIGIN_DESTINATION`, `DUPLICATED_DESTINATION`, `DATES_REQUIRED`,
+     *     `MONTHS_REQUIRED`, `INVALID_DATES`, `FLIGHT_SEARCH_TOO_BROAD` (422), `FLIGHT_SEARCH_QUOTA` (429),
+     *     `FLIGHT_SEARCH_FAILED` (502). A mesma pesquisa repetida só renova o horário no histórico.
+     */
+    post: operations['searchFlights'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/flight-search/recent': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** As 5 pesquisas mais recentes, prontas para "Refazer" */
+    get: operations['recentFlightSearches'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/flight-search/groups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Grupos de destinos */
+    get: operations['listFlightSearchGroups'];
+    put?: never;
+    /** Cria grupo (até 7 destinos) */
+    post: operations['createFlightSearchGroup'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/flight-search/groups/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Edita grupo */
+    put: operations['updateFlightSearchGroup'];
+    post?: never;
+    /** Exclui grupo */
+    delete: operations['deleteFlightSearchGroup'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/vouchers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Histórico de vouchers, mais recentes primeiro */
+    get: operations['searchVouchers'];
+    put?: never;
+    /**
+     * Emite voucher (número VF-000001)
+     * @description Exige `crm:vouchers:criar`. Erros 422: `VOUCHER_FIELDS_MISSING` (com `fields`), `CPF_INVALID`, `INVALID_DATES`, `FILE_CATEGORY_MISMATCH`.
+     */
+    post: operations['issueVoucher'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/vouchers/extract': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Extrai os dados do serviço do PDF/imagem por IA
+     * @description Exige `crm:vouchers:criar`. Sem provedor de IA: 503 `INTEGRATION_NOT_CONFIGURED` (a tela segue no manual).
+     *     Nome, CPF, telefone e observações nunca são extraídos.
+     */
+    post: operations['extractVoucher'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/vouchers/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Voucher (CPF mascarado) */
+    get: operations['getVoucher'];
+    /**
+     * Corrige voucher emitido
+     * @description Exige `crm:vouchers:editar` e `version` atual. Cancelado: 422 `VOUCHER_CANCELLED`.
+     */
+    put: operations['updateVoucher'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/vouchers/{id}/cancel': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Cancela (fica no histórico) */
+    post: operations['cancelVoucher'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/vouchers/{id}/document': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Dados para a impressão A4, com CPF inteiro
+     * @description Exige `crm:vouchers:ler`. Cada chamada grava `DOWNLOAD` na auditoria.
+     */
+    get: operations['getVoucherDocument'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -230,6 +567,298 @@ export interface components {
       /** Format: date-time */
       expiresAt: string;
     };
+    /**
+     * @description Horário local do bilhete, sem fuso (2026-12-10T08:30:00)
+     * @example 2026-12-10T08:30:00
+     */
+    LocalDateTime: string;
+    ClientFlightSummary: {
+      /** Format: uuid */
+      id: string;
+      locator?: string | null;
+      airline: string;
+      origin: string;
+      destination: string;
+      outboundAt: components['schemas']['LocalDateTime'];
+      returnAt?: components['schemas']['LocalDateTime'] | null;
+      passengers: string[];
+      attachmentCount: number;
+      archived: boolean;
+    };
+    ClientFlightPage: {
+      content: components['schemas']['ClientFlightSummary'][];
+      page: number;
+      size: number;
+      /** Format: int64 */
+      totalElements: number;
+      totalPages: number;
+    };
+    ClientFlightTravelerRequest: {
+      /**
+       * Format: uuid
+       * @description Passageiro existente (mantém o CPF guardado quando cpf é null)
+       */
+      id?: string | null;
+      fullName: string;
+      /** @description null mantém; vazio apaga; preenchido é validado */
+      cpf?: string | null;
+      phone?: string | null;
+    };
+    ClientFlightRequest: {
+      locator?: string | null;
+      airline: string;
+      origin: string;
+      destination: string;
+      outboundAt: components['schemas']['LocalDateTime'];
+      outboundFlightNumber?: string | null;
+      returnAt?: components['schemas']['LocalDateTime'] | null;
+      returnFlightNumber?: string | null;
+      notes?: string | null;
+      travelers: components['schemas']['ClientFlightTravelerRequest'][];
+      /**
+       * Format: int64
+       * @description Obrigatório na edição
+       */
+      version?: number | null;
+    };
+    ClientFlightTraveler: {
+      /** Format: uuid */
+      id: string;
+      fullName: string;
+      /** @example ***.982.247-** */
+      cpfMasked?: string | null;
+      phone?: string | null;
+    };
+    ClientFlight: {
+      /** Format: uuid */
+      id: string;
+      locator?: string | null;
+      airline: string;
+      origin: string;
+      destination: string;
+      outboundAt: components['schemas']['LocalDateTime'];
+      outboundFlightNumber?: string | null;
+      returnAt?: components['schemas']['LocalDateTime'] | null;
+      returnFlightNumber?: string | null;
+      notes?: string | null;
+      archived: boolean;
+      /** Format: date-time */
+      archivedAt?: string | null;
+      travelers: components['schemas']['ClientFlightTraveler'][];
+      attachments: components['schemas']['CrmFile'][];
+      /** Format: int64 */
+      version: number;
+      createdBy?: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    MonthCount: {
+      /** @example 2026-12 */
+      month: string;
+      /** Format: int64 */
+      count: number;
+    };
+    CrmDashboard: {
+      flights: null | {
+        /** Format: int64 */
+        next7Days: number;
+        /** Format: int64 */
+        next30Days: number;
+        upcoming: components['schemas']['ClientFlightSummary'][];
+        byMonth: components['schemas']['MonthCount'][];
+      };
+      vouchers: null | {
+        /** Format: int64 */
+        issuedThisMonth: number;
+        byTypeThisMonth: {
+          /** Format: int64 */
+          FLIGHT: number;
+          /** Format: int64 */
+          HOTEL: number;
+          /** Format: int64 */
+          TRANSFER: number;
+          /** Format: int64 */
+          TOUR: number;
+        };
+      };
+    };
+    /** @enum {string} */
+    FlightSearchMode: 'EXACT' | 'FLEXIBLE';
+    FlightSearchRequest: {
+      origin: string;
+      destinations: string[];
+      mode: components['schemas']['FlightSearchMode'];
+      /**
+       * Format: date
+       * @description EXACT
+       */
+      departureDate?: string | null;
+      /**
+       * Format: date
+       * @description EXACT
+       */
+      returnDate?: string | null;
+      /** @description FLEXIBLE */
+      months?: string[] | null;
+      /** @description FLEXIBLE, padrão 5 */
+      stayNights?: number | null;
+      /** @description Padrão 1 */
+      adults?: number | null;
+    };
+    FlightOffer: {
+      /** Format: date */
+      departureDate: string;
+      /** Format: date */
+      returnDate: string;
+      /** @description Total ida + volta por adulto */
+      price: number;
+      /** @example BRL */
+      currency: string;
+      airlines: string[];
+      stops: number;
+      durationMinutes?: number | null;
+    };
+    FlightSearchResult: {
+      request: components['schemas']['FlightSearchRequest'];
+      destinations: {
+        destination: string;
+        offers: components['schemas']['FlightOffer'][];
+        error?: string | null;
+      }[];
+    };
+    RecentFlightSearch: {
+      /** Format: uuid */
+      id: string;
+      summary: string;
+      request: components['schemas']['FlightSearchRequest'];
+      runBy?: string | null;
+      /** Format: date-time */
+      lastRunAt: string;
+    };
+    FlightSearchOptions: {
+      origins: string[];
+      configured: boolean;
+      defaultStayNights: number;
+      maxDestinations: number;
+      maxMonths: number;
+    };
+    FlightSearchGroupRequest: {
+      name: string;
+      destinations: string[];
+    };
+    FlightSearchGroup: {
+      /** Format: uuid */
+      id: string;
+      name: string;
+      destinations: string[];
+    };
+    /** @enum {string} */
+    VoucherType: 'FLIGHT' | 'HOTEL' | 'TRANSFER' | 'TOUR';
+    /** @enum {string} */
+    VoucherStatus: 'ISSUED' | 'CANCELLED';
+    /**
+     * @description Campos do serviço. Obrigatórios: FLIGHT provider, origin, destination, serviceDate; HOTEL provider,
+     *     serviceDate, endDate; TRANSFER origin, destination, serviceDate; TOUR description, serviceDate.
+     */
+    VoucherDetails: {
+      /** @description Companhia, hotel ou empresa */
+      provider?: string | null;
+      reservationCode?: string | null;
+      origin?: string | null;
+      destination?: string | null;
+      location?: string | null;
+      /**
+       * Format: date
+       * @description Ida, check-in ou dia do serviço
+       */
+      serviceDate?: string | null;
+      startTime?: string | null;
+      /**
+       * Format: date
+       * @description Volta ou check-out
+       */
+      endDate?: string | null;
+      endTime?: string | null;
+      flightNumber?: string | null;
+      returnFlightNumber?: string | null;
+      roomType?: string | null;
+      board?: string | null;
+      vehicle?: string | null;
+      description?: string | null;
+      inclusions?: string | null;
+      adults?: number | null;
+      children?: number | null;
+      passengers?: string[] | null;
+    };
+    VoucherRequest: {
+      type: components['schemas']['VoucherType'];
+      clientName: string;
+      /** @description Na edição: null mantém, vazio apaga */
+      clientCpf?: string | null;
+      clientPhone?: string | null;
+      notes?: string | null;
+      details: components['schemas']['VoucherDetails'];
+      /**
+       * Format: uuid
+       * @description Arquivo VOUCHER_SOURCE de origem
+       */
+      sourceFileId?: string | null;
+      /** Format: int64 */
+      version?: number | null;
+    };
+    Voucher: {
+      /** Format: uuid */
+      id: string;
+      /** @example VF-000001 */
+      number: string;
+      type: components['schemas']['VoucherType'];
+      status: components['schemas']['VoucherStatus'];
+      clientName: string;
+      clientCpfMasked?: string | null;
+      clientPhone?: string | null;
+      notes?: string | null;
+      details: components['schemas']['VoucherDetails'];
+      /** Format: date */
+      serviceDate?: string | null;
+      sourceFile?: components['schemas']['CrmFile'] | null;
+      issuedBy?: string | null;
+      /** Format: date-time */
+      issuedAt: string;
+      /** Format: date-time */
+      cancelledAt?: string | null;
+      /** Format: int64 */
+      version: number;
+    };
+    VoucherSummary: {
+      /** Format: uuid */
+      id: string;
+      number: string;
+      type: components['schemas']['VoucherType'];
+      status: components['schemas']['VoucherStatus'];
+      clientName: string;
+      provider?: string | null;
+      /** Format: date */
+      serviceDate?: string | null;
+      issuedBy?: string | null;
+      /** Format: date-time */
+      issuedAt: string;
+    };
+    VoucherPage: {
+      content: components['schemas']['VoucherSummary'][];
+      page: number;
+      size: number;
+      /** Format: int64 */
+      totalElements: number;
+      totalPages: number;
+    };
+    VoucherDocument: {
+      company: components['schemas']['Company'];
+      voucher: components['schemas']['Voucher'];
+      /** @example 529.982.247-25 */
+      clientCpfFormatted?: string | null;
+    };
   };
   responses: {
     /** @description Parâmetros ou corpo inválidos */
@@ -261,6 +890,24 @@ export interface components {
     };
     /** @description Não encontrado */
     NotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetail'];
+      };
+    };
+    /** @description Conflito (`code` estável, ex.: VERSION_CONFLICT, GROUP_NAME_TAKEN) */
+    Conflict: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        'application/problem+json': components['schemas']['ProblemDetail'];
+      };
+    };
+    /** @description Integração não configurada (`INTEGRATION_NOT_CONFIGURED`) */
+    ServiceUnavailable: {
       headers: {
         [name: string]: unknown;
       };
@@ -497,6 +1144,664 @@ export interface operations {
       };
       400: components['responses']['BadRequest'];
       403: components['responses']['Forbidden'];
+    };
+  };
+  getCrmDashboard: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Painel. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CrmDashboard'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  searchClientFlights: {
+    parameters: {
+      query?: {
+        q?: string;
+        archived?: boolean;
+        /** @description Ida a partir do dia */
+        from?: string;
+        /** @description Ida até o dia */
+        to?: string;
+        airline?: string;
+        page?: components['parameters']['Page'];
+        size?: components['parameters']['Size'];
+        /** @description outboundAt, airline, destination, createdAt */
+        sort?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Página de voos. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlightPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  createClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClientFlightRequest'];
+      };
+    };
+    responses: {
+      /** @description Voo criado. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlight'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  getClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Voo. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlight'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  updateClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClientFlightRequest'];
+      };
+    };
+    responses: {
+      /** @description Voo atualizado. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlight'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  deleteClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Excluído. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  archiveClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Voo. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlight'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  unarchiveClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Voo. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlight'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  attachToClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Voo com o anexo. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlight'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      413: components['responses']['Unprocessable'];
+      415: components['responses']['Unprocessable'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  detachFromClientFlight: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+        fileId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Voo sem o anexo. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ClientFlight'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  getFlightSearchOptions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Opções. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FlightSearchOptions'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  searchFlights: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FlightSearchRequest'];
+      };
+    };
+    responses: {
+      /** @description Resultado por destino. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FlightSearchResult'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+      429: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  recentFlightSearches: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Pesquisas. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RecentFlightSearch'][];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  listFlightSearchGroups: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Grupos. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FlightSearchGroup'][];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  createFlightSearchGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FlightSearchGroupRequest'];
+      };
+    };
+    responses: {
+      /** @description Grupo. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FlightSearchGroup'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+    };
+  };
+  updateFlightSearchGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['FlightSearchGroupRequest'];
+      };
+    };
+    responses: {
+      /** @description Grupo. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FlightSearchGroup'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+    };
+  };
+  deleteFlightSearchGroup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Excluído. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  searchVouchers: {
+    parameters: {
+      query?: {
+        /** @description Nome do cliente ou número exato */
+        q?: string;
+        type?: components['schemas']['VoucherType'];
+        status?: components['schemas']['VoucherStatus'];
+        /** @description Emitido a partir do dia */
+        from?: string;
+        /** @description Emitido até o dia */
+        to?: string;
+        page?: components['parameters']['Page'];
+        size?: components['parameters']['Size'];
+        /** @description issuedAt, serviceDate, clientName, number */
+        sort?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Página de vouchers. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['VoucherPage'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  issueVoucher: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['VoucherRequest'];
+      };
+    };
+    responses: {
+      /** @description Voucher. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Voucher'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  extractVoucher: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          type: components['schemas']['VoucherType'];
+          /** Format: uuid */
+          fileId: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Campos para revisão. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['VoucherDetails'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  getVoucher: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Voucher. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Voucher'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  updateVoucher: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['VoucherRequest'];
+      };
+    };
+    responses: {
+      /** @description Voucher. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Voucher'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  cancelVoucher: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Voucher. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Voucher'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  getVoucherDocument: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Documento. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['VoucherDocument'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
     };
   };
 }

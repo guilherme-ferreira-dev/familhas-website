@@ -22,19 +22,19 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | Identidade: logo sem fundo azul e sem slogan, razão social e CNPJ abaixo da logo | `familhas.company.*`; razão social e CNPJ abaixo da marca na lateral | parcial | **Arquivo da logo oficial a receber**; Instagram a informar | 2 ✔ / pendente |
 | Armazenamento privado com URLs assinadas curtas | `crm_files` (V18), `FileStorage` local, link HMAC de 5 min, tipo pelos bytes | implementado | Adapter S3 se preciso | 2 ✔ |
 | Funções de servidor para scraping, proxy de imagem, PDF, IA, SerpApi, Meta | `OutboundUrlPolicy` + `SafeHttpFetcher` (anti-SSRF); `IntegrationRegistry` com 503 `INTEGRATION_NOT_CONFIGURED` | implementado na fundação | Adapters concretos com os módulos | 2 ✔ / 3–4 |
-| Cache curto, mutações invalidam, logout limpa | `CrmSession` limpa no logout; signals por página | parcial | Cache por chave com invalidação junto com os módulos de dados | 2 ✔ / 3 |
-| Índices em voos e vouchers; preconnect | — | ausente | Migrations com índices; preconnect no `index.html` | 3 |
+| Cache curto, mutações invalidam, logout limpa | Sem cache compartilhado: cada tela recarrega após salvar; `CrmSession` limpa no logout (ADR 0015, D6) | implementado | — | 2 ✔ / 3 ✔ |
+| Índices em voos e vouchers; preconnect | Índices em V19 (ida, localizador, nome) e V21 (emissão, tipo, cliente) | parcial | Preconnect: a URL da API vem do `config.json` em tempo de execução; avaliar na Etapa 6 | 3 ✔ / 6 |
 | PWA instalável | Sem manifest/service worker | ausente | `@angular/service-worker` sem cache de respostas autenticadas | 6 |
 
 ## Módulos
 
 | Módulo | Código existente | Status | Ação | Etapa |
 |---|---|---|---|---|
-| Visão geral (voos próximos, gráficos, ocultar valores) | Dashboard de receita da Loja; nenhuma referência a faturas | ajuste | Dashboard operacional do CRM, sem faturas, botão de olho | 3 |
-| Voos Clientes (`voo_flights`, `voo_travelers`; busca sem acento e em qualquer ordem; arquivados; anexos) | `flight` é catálogo, não voo de cliente | ausente | Tabelas novas (V18+), busca normalizada, anexos no storage | 3 |
-| Pesquisar Voos (SerpApi; grupos de até 7 destinos; CXJ; datas flexíveis; 5 últimas pesquisas) | Busca no catálogo interno | ausente | Adapter SerpApi (chave no servidor, "não configurado" sem chave), histórico | 3 |
-| Emitir Voucher (PDF/JPG/PNG com IA; campos manuais; A4; WhatsApp; histórico; cabeçalho EEBPG) | — | ausente | Upload, extração (IA não configurada → preenchimento manual), impressão A4 | 3 |
-| Documentos (busca, PDF.js, URL assinada, fora do backup) | — | ausente | Repositório no storage privado | 3 |
+| Visão geral (voos próximos, gráficos, ocultar valores) | `GET /api/crm/dashboard` + painel: voos em 7/30 dias, próximos voos, voos por mês, vouchers do mês, botão de olho; sem faturas | implementado | — | 3 ✔ |
+| Voos Clientes (`voo_flights`, `voo_travelers`; busca sem acento e em qualquer ordem; arquivados; anexos) | V19; busca no mesmo passageiro; histórico; anexos; CPF mascarado; trava otimista | implementado | — | 3 ✔ |
+| Pesquisar Voos (SerpApi; grupos de até 7 destinos; CXJ; datas flexíveis; 5 últimas pesquisas) | V20; adapter SerpApi testado por contrato; 503 sem chave; teto, cota e cache; histórico com "Refazer" | implementado (**precisa de `SERPAPI_API_KEY`**) | Chave da SerpApi no servidor | 3 ✔ |
+| Emitir Voucher (PDF/JPG/PNG com IA; campos manuais; A4; WhatsApp; histórico; cabeçalho EEBPG) | V21; quatro tipos; origem enviada; A4 auditado; WhatsApp sem CPF; histórico e cancelamento | implementado, **extração por IA não configurada** | Provedor de IA + `VoucherExtractor` | 3 ✔ / IA pendente |
+| Documentos (busca, PDF.js, URL assinada, fora do backup) | Tela sobre `/api/crm/files`, PDF.js 6.4 com worker local, link de 5 min | implementado | — | 3 ✔ |
 | Criar Posts de cotação (5 layouts, extração de PDF, regras de texto e preço, logo por composição, PNG, Instagram) | — | ausente | Editor + composição em canvas; IA e Meta via adapters | 4 |
 | Posts de Cruzeiros | — | ausente | Idem, layouts "Card no oceano" e "Oportunidade" | 4 |
 | Salvar Imagens ("Story Image Saver") | — | **bloqueado** | Aguarda o código ou a especificação do app original | 4 |
@@ -53,9 +53,9 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | MFA para administradores | implementado (TOTP obrigatório para `crm-admin`) | 1 ✔ |
 | Força bruta, sessão curta, refresh rotativo | implementado no realm do CRM | 1 ✔ |
 | Infra local fora da rede (portas em loopback) | implementado | 1 ✔ |
-| IDOR/BOLA nos recursos do CRM | a fazer em cada módulo (teste por rota) | 3–5 |
+| IDOR/BOLA nos recursos do CRM | permissão por recurso em toda rota e por categoria nos arquivos; testes por papel nas Etapas 2 e 3 | 2 ✔ / 3 ✔ / 4–5 |
 | Upload seguro e SSRF | implementado (ADR 0014); antivírus pendente | 2 ✔ / 6 |
 | Auditoria de todo o CRM (escritas, exportações, downloads sensíveis, publicação Meta) | implementado para escritas e links de download; publicação Meta junto com o módulo | 2 ✔ / 4 |
-| LGPD: mascaramento de CPF, retenção, exportação/anonimização, minimização para a IA | ausente | 3 / 6 |
+| LGPD: mascaramento de CPF, retenção, exportação/anonimização, minimização para a IA | CPF mascarado em toda resposta e fora do WhatsApp; inteiro só no A4 auditado; retenção e anonimização na Etapa 6 | 3 ✔ / 6 |
 | CI: SAST, varredura de imagens e segredos | parcial (Dependabot) | 6 |
 | Docs pedidos (`architecture`, `security`, `lgpd`, `keycloak`, `oracle-flyway`, `api`, `deployment`, `backup-recovery`, `incident-response`, `testing`) | parcial (ADRs existentes) | 6 |

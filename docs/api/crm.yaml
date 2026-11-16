@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Familhas API - CRM interno Voe Familhas
-  version: 0.2.0
+  version: 0.3.0
   description: |
     Contrato do CRM interno (prompt mestre do CRM; ADR 0013 e ADR 0014): tudo o que o `familhas-admin` consome
     em `/api/crm/**`.
@@ -24,6 +24,14 @@ tags:
     description: Dados da agência e situação das integrações.
   - name: files
     description: Arquivos privados (documentos, anexos, imagens, vídeos).
+  - name: dashboard
+    description: Visão geral operacional (sem faturas).
+  - name: client-flights
+    description: Voos Clientes (voo_flights e voo_travelers).
+  - name: flight-search
+    description: Pesquisar Voos (SerpApi / Google Flights).
+  - name: vouchers
+    description: Emitir Voucher e histórico.
 security:
   - bearerAuth: []
 
@@ -178,6 +186,466 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
+  /api/crm/dashboard:
+    get:
+      tags: [dashboard]
+      operationId: getCrmDashboard
+      summary: Voos próximos, voos por mês e vouchers do mês
+      description: "Exige `crm:dashboard:ler`. `flights` vem null sem `crm:voos-clientes:ler`; `vouchers`, sem `crm:vouchers:ler`."
+      responses:
+        '200':
+          description: Painel.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrmDashboard' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/client-flights:
+    get:
+      tags: [client-flights]
+      operationId: searchClientFlights
+      summary: Voos pela data da ida (ativos) ou mais recentes primeiro (arquivados)
+      description: |
+        Exige `crm:voos-clientes:ler`. `q`: busca rápida por passageiro, sem acento e com as palavras em qualquer
+        ordem (todas no nome do mesmo passageiro), ou o localizador exato.
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 100 } }
+        - { name: archived, in: query, schema: { type: boolean, default: false } }
+        - { name: from, in: query, description: 'Ida a partir do dia', schema: { type: string, format: date } }
+        - { name: to, in: query, description: 'Ida até o dia', schema: { type: string, format: date } }
+        - { name: airline, in: query, schema: { type: string, maxLength: 60 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - { name: sort, in: query, description: 'outboundAt, airline, destination, createdAt', schema: { type: string } }
+      responses:
+        '200':
+          description: Página de voos.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlightPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [client-flights]
+      operationId: createClientFlight
+      summary: Cadastra voo com passageiros
+      description: "Exige `crm:voos-clientes:criar`. Erros: `CPF_INVALID`, `RETURN_BEFORE_OUTBOUND` (422)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientFlightRequest' }
+      responses:
+        '201':
+          description: Voo criado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlight' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/client-flights/{id}:
+    get:
+      tags: [client-flights]
+      operationId: getClientFlight
+      summary: Voo com passageiros (CPF mascarado) e anexos
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Voo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlight' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [client-flights]
+      operationId: updateClientFlight
+      summary: Edita voo
+      description: "Exige `crm:voos-clientes:editar` e `version` atual (senão 409 `VERSION_CONFLICT`)."
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ClientFlightRequest' }
+      responses:
+        '200':
+          description: Voo atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlight' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [client-flights]
+      operationId: deleteClientFlight
+      summary: Exclui voo e anexos
+      description: "Exige `crm:voos-clientes:excluir`."
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '204': { description: Excluído. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/client-flights/{id}/archive:
+    post:
+      tags: [client-flights]
+      operationId: archiveClientFlight
+      summary: Arquiva (vai para o histórico)
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Voo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlight' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/client-flights/{id}/unarchive:
+    post:
+      tags: [client-flights]
+      operationId: unarchiveClientFlight
+      summary: Volta para os ativos
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Voo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlight' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/client-flights/{id}/attachments:
+    post:
+      tags: [client-flights]
+      operationId: attachToClientFlight
+      summary: Anexa documento do voo (PDF, JPG, PNG)
+      description: "Exige `crm:voos-clientes:editar` e `criar`. Até 20 anexos (`TOO_MANY_ATTACHMENTS`). Mesmas regras de `/api/crm/files`."
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Voo com o anexo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlight' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '413': { $ref: '#/components/responses/Unprocessable' }
+        '415': { $ref: '#/components/responses/Unprocessable' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/client-flights/{id}/attachments/{fileId}:
+    delete:
+      tags: [client-flights]
+      operationId: detachFromClientFlight
+      summary: Remove e exclui o anexo
+      description: "Exige `crm:voos-clientes:excluir`."
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: fileId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Voo sem o anexo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ClientFlight' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/flight-search/options:
+    get:
+      tags: [flight-search]
+      operationId: getFlightSearchOptions
+      summary: Origens fixas e se a SerpApi está configurada
+      responses:
+        '200':
+          description: Opções.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlightSearchOptions' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/flight-search:
+    post:
+      tags: [flight-search]
+      operationId: searchFlights
+      summary: Cota ida e volta para cada destino
+      description: |
+        Exige `crm:pesquisa-voos:criar`. Sem chave da SerpApi: 503 `INTEGRATION_NOT_CONFIGURED`.
+        Erros: `ORIGIN_NOT_ALLOWED`, `SAME_ORIGIN_DESTINATION`, `DUPLICATED_DESTINATION`, `DATES_REQUIRED`,
+        `MONTHS_REQUIRED`, `INVALID_DATES`, `FLIGHT_SEARCH_TOO_BROAD` (422), `FLIGHT_SEARCH_QUOTA` (429),
+        `FLIGHT_SEARCH_FAILED` (502). A mesma pesquisa repetida só renova o horário no histórico.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FlightSearchRequest' }
+      responses:
+        '200':
+          description: Resultado por destino.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlightSearchResult' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/flight-search/recent:
+    get:
+      tags: [flight-search]
+      operationId: recentFlightSearches
+      summary: As 5 pesquisas mais recentes, prontas para "Refazer"
+      responses:
+        '200':
+          description: Pesquisas.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/RecentFlightSearch' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/flight-search/groups:
+    get:
+      tags: [flight-search]
+      operationId: listFlightSearchGroups
+      summary: Grupos de destinos
+      responses:
+        '200':
+          description: Grupos.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/FlightSearchGroup' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [flight-search]
+      operationId: createFlightSearchGroup
+      summary: Cria grupo (até 7 destinos)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FlightSearchGroupRequest' }
+      responses:
+        '201':
+          description: Grupo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlightSearchGroup' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/crm/flight-search/groups/{id}:
+    put:
+      tags: [flight-search]
+      operationId: updateFlightSearchGroup
+      summary: Edita grupo
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FlightSearchGroupRequest' }
+      responses:
+        '200':
+          description: Grupo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FlightSearchGroup' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [flight-search]
+      operationId: deleteFlightSearchGroup
+      summary: Exclui grupo
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '204': { description: Excluído. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/vouchers:
+    get:
+      tags: [vouchers]
+      operationId: searchVouchers
+      summary: Histórico de vouchers, mais recentes primeiro
+      parameters:
+        - { name: q, in: query, description: Nome do cliente ou número exato, schema: { type: string, maxLength: 100 } }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/VoucherType' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/VoucherStatus' } }
+        - { name: from, in: query, description: 'Emitido a partir do dia', schema: { type: string, format: date } }
+        - { name: to, in: query, description: 'Emitido até o dia', schema: { type: string, format: date } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+        - { name: sort, in: query, description: 'issuedAt, serviceDate, clientName, number', schema: { type: string } }
+      responses:
+        '200':
+          description: Página de vouchers.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoucherPage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [vouchers]
+      operationId: issueVoucher
+      summary: Emite voucher (número VF-000001)
+      description: "Exige `crm:vouchers:criar`. Erros 422: `VOUCHER_FIELDS_MISSING` (com `fields`), `CPF_INVALID`, `INVALID_DATES`, `FILE_CATEGORY_MISMATCH`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VoucherRequest' }
+      responses:
+        '201':
+          description: Voucher.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Voucher' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/vouchers/extract:
+    post:
+      tags: [vouchers]
+      operationId: extractVoucher
+      summary: Extrai os dados do serviço do PDF/imagem por IA
+      description: |
+        Exige `crm:vouchers:criar`. Sem provedor de IA: 503 `INTEGRATION_NOT_CONFIGURED` (a tela segue no manual).
+        Nome, CPF, telefone e observações nunca são extraídos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, fileId]
+              properties:
+                type: { $ref: '#/components/schemas/VoucherType' }
+                fileId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Campos para revisão.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoucherDetails' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/vouchers/{id}:
+    get:
+      tags: [vouchers]
+      operationId: getVoucher
+      summary: Voucher (CPF mascarado)
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Voucher.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Voucher' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [vouchers]
+      operationId: updateVoucher
+      summary: Corrige voucher emitido
+      description: "Exige `crm:vouchers:editar` e `version` atual. Cancelado: 422 `VOUCHER_CANCELLED`."
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VoucherRequest' }
+      responses:
+        '200':
+          description: Voucher.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Voucher' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/vouchers/{id}/cancel:
+    post:
+      tags: [vouchers]
+      operationId: cancelVoucher
+      summary: Cancela (fica no histórico)
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Voucher.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Voucher' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/vouchers/{id}/document:
+    get:
+      tags: [vouchers]
+      operationId: getVoucherDocument
+      summary: Dados para a impressão A4, com CPF inteiro
+      description: "Exige `crm:vouchers:ler`. Cada chamada grava `DOWNLOAD` na auditoria."
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Documento.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VoucherDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -211,6 +679,16 @@ components:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     NotFound:
       description: Não encontrado
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Conflict:
+      description: 'Conflito (`code` estável, ex.: VERSION_CONFLICT, GROUP_NAME_TAKEN)'
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    ServiceUnavailable:
+      description: Integração não configurada (`INTEGRATION_NOT_CONFIGURED`)
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -318,3 +796,295 @@ components:
       properties:
         path: { type: string, description: 'Relativo à API, ex.: /api/crm/files/{id}/content?expires=...&signature=...' }
         expiresAt: { type: string, format: date-time }
+
+    LocalDateTime: { type: string, description: 'Horário local do bilhete, sem fuso (2026-12-10T08:30:00)', examples: ['2026-12-10T08:30:00'] }
+
+    ClientFlightSummary:
+      type: object
+      required: [id, airline, origin, destination, outboundAt, passengers, attachmentCount, archived]
+      properties:
+        id: { type: string, format: uuid }
+        locator: { type: [string, 'null'] }
+        airline: { type: string }
+        origin: { type: string }
+        destination: { type: string }
+        outboundAt: { $ref: '#/components/schemas/LocalDateTime' }
+        returnAt: { oneOf: [ { $ref: '#/components/schemas/LocalDateTime' }, { type: 'null' } ] }
+        passengers: { type: array, items: { type: string } }
+        attachmentCount: { type: integer }
+        archived: { type: boolean }
+
+    ClientFlightPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/ClientFlightSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+
+    ClientFlightTravelerRequest:
+      type: object
+      required: [fullName]
+      properties:
+        id: { type: [string, 'null'], format: uuid, description: Passageiro existente (mantém o CPF guardado quando cpf é null) }
+        fullName: { type: string, maxLength: 150 }
+        cpf: { type: [string, 'null'], maxLength: 14, description: 'null mantém; vazio apaga; preenchido é validado' }
+        phone: { type: [string, 'null'], maxLength: 20 }
+
+    ClientFlightRequest:
+      type: object
+      required: [airline, origin, destination, outboundAt, travelers]
+      properties:
+        locator: { type: [string, 'null'], maxLength: 20 }
+        airline: { type: string, maxLength: 60 }
+        origin: { type: string, maxLength: 60 }
+        destination: { type: string, maxLength: 60 }
+        outboundAt: { $ref: '#/components/schemas/LocalDateTime' }
+        outboundFlightNumber: { type: [string, 'null'], maxLength: 20 }
+        returnAt: { oneOf: [ { $ref: '#/components/schemas/LocalDateTime' }, { type: 'null' } ] }
+        returnFlightNumber: { type: [string, 'null'], maxLength: 20 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        travelers: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/ClientFlightTravelerRequest' } }
+        version: { type: [integer, 'null'], format: int64, description: Obrigatório na edição }
+
+    ClientFlightTraveler:
+      type: object
+      required: [id, fullName]
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        cpfMasked: { type: [string, 'null'], examples: ['***.982.247-**'] }
+        phone: { type: [string, 'null'] }
+
+    ClientFlight:
+      type: object
+      required: [id, airline, origin, destination, outboundAt, archived, travelers, attachments, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        locator: { type: [string, 'null'] }
+        airline: { type: string }
+        origin: { type: string }
+        destination: { type: string }
+        outboundAt: { $ref: '#/components/schemas/LocalDateTime' }
+        outboundFlightNumber: { type: [string, 'null'] }
+        returnAt: { oneOf: [ { $ref: '#/components/schemas/LocalDateTime' }, { type: 'null' } ] }
+        returnFlightNumber: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        archived: { type: boolean }
+        archivedAt: { type: [string, 'null'], format: date-time }
+        travelers: { type: array, items: { $ref: '#/components/schemas/ClientFlightTraveler' } }
+        attachments: { type: array, items: { $ref: '#/components/schemas/CrmFile' } }
+        version: { type: integer, format: int64 }
+        createdBy: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    MonthCount:
+      type: object
+      required: [month, count]
+      properties:
+        month: { type: string, examples: ['2026-12'] }
+        count: { type: integer, format: int64 }
+
+    CrmDashboard:
+      type: object
+      required: [flights, vouchers]
+      properties:
+        flights:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [next7Days, next30Days, upcoming, byMonth]
+              properties:
+                next7Days: { type: integer, format: int64 }
+                next30Days: { type: integer, format: int64 }
+                upcoming: { type: array, items: { $ref: '#/components/schemas/ClientFlightSummary' } }
+                byMonth: { type: array, items: { $ref: '#/components/schemas/MonthCount' } }
+        vouchers:
+          oneOf:
+            - type: 'null'
+            - type: object
+              required: [issuedThisMonth, byTypeThisMonth]
+              properties:
+                issuedThisMonth: { type: integer, format: int64 }
+                byTypeThisMonth:
+                  type: object
+                  required: [FLIGHT, HOTEL, TRANSFER, TOUR]
+                  properties:
+                    FLIGHT: { type: integer, format: int64 }
+                    HOTEL: { type: integer, format: int64 }
+                    TRANSFER: { type: integer, format: int64 }
+                    TOUR: { type: integer, format: int64 }
+
+    FlightSearchMode: { type: string, enum: [EXACT, FLEXIBLE] }
+
+    FlightSearchRequest:
+      type: object
+      required: [origin, destinations, mode]
+      properties:
+        origin: { type: string, pattern: '^[A-Z]{3}$' }
+        destinations: { type: array, minItems: 1, maxItems: 7, items: { type: string, pattern: '^[A-Z]{3}$' } }
+        mode: { $ref: '#/components/schemas/FlightSearchMode' }
+        departureDate: { type: [string, 'null'], format: date, description: EXACT }
+        returnDate: { type: [string, 'null'], format: date, description: EXACT }
+        months: { type: [array, 'null'], maxItems: 3, items: { type: string, examples: ['2026-12'] }, description: FLEXIBLE }
+        stayNights: { type: [integer, 'null'], minimum: 1, maximum: 30, description: 'FLEXIBLE, padrão 5' }
+        adults: { type: [integer, 'null'], minimum: 1, maximum: 9, description: 'Padrão 1' }
+
+    FlightOffer:
+      type: object
+      required: [departureDate, returnDate, price, currency, airlines, stops]
+      properties:
+        departureDate: { type: string, format: date }
+        returnDate: { type: string, format: date }
+        price: { type: number, description: 'Total ida + volta por adulto' }
+        currency: { type: string, examples: [BRL] }
+        airlines: { type: array, items: { type: string } }
+        stops: { type: integer }
+        durationMinutes: { type: [integer, 'null'] }
+
+    FlightSearchResult:
+      type: object
+      required: [request, destinations]
+      properties:
+        request: { $ref: '#/components/schemas/FlightSearchRequest' }
+        destinations:
+          type: array
+          items:
+            type: object
+            required: [destination, offers]
+            properties:
+              destination: { type: string }
+              offers: { type: array, items: { $ref: '#/components/schemas/FlightOffer' } }
+              error: { type: [string, 'null'] }
+
+    RecentFlightSearch:
+      type: object
+      required: [id, summary, request, lastRunAt]
+      properties:
+        id: { type: string, format: uuid }
+        summary: { type: string }
+        request: { $ref: '#/components/schemas/FlightSearchRequest' }
+        runBy: { type: [string, 'null'] }
+        lastRunAt: { type: string, format: date-time }
+
+    FlightSearchOptions:
+      type: object
+      required: [origins, configured, defaultStayNights, maxDestinations, maxMonths]
+      properties:
+        origins: { type: array, items: { type: string } }
+        configured: { type: boolean }
+        defaultStayNights: { type: integer }
+        maxDestinations: { type: integer }
+        maxMonths: { type: integer }
+
+    FlightSearchGroupRequest:
+      type: object
+      required: [name, destinations]
+      properties:
+        name: { type: string, maxLength: 60 }
+        destinations: { type: array, minItems: 1, maxItems: 7, items: { type: string, pattern: '^[A-Z]{3}$' } }
+
+    FlightSearchGroup:
+      type: object
+      required: [id, name, destinations]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        destinations: { type: array, items: { type: string } }
+
+    VoucherType: { type: string, enum: [FLIGHT, HOTEL, TRANSFER, TOUR] }
+    VoucherStatus: { type: string, enum: [ISSUED, CANCELLED] }
+
+    VoucherDetails:
+      type: object
+      description: |
+        Campos do serviço. Obrigatórios: FLIGHT provider, origin, destination, serviceDate; HOTEL provider,
+        serviceDate, endDate; TRANSFER origin, destination, serviceDate; TOUR description, serviceDate.
+      properties:
+        provider: { type: [string, 'null'], maxLength: 120, description: 'Companhia, hotel ou empresa' }
+        reservationCode: { type: [string, 'null'], maxLength: 30 }
+        origin: { type: [string, 'null'], maxLength: 120 }
+        destination: { type: [string, 'null'], maxLength: 120 }
+        location: { type: [string, 'null'], maxLength: 200 }
+        serviceDate: { type: [string, 'null'], format: date, description: 'Ida, check-in ou dia do serviço' }
+        startTime: { type: [string, 'null'], pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        endDate: { type: [string, 'null'], format: date, description: Volta ou check-out }
+        endTime: { type: [string, 'null'], pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$' }
+        flightNumber: { type: [string, 'null'], maxLength: 20 }
+        returnFlightNumber: { type: [string, 'null'], maxLength: 20 }
+        roomType: { type: [string, 'null'], maxLength: 120 }
+        board: { type: [string, 'null'], maxLength: 60 }
+        vehicle: { type: [string, 'null'], maxLength: 60 }
+        description: { type: [string, 'null'], maxLength: 300 }
+        inclusions: { type: [string, 'null'], maxLength: 1000 }
+        adults: { type: [integer, 'null'], minimum: 0, maximum: 20 }
+        children: { type: [integer, 'null'], minimum: 0, maximum: 20 }
+        passengers: { type: [array, 'null'], maxItems: 10, items: { type: string, maxLength: 150 } }
+
+    VoucherRequest:
+      type: object
+      required: [type, clientName, details]
+      properties:
+        type: { $ref: '#/components/schemas/VoucherType' }
+        clientName: { type: string, maxLength: 150 }
+        clientCpf: { type: [string, 'null'], maxLength: 14, description: 'Na edição: null mantém, vazio apaga' }
+        clientPhone: { type: [string, 'null'], maxLength: 20 }
+        notes: { type: [string, 'null'], maxLength: 2000 }
+        details: { $ref: '#/components/schemas/VoucherDetails' }
+        sourceFileId: { type: [string, 'null'], format: uuid, description: Arquivo VOUCHER_SOURCE de origem }
+        version: { type: [integer, 'null'], format: int64 }
+
+    Voucher:
+      type: object
+      required: [id, number, type, status, clientName, details, issuedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: string, examples: ['VF-000001'] }
+        type: { $ref: '#/components/schemas/VoucherType' }
+        status: { $ref: '#/components/schemas/VoucherStatus' }
+        clientName: { type: string }
+        clientCpfMasked: { type: [string, 'null'] }
+        clientPhone: { type: [string, 'null'] }
+        notes: { type: [string, 'null'] }
+        details: { $ref: '#/components/schemas/VoucherDetails' }
+        serviceDate: { type: [string, 'null'], format: date }
+        sourceFile: { oneOf: [ { $ref: '#/components/schemas/CrmFile' }, { type: 'null' } ] }
+        issuedBy: { type: [string, 'null'] }
+        issuedAt: { type: string, format: date-time }
+        cancelledAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer, format: int64 }
+
+    VoucherSummary:
+      type: object
+      required: [id, number, type, status, clientName, issuedAt]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: string }
+        type: { $ref: '#/components/schemas/VoucherType' }
+        status: { $ref: '#/components/schemas/VoucherStatus' }
+        clientName: { type: string }
+        provider: { type: [string, 'null'] }
+        serviceDate: { type: [string, 'null'], format: date }
+        issuedBy: { type: [string, 'null'] }
+        issuedAt: { type: string, format: date-time }
+
+    VoucherPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/VoucherSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+
+    VoucherDocument:
+      type: object
+      required: [company, voucher]
+      properties:
+        company: { $ref: '#/components/schemas/Company' }
+        voucher: { $ref: '#/components/schemas/Voucher' }
+        clientCpfFormatted: { type: [string, 'null'], examples: ['529.982.247-25'] }

@@ -11,9 +11,9 @@ describe('PendingModulePage', () => {
   }
 
   it('diz em que etapa o módulo chega, sem botão de ação', () => {
-    const text = render(PENDING_MODULES.vouchers);
-    expect(text).toContain('Emitir Voucher');
-    expect(text).toContain('Etapa 3');
+    const text = render(PENDING_MODULES.postsInsta);
+    expect(text).toContain('Criar posts Insta');
+    expect(text).toContain('Etapa 4');
   });
 
   it('módulo bloqueado diz o que falta', () => {

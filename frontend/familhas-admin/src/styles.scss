@@ -351,3 +351,15 @@ tbody tr:hover {
   background: var(--color-neutral-bg);
   color: var(--color-text);
 }
+
+/* Impressão (voucher A4, ADR 0015). */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+}

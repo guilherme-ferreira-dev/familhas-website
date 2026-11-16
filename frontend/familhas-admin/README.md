@@ -37,7 +37,16 @@ Grupos do JSON funcional. Cada item aparece só para quem tem a permissão de le
 | Marketing & Conteúdo | Criar Posts de cotação, Posts de Cruzeiros, Salvar Imagens, Criar posts Insta, Gerar Roteiro |
 | Administração | Equipe (só admin), Importar dados, Documentos, Auditoria |
 
-A visão geral mostra os dados da agência, a situação das integrações (IA, SerpApi e Meta aparecem como "Não configurada" até haver credencial) e em que etapa chega cada módulo. Os módulos ainda sem tela mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
+A visão geral mostra o painel (voos nos próximos 7 e 30 dias, próximos voos, voos por mês, vouchers do mês, com botão de olho), os dados da agência, a situação das integrações (IA, SerpApi e Meta aparecem como "Não configurada" até haver credencial) e em que etapa chega cada módulo.
+
+| Rota | Tela (ADR 0015) |
+|---|---|
+| `/voos-clientes` | Lista pela ida, busca rápida sem acento, histórico de arquivados, filtros; `/novo`, `/:id`, `/:id/editar` com passageiros (CPF mascarado) e anexos |
+| `/pesquisar-voos` | Grupos de até 7 destinos, datas exatas ou flexíveis, resultados por destino, 5 últimas pesquisas com "Refazer" |
+| `/vouchers` | Histórico; `/novo` com documento de origem e dados manuais; `/:id` com WhatsApp (sem CPF); `/:id/imprimir` em A4 |
+| `/documentos` | Busca por nome, envio, visualização com PDF.js (worker em `/pdfjs/`) |
+
+Os módulos ainda sem tela (marketing, equipe, importação e backup) mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
 
 As telas da Loja (`/loja`, `/clientes`, `/reservas`, `/pagamentos`, `/cotacoes`, `/catalogo`) ficaram fora do menu e só abrem para o `crm-admin`.
 

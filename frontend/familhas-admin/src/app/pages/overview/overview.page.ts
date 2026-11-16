@@ -2,14 +2,16 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { CrmSession } from '../../core/crm/crm-session';
 import { PENDING_MODULES, PendingModule } from '../../layout/modules';
+import { DashboardPanel } from './dashboard-panel';
 
 /**
- * Visão geral do CRM. Nesta etapa: dados da agência, situação das integrações e o que chega em cada etapa.
- * Voos próximos e gráficos entram na Etapa 3, com os dados de Voos Clientes. Sem faturas (JSON sem financeiro).
+ * Visão geral do CRM: painel operacional (voos próximos, voos por mês, vouchers do mês, botão de olho), dados da
+ * agência, situação das integrações e módulos ainda em construção. Sem faturas (JSON sem financeiro).
  */
 @Component({
   selector: 'app-overview-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [DashboardPanel],
   template: `
     <section class="page" aria-labelledby="titulo">
       <div class="page-header">
@@ -24,6 +26,8 @@ import { PENDING_MODULES, PendingModule } from '../../layout/modules';
           Não conseguimos carregar seu perfil na API. Tente recarregar a página.
         </p>
       }
+
+      <app-dashboard-panel />
 
       <div class="grid">
         <section class="card" aria-labelledby="empresa">

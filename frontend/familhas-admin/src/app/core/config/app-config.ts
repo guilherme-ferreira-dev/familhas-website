@@ -1,16 +1,16 @@
 import { InjectionToken } from '@angular/core';
 
 /**
- * Configuração de runtime do Admin, lida de `config.json` antes do bootstrap.
+ * Configuração de runtime do CRM (familhas-admin), lida de `config.json` antes do bootstrap.
  * O mesmo build serve qualquer ambiente: só o arquivo muda no deploy. Nunca colocar segredos aqui.
  */
 export interface AppConfig {
-  /** URL base da familhas-api, sem barra final. O token só é enviado para `{apiBaseUrl}/api/admin/`. */
+  /** URL base da familhas-api, sem barra final. O token só é enviado para `{apiBaseUrl}/api/crm/` e `/api/admin/`. */
   readonly apiBaseUrl: string;
   readonly oidc: {
-    /** Issuer do realm, ex.: https://localhost:8443/realms/familhas */
+    /** Issuer do realm, ex.: https://localhost:8443/realms/voe-familhas-crm */
     readonly authority: string;
-    /** Client público do Admin no Keycloak (familhas-admin). */
+    /** Client público do CRM no Keycloak (familhas-crm). */
     readonly clientId: string;
     readonly scope: string;
   };

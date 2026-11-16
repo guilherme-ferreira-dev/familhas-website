@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { APP_CONFIG, AppConfig } from '../config/app-config';
 import { AuthService } from './auth.service';
-import { isAdminApiRequest, jwtInterceptor } from './jwt.interceptor';
+import { isOwnApiRequest, jwtInterceptor } from './jwt.interceptor';
 
 const API = 'http://localhost:8080';
 
@@ -34,8 +34,11 @@ describe('jwtInterceptor', () => {
     return req.request.headers.get('Authorization');
   }
 
-  it('envia o token só para /api/admin', async () => {
+  it('envia o token só para /api/crm e /api/admin', async () => {
+    expect(await authorization(`${API}/api/crm/me`)).toBe('Bearer abc');
     expect(await authorization(`${API}/api/admin/payments`)).toBe('Bearer abc');
+    expect(await authorization(`${API}/api/crm.evil.com/x`)).toBeNull();
+    expect(await authorization('https://evil.com/api/crm/me')).toBeNull();
     expect(await authorization(`${API}/api/me`)).toBeNull();
     expect(await authorization(`${API}/api/admin.evil.com/x`)).toBeNull();
     expect(await authorization('https://localhost:8443/realms/familhas/x')).toBeNull();
@@ -43,6 +46,7 @@ describe('jwtInterceptor', () => {
   });
 
   it('exige a URL base exata', () => {
-    expect(isAdminApiRequest(`${API}evil/api/admin/x`, API)).toBe(false);
+    expect(isOwnApiRequest(`${API}evil/api/admin/x`, API)).toBe(false);
+    expect(isOwnApiRequest(`${API}evil/api/crm/x`, API)).toBe(false);
   });
 });

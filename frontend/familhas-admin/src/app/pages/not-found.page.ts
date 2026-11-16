@@ -8,7 +8,7 @@ import { RouterLink } from '@angular/router';
   template: `
     <section class="page">
       <h1>Página não encontrada</h1>
-      <p><a routerLink="/">Voltar para o dashboard</a></p>
+      <p><a routerLink="/">Voltar para a visão geral</a></p>
     </section>
   `,
 })

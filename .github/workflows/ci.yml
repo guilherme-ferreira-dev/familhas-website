@@ -140,10 +140,10 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
-      # Contrato do Admin em docs/api/admin.yaml: lint do OpenAPI e tipos gerados em dia com o YAML.
-      - name: Validar contrato OpenAPI
+      # Contratos do Admin (docs/api/admin.yaml) e do CRM (docs/api/crm.yaml): lint e tipos gerados em dia.
+      - name: Validar contratos OpenAPI
         run: |
-          npx --yes @redocly/cli@2.11.1 lint ../../docs/api/admin.yaml --config ../../docs/api/redocly.yaml
+          npx --yes @redocly/cli@2.11.1 lint ../../docs/api/admin.yaml ../../docs/api/crm.yaml --config ../../docs/api/redocly.yaml
           npm run api:check
 
       - name: Lint

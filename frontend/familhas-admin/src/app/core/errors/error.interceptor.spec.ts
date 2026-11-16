@@ -1,5 +1,6 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { AuthService } from '../auth/auth.service';
@@ -12,18 +13,20 @@ const API = 'http://localhost:8080';
 describe('errorInterceptor', () => {
   const login = vi.fn();
   const navigateByUrl = vi.fn();
+  const teamMember = signal(false);
   let http: HttpClient;
   let backend: HttpTestingController;
 
   beforeEach(() => {
     login.mockReset();
     navigateByUrl.mockReset();
+    teamMember.set(false);
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([errorInterceptor])),
         provideHttpClientTesting(),
         { provide: APP_CONFIG, useValue: { apiBaseUrl: API } as AppConfig },
-        { provide: AuthService, useValue: { login } },
+        { provide: AuthService, useValue: { login, isTeamMember: teamMember } },
         { provide: Router, useValue: { url: '/pagamentos', navigateByUrl } },
       ],
     });
@@ -50,11 +53,25 @@ describe('errorInterceptor', () => {
     expect(errorMessage(error)).toContain('abaixo do custo');
   });
 
-  it('401 manda para o login e 403 para "sem permissão"', async () => {
+  it('401 manda para o login e 403 sem papel do CRM para "sem permissão"', async () => {
     await fail(`${API}/api/admin/payments`, 401);
     expect(login).toHaveBeenCalledWith('/pagamentos');
-    await fail(`${API}/api/admin/payments`, 403);
+    await fail(`${API}/api/crm/me`, 403);
     expect(navigateByUrl).toHaveBeenCalledWith('/sem-permissao');
+  });
+
+  it('403 de membro da equipe sem a permissão da ação fica na tela, com a mensagem', async () => {
+    teamMember.set(true);
+    const error = (await fail(`${API}/api/crm/files/1`, 403)) as ApiError;
+    expect(navigateByUrl).not.toHaveBeenCalled();
+    expect(errorMessage(error)).toBe('Sua conta não tem permissão para esta ação.');
+  });
+
+  it('erros do CRM têm mensagem própria pelo code', async () => {
+    const error = (await fail(`${API}/api/crm/files`, 503, {
+      code: 'INTEGRATION_NOT_CONFIGURED',
+    })) as ApiError;
+    expect(errorMessage(error)).toContain('não está configurada');
   });
 
   it('não mexe em erros de outras URLs', async () => {

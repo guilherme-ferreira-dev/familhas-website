@@ -2,33 +2,43 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { firstValueFrom } from 'rxjs';
+import { CrmSession } from '../crm/crm-session';
 import {
-  ADMIN_ROLE,
   AuthService,
+  CRM_ADMIN_ROLE,
+  CRM_ROLES,
   AuthUser,
   realmRoles,
   rememberReturnUrl,
   takeReturnUrl,
 } from './auth.service';
 
-/** Keycloak (realm familhas, client público familhas-admin) via Authorization Code + PKCE (S256). */
+/** Keycloak (realm voe-familhas-crm, client público familhas-crm) via Authorization Code + PKCE (S256). */
 @Injectable()
 export class OidcAuthService extends AuthService {
   private readonly oidc = inject(OidcSecurityService);
   private readonly router = inject(Router);
+  private readonly session = inject(CrmSession);
   private readonly roles = signal<readonly string[]>([]);
   private readonly unreachable = signal(false);
   readonly unavailable = this.unreachable.asReadonly();
 
   readonly isAuthenticated = computed(() => this.oidc.authenticated().isAuthenticated);
-  readonly isAdmin = computed(() => this.isAuthenticated() && this.roles().includes(ADMIN_ROLE));
+  readonly isTeamMember = computed(
+    () =>
+      this.isAuthenticated() &&
+      this.roles().some((role) => (CRM_ROLES as readonly string[]).includes(role)),
+  );
+  readonly isCrmAdmin = computed(
+    () => this.isAuthenticated() && this.roles().includes(CRM_ADMIN_ROLE),
+  );
 
   readonly user = computed<AuthUser | null>(() => {
     if (!this.isAuthenticated()) return null;
     const claims = (this.oidc.userData().userData ?? {}) as Record<string, unknown>;
     const username = text(claims['preferred_username']);
     return {
-      name: text(claims['given_name']) ?? text(claims['name']) ?? username ?? 'Admin',
+      name: text(claims['given_name']) ?? text(claims['name']) ?? username ?? 'Equipe',
       username,
     };
   });
@@ -61,12 +71,14 @@ export class OidcAuthService extends AuthService {
       this.oidc.logoffLocal();
     }
     this.roles.set([]);
+    // Perfil e dados carregados da sessão anterior não podem sobrar para o próximo login.
+    this.session.clear();
   }
 
   async getAccessToken(): Promise<string | null> {
     if (!this.isAuthenticated()) return null;
     const token = (await firstValueFrom(this.oidc.getAccessToken())) || null;
-    // Token renovado pode trazer papéis novos (ex.: ROLE_ADMIN removido no Keycloak).
+    // Token renovado pode trazer papéis novos (ex.: crm-admin removido no Keycloak).
     this.roles.set(realmRoles(token));
     return token;
   }

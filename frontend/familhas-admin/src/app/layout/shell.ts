@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   ElementRef,
   inject,
   signal,
@@ -9,14 +10,14 @@ import {
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
+import { CrmSession } from '../core/crm/crm-session';
+import { visibleNavigation } from './navigation';
 
-interface NavItem {
-  readonly path: string;
-  readonly label: string;
-  readonly exact?: boolean;
-}
-
-/** Layout das telas do Admin: menu lateral, usuário e conteúdo. */
+/**
+ * Layout do CRM: marca com razão social e CNPJ abaixo (JSON, identidade visual), menu nos grupos do JSON filtrado
+ * pelas permissões, usuário e conteúdo. A logo oficial (arquivo) ainda não está no repositório: até lá, a marca é
+ * a palavra "Voe Familhas" em texto, sem recriar o desenho.
+ */
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -26,8 +27,10 @@ interface NavItem {
     <div class="layout">
       <header class="sidebar">
         <div class="brand">
-          <span class="logo" aria-hidden="true">F</span>
-          <span>Familhas <strong>Admin</strong></span>
+          <a class="wordmark" routerLink="/" aria-label="Voe Familhas CRM, visão geral">
+            <span class="voe">Voe</span>
+            <span class="name">Familhas</span>
+          </a>
           <button
             type="button"
             class="menu-toggle"
@@ -38,25 +41,34 @@ interface NavItem {
             Menu
           </button>
         </div>
+        @if (session.company(); as company) {
+          <p class="legal">
+            {{ company.legalName }}<br />
+            CNPJ <span class="num">{{ company.cnpj }}</span>
+          </p>
+        }
         <nav id="menu-principal" aria-label="Principal" [class.open]="menuOpen()">
-          <ul>
-            @for (item of nav; track item.path) {
-              <li>
-                <a
-                  [routerLink]="item.path"
-                  routerLinkActive="active"
-                  [routerLinkActiveOptions]="{ exact: !!item.exact }"
-                  ariaCurrentWhenActive="page"
-                  >{{ item.label }}</a
-                >
-              </li>
-            }
-          </ul>
+          @for (group of nav(); track group.label) {
+            <h2 class="group" [id]="'grupo-' + $index">{{ group.label }}</h2>
+            <ul [attr.aria-labelledby]="'grupo-' + $index">
+              @for (item of group.items; track item.path) {
+                <li>
+                  <a
+                    [routerLink]="item.path"
+                    routerLinkActive="active"
+                    [routerLinkActiveOptions]="{ exact: !!item.exact }"
+                    ariaCurrentWhenActive="page"
+                    >{{ item.label }}</a
+                  >
+                </li>
+              }
+            </ul>
+          }
         </nav>
         @if (auth.user(); as user) {
           <div class="user">
             <span>{{ user.username ?? user.name }}</span>
-            <button type="button" class="logout" (click)="auth.logout()">Sair</button>
+            <button type="button" class="logout" (click)="logout()">Sair</button>
           </div>
         }
       </header>
@@ -95,15 +107,37 @@ interface NavItem {
       gap: var(--space-2);
       font-size: 1.0625rem;
     }
-    .logo {
+    .wordmark {
       display: grid;
-      place-items: center;
-      width: 2rem;
-      height: 2rem;
-      border-radius: 0.5rem;
-      background: var(--color-yellow);
-      color: var(--color-night);
+      line-height: 1;
+      color: #ffffff;
+      text-decoration: none;
       font-weight: 800;
+    }
+    .wordmark .voe {
+      color: var(--color-yellow);
+      font-size: 0.9375rem;
+    }
+    .wordmark .name {
+      font-size: 1.375rem;
+    }
+    .legal {
+      margin: 0;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      color: rgb(232 240 255 / 0.8);
+    }
+    .group {
+      margin: var(--space-3) 0 var(--space-1);
+      padding-inline-start: var(--space-3);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgb(232 240 255 / 0.7);
+    }
+    .group:first-child {
+      margin-top: 0;
     }
     .menu-toggle {
       margin-inline-start: auto;
@@ -181,7 +215,8 @@ interface NavItem {
         position: sticky;
         top: 0;
         height: 100dvh;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: auto auto 1fr auto;
+        overflow-y: auto;
       }
       .menu-toggle {
         display: none;
@@ -198,20 +233,17 @@ interface NavItem {
 })
 export class Shell {
   protected readonly auth = inject(AuthService);
+  protected readonly session = inject(CrmSession);
+  protected readonly nav = computed(() => {
+    // Recalcula quando o perfil chega.
+    this.session.profile();
+    return visibleNavigation((permission) => this.session.can(permission));
+  });
   protected readonly menuOpen = signal(false);
   private readonly main = viewChild.required<ElementRef<HTMLElement>>('main');
 
-  protected readonly nav: readonly NavItem[] = [
-    { path: '/', label: 'Dashboard', exact: true },
-    { path: '/clientes', label: 'Clientes' },
-    { path: '/reservas', label: 'Reservas' },
-    { path: '/pagamentos', label: 'Pagamentos' },
-    { path: '/cotacoes', label: 'Cotações' },
-    { path: '/catalogo', label: 'Catálogo' },
-    { path: '/auditoria', label: 'Auditoria' },
-  ];
-
   constructor() {
+    void this.session.ready();
     let first = true;
     inject(Router)
       .events.pipe(filter((e) => e instanceof NavigationEnd))
@@ -224,6 +256,10 @@ export class Shell {
         // Leitor de tela: depois de navegar, o foco vai para o conteúdo novo.
         this.main().nativeElement.focus({ preventScroll: true });
       });
+  }
+
+  protected logout(): void {
+    void this.auth.logout();
   }
 
   protected skipToContent(event: Event): void {

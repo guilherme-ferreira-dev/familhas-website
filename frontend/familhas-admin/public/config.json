@@ -1,8 +1,8 @@
 {
   "apiBaseUrl": "http://localhost:8080",
   "oidc": {
-    "authority": "https://localhost:8443/realms/familhas",
-    "clientId": "familhas-admin",
+    "authority": "https://localhost:8443/realms/voe-familhas-crm",
+    "clientId": "familhas-crm",
     "scope": "openid profile email"
   }
 }

@@ -14,7 +14,7 @@ import { APP_CONFIG, AppConfig } from '../config/app-config';
 import { AuthService } from './auth.service';
 import { OidcAuthService } from './oidc-auth.service';
 
-/** Autenticação no Keycloak: client público familhas-admin, Authorization Code + PKCE (S256). */
+/** Autenticação no Keycloak: realm voe-familhas-crm, client público familhas-crm, Authorization Code + PKCE (S256). */
 export function provideAuthentication(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideAuth({
@@ -43,7 +43,7 @@ export function oidcConfig(config: AppConfig, origin = window.location.origin) {
     renewTimeBeforeTokenExpiresInSeconds: 30,
     ignoreNonceAfterRefresh: true,
     triggerAuthorizationResultEvent: true,
-    // O token vai só pelo nosso jwtInterceptor, e só para /api/admin.
+    // O token vai só pelo nosso jwtInterceptor, e só para /api/crm e /api/admin.
     secureRoutes: [],
     logLevel: LogLevel.Warn,
   };

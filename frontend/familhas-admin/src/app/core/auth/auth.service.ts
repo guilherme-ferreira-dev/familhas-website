@@ -5,18 +5,24 @@ export interface AuthUser {
   readonly username: string | null;
 }
 
-/** Papel exigido para usar o Admin (realm_access.roles do access token). */
-export const ADMIN_ROLE = 'ROLE_ADMIN';
+/** Papéis da equipe no realm voe-familhas-crm (realm_access.roles do access token). ADR 0013. */
+export const CRM_ROLES = ['crm-admin', 'crm-gestor', 'crm-atendente', 'crm-marketing'] as const;
+/** Administrador do CRM: também vê as telas da Loja, que ficam fora do menu. */
+export const CRM_ADMIN_ROLE = 'crm-admin';
 
 /**
- * Contrato de autenticação do Admin. A implementação real usa OIDC + PKCE no Keycloak (client familhas-admin).
+ * Contrato de autenticação do CRM. A implementação real usa OIDC + PKCE no Keycloak (realm voe-familhas-crm,
+ * client familhas-crm).
  *
- * A checagem de papel aqui é só experiência de uso: quem decide é a API, que responde 403 em /api/admin/**
- * para qualquer token sem ROLE_ADMIN.
+ * A checagem de papel aqui é só experiência de uso: quem decide é a API, que responde 403 em /api/crm/** para
+ * qualquer token sem papel do CRM (inclusive tokens da Loja).
  */
 export abstract class AuthService {
   abstract readonly isAuthenticated: Signal<boolean>;
-  abstract readonly isAdmin: Signal<boolean>;
+  /** Tem algum papel do CRM. */
+  abstract readonly isTeamMember: Signal<boolean>;
+  /** Tem crm-admin. */
+  abstract readonly isCrmAdmin: Signal<boolean>;
   abstract readonly user: Signal<AuthUser | null>;
   /** O Keycloak não respondeu no bootstrap (fora do ar ou certificado recusado pelo navegador). */
   abstract readonly unavailable: Signal<boolean>;
@@ -34,7 +40,7 @@ export abstract class AuthService {
   abstract getAccessToken(): Promise<string | null>;
 }
 
-const RETURN_URL_KEY = 'familhas-admin.returnUrl';
+const RETURN_URL_KEY = 'familhas-crm.returnUrl';
 
 /** Só aceita caminhos internos ("/..."), nunca URLs absolutas ou "//host": evita open redirect. */
 export function safeReturnUrl(url: string | null | undefined): string {

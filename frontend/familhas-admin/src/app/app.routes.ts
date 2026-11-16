@@ -105,6 +105,9 @@ export const routes: Routes = [
       crm('equipe', 'Equipe', 'crm:equipe:criar', () =>
         import('./pages/team/team.page').then((m) => m.TeamPage),
       ),
+      crm('privacidade', 'Privacidade (LGPD)', 'crm:privacidade:ler', () =>
+        import('./pages/privacy/privacy.page').then((m) => m.PrivacyPage),
+      ),
       pending('importar-dados', 'crm:importacao:ler', PENDING_MODULES.importarDados),
       crm('documentos', 'Documentos', 'crm:documentos:ler', () =>
         import('./pages/documents/documents.page').then((m) => m.DocumentsPage),

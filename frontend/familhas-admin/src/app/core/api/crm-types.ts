@@ -60,6 +60,10 @@ export type CrmProblemCode =
   | 'MEMBER_DISABLED'
   | 'SELF_CHANGE_NOT_ALLOWED'
   | 'LAST_ADMIN'
+  | 'INCIDENT_NOT_FOUND'
+  | 'CONTAINED_AT_REQUIRED'
+  | 'CLOSED_AT_REQUIRED'
+  | 'INCIDENT_DATES_INVALID'
   | 'INVITE_EMAIL_FAILED'
   | 'TEAM_DIRECTORY_FAILED'
   | 'BACKUP_INVALID'
@@ -115,3 +119,8 @@ export type TeamMember = Schemas['TeamMember'];
 export type InviteRequest = Schemas['InviteRequest'];
 export type StoredBackup = Schemas['StoredBackup'];
 export type RestoreReport = Schemas['RestoreReport'];
+export type SubjectRequest = Schemas['SubjectRequest'];
+export type SubjectReport = Schemas['SubjectReport'];
+export type AnonymizationReport = Schemas['AnonymizationReport'];
+export type IncidentRequest = Schemas['IncidentRequest'];
+export type Incident = Schemas['Incident'];

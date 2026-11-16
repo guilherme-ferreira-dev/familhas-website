@@ -38,6 +38,7 @@ import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import com.nimbusds.jwt.JWTClaimsSet;
+import br.com.familhas.config.SecurityConfig;
 import com.nimbusds.jwt.PlainJWT;
 
 /**
@@ -165,6 +166,15 @@ class CrmSecurityTests {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void signedFileContentNeedsAValidSignature() throws Exception {
+        mockMvc.perform(get("/api/crm/files/{id}/content", UUID.randomUUID()).param("expires", "4102444800")
+                        .param("signature", "forjada"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FILE_LINK_INVALID"));
+        mockMvc.perform(get("/api/crm/files/{id}/content", UUID.randomUUID())).andExpect(status().isBadRequest());
+    }
+
     private static String token(String issuer, String... roles) {
         return new PlainJWT(new JWTClaimsSet.Builder().issuer(issuer).subject("sub-" + UUID.randomUUID())
                 .claim("realm_access", Map.of("roles", List.of(roles))).build()).serialize();
@@ -181,7 +191,8 @@ class CrmSecurityTests {
         handlerMapping.getHandlerMethods().keySet().forEach((RequestMappingInfo info) -> {
             Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
             for (String pattern : info.getPatternValues()) {
-                if (!pattern.startsWith("/api/crm")) {
+                // Unica rota publica do CRM: coberta por signedFileContentNeedsAValidSignature.
+                if (!pattern.startsWith("/api/crm") || pattern.equals(SecurityConfig.CRM_SIGNED_FILE_CONTENT)) {
                     continue;
                 }
                 if (methods.isEmpty()) {

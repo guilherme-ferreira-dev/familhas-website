@@ -9,7 +9,7 @@ import br.com.familhas.admin.audit.AdminAuditInterceptor;
 import br.com.familhas.admin.audit.AuditService;
 
 /**
- * Auditoria das escritas em /api/admin/** (ADR 0011). O AuditService vem por ObjectProvider: nos testes de
+ * Auditoria das escritas em /api/admin/** (ADR 0011) e /api/crm/** (ADR 0014). O AuditService vem por ObjectProvider: nos testes de
  * fatia (WebMvcTest) ele não existe e a auditoria simplesmente não grava.
  */
 @Configuration
@@ -23,6 +23,6 @@ public class AdminWebConfig implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(new AdminAuditInterceptor(auditService)).addPathPatterns("/api/admin/**");
+        registry.addInterceptor(new AdminAuditInterceptor(auditService)).addPathPatterns("/api/admin/**", "/api/crm/**");
     }
 }

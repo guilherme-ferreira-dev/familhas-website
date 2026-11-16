@@ -112,6 +112,32 @@ class AdminAuditInterceptorTests {
     }
 
     @Test
+    void crmWritesAreAuditedWithThePrefixAndDeniedPermissionIs403() {
+        interceptor.afterCompletion(new MockHttpServletRequest("DELETE", "/api/crm/files/f-1"),
+                new MockHttpServletResponse(), handler,
+                new org.springframework.security.access.AccessDeniedException("sem crm:vouchers:excluir"));
+
+        AuditEntry entry = captured();
+        assertThat(entry.resource()).isEqualTo("crm/files");
+        assertThat(entry.resourceId()).isEqualTo("f-1");
+        assertThat(entry.status()).isEqualTo(403);
+    }
+
+    @Test
+    void routesAuditedManuallyAreSkipped() throws Exception {
+        class Controller {
+            @AuditedManually
+            public void link() {
+            }
+        }
+        HandlerMethod manual = new HandlerMethod(new Controller(), Controller.class.getMethod("link"));
+        interceptor.afterCompletion(new MockHttpServletRequest("POST", "/api/crm/files/f-1/link"),
+                new MockHttpServletResponse(), manual, null);
+
+        verify(auditService, never()).record(any(), any());
+    }
+
+    @Test
     void responseAdviceReadsTheRecordId() {
         record Created(UUID id, String name) {
         }

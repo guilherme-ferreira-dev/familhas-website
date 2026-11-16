@@ -8,6 +8,6 @@ public enum RateLimitPolicy {
     CLIENT_READ,
     /** Escrita da área do cliente: cotação, reserva, checkout, favoritos e avaliações. */
     CLIENT_WRITE,
-    /** /api/admin/**: limite alto, só contra script descontrolado ou token vazado. */
+    /** /api/admin/** e /api/crm/** (equipe interna): limite alto, só contra script descontrolado ou token vazado. */
     ADMIN
 }

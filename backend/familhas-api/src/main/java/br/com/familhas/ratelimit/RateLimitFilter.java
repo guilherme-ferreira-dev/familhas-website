@@ -80,7 +80,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 || path.equals("/api/webhooks/stripe")) {
             return null;
         }
-        if (path.startsWith("/api/admin/")) {
+        if (path.startsWith("/api/admin/") || path.startsWith("/api/crm/")) {
             return RateLimitPolicy.ADMIN;
         }
         if (path.equals("/api/me") || path.startsWith("/api/me/")) {

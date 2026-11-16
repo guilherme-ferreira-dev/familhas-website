@@ -416,3 +416,21 @@ Decisões em [ADR 0015](adr/0015-viagens-do-crm.md).
 - [ ] `SERPAPI_API_KEY` no servidor para a pesquisa funcionar de verdade
 - [ ] Provedor de IA para a extração dos vouchers
 - [ ] Botão para apagar um CPF já guardado (a API aceita `cpf: ""`)
+
+## CRM interno Voe Familhas, Etapa 4: Marketing & Conteúdo
+
+Decisões em [ADR 0016](adr/0016-marketing-do-crm.md).
+
+- [x] V22: logo oficial, fila do Instagram (posts e lâminas), roteiros
+- [x] Logo oficial enviada por admin e gestor, composta nos posts e na lateral
+- [x] Posts de cotação: 5 layouts, regras de texto e preço do JSON, PNG e envio para a fila
+- [x] Posts de cruzeiros: 2 layouts em Feed e Story
+- [x] Fila do Instagram: formatos, lâminas com cópia limpa, ZIP, revisão humana, publicação Meta com claim atômico, UNCERTAIN sem reenvio e conferência, recuperação de publicações presas
+- [x] Roteiros: quatro seções, avisos do modelo mestre, A4 de uma página, WhatsApp sem alertas internos
+- [x] IA (posts, extração, imagens, roteiros): validação + 503 sem provedor
+- [x] `./mvnw verify`: 635 testes; frontend 96 testes, lint e build; navegador real com 17 cenários
+
+### Pendências
+- [ ] Provedor de IA (texto, imagem e vídeo) e credenciais da Meta (`META_ACCESS_TOKEN`, `META_INSTAGRAM_USER_ID`, `META_PUBLIC_BASE_URL`)
+- [ ] Salvar Imagens: aguardando o app Story Image Saver
+- [ ] Limpeza de mídias órfãs de lâminas abandonadas antes de salvar

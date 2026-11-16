@@ -19,7 +19,7 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | RLS `is_team()` | Autorização na API (URL, `@PreAuthorize` e `CrmAccess` por `crm:<recurso>:<ação>`) | implementado na fundação | Aplicar em cada módulo novo | 1 ✔ / 2 ✔ / 3+ |
 | Grupos Geral, Viagens, Marketing & Conteúdo, Administração | Shell do CRM com os 4 grupos filtrados por permissão | implementado | — | 2 ✔ |
 | Sem Cartões, Produtos, Finanças & Pedidos, caixa de e-mail | Telas da Loja fora do menu, só `crm-admin` pelo endereço; teste garante que o menu não tem esses módulos | implementado | — | 2 ✔ |
-| Identidade: logo sem fundo azul e sem slogan, razão social e CNPJ abaixo da logo | `familhas.company.*`; razão social e CNPJ abaixo da marca na lateral | parcial | **Arquivo da logo oficial a receber**; Instagram a informar | 2 ✔ / pendente |
+| Identidade: logo sem fundo azul e sem slogan, razão social e CNPJ abaixo da logo | Logo oficial enviada pelo CRM (V22) na lateral, nos posts e no A4; razão social e CNPJ abaixo | implementado | Enviar o arquivo oficial; informar o Instagram | 2 ✔ / 4 ✔ |
 | Armazenamento privado com URLs assinadas curtas | `crm_files` (V18), `FileStorage` local, link HMAC de 5 min, tipo pelos bytes | implementado | Adapter S3 se preciso | 2 ✔ |
 | Funções de servidor para scraping, proxy de imagem, PDF, IA, SerpApi, Meta | `OutboundUrlPolicy` + `SafeHttpFetcher` (anti-SSRF); `IntegrationRegistry` com 503 `INTEGRATION_NOT_CONFIGURED` | implementado na fundação | Adapters concretos com os módulos | 2 ✔ / 3–4 |
 | Cache curto, mutações invalidam, logout limpa | Sem cache compartilhado: cada tela recarrega após salvar; `CrmSession` limpa no logout (ADR 0015, D6) | implementado | — | 2 ✔ / 3 ✔ |
@@ -35,11 +35,11 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | Pesquisar Voos (SerpApi; grupos de até 7 destinos; CXJ; datas flexíveis; 5 últimas pesquisas) | V20; adapter SerpApi testado por contrato; 503 sem chave; teto, cota e cache; histórico com "Refazer" | implementado (**precisa de `SERPAPI_API_KEY`**) | Chave da SerpApi no servidor | 3 ✔ |
 | Emitir Voucher (PDF/JPG/PNG com IA; campos manuais; A4; WhatsApp; histórico; cabeçalho EEBPG) | V21; quatro tipos; origem enviada; A4 auditado; WhatsApp sem CPF; histórico e cancelamento | implementado, **extração por IA não configurada** | Provedor de IA + `VoucherExtractor` | 3 ✔ / IA pendente |
 | Documentos (busca, PDF.js, URL assinada, fora do backup) | Tela sobre `/api/crm/files`, PDF.js 6.4 com worker local, link de 5 min | implementado | — | 3 ✔ |
-| Criar Posts de cotação (5 layouts, extração de PDF, regras de texto e preço, logo por composição, PNG, Instagram) | — | ausente | Editor + composição em canvas; IA e Meta via adapters | 4 |
-| Posts de Cruzeiros | — | ausente | Idem, layouts "Card no oceano" e "Oportunidade" | 4 |
+| Criar Posts de cotação (5 layouts, extração de PDF, regras de texto e preço, logo por composição, PNG, Instagram) | 5 layouts com "Coluna lateral", regras do JSON testadas, logo oficial composta, PNG e envio para a fila (ADR 0016) | implementado, **extração e imagem por IA não configuradas** | Provedor de IA | 4 ✔ / IA pendente |
+| Posts de Cruzeiros | "Card no oceano" e "Oportunidade" em Feed e Story, chamada vazia, legenda, PNG e fila | implementado, **importação e imagem por IA não configuradas** | Provedor de IA | 4 ✔ / IA pendente |
 | Salvar Imagens ("Story Image Saver") | — | **bloqueado** | Aguarda o código ou a especificação do app original | 4 |
-| Criar posts Insta (fila, STORY/FEED/REEL, carrossel, modo cidade, publicação Meta atômica) | — | ausente | Fila no Oracle, claim atômico, adapter Meta | 4 |
-| Gerar Roteiro (proposta A4, seções, observações, WhatsApp) | — | ausente | Editor + impressão; IA via adapter | 4 |
+| Criar posts Insta (fila, STORY/FEED/REEL, carrossel, modo cidade, publicação Meta atômica) | V22; lâminas com marca e cópia "-limpa", Reel com MP4 próprio, ZIP, revisão humana, claim atômico e UNCERTAIN sem reenvio | implementado, **geração por IA e Meta não configuradas** | Provedor de IA; `META_*` e endereço público | 4 ✔ / integrações pendentes |
+| Gerar Roteiro (proposta A4, seções, observações, WhatsApp) | V22; quatro seções, avisos do modelo mestre, alertas internos fora da proposta, A4 em uma página, WhatsApp | implementado, **geração por IA não configurada** | Provedor de IA | 4 ✔ / IA pendente |
 | Equipe (só admin) | Papéis no Keycloak; script de provisionamento | parcial | Tela de membros e convites pela Admin API do Keycloak | 5 |
 | Importar dados (adaptadores, IDs de origem, pular duplicados) | — | **bloqueado** | Aguarda amostras do formato legado | 5 |
 | Backup e restauração (um arquivo, validação, sem sobrescrever edições posteriores, envio) | Só backup físico (Data Pump) | ausente | Export/import lógico com versão por registro; envio por link temporário | 5 |

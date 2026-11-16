@@ -1,6 +1,8 @@
 services:
   oracle:
     image: gvenzl/oracle-free:23-slim
+    # Teto de memória (Etapa 6): um serviço com vazamento não derruba os outros nem a máquina.
+    mem_limit: 3g
     container_name: familhas-oracle
     restart: unless-stopped
     environment:
@@ -24,6 +26,8 @@ services:
       - ./oracle/init:/container-entrypoint-initdb.d
   rabbitmq:
     image: rabbitmq:3.13-management
+    # Teto de memória (Etapa 6): um serviço com vazamento não derruba os outros nem a máquina.
+    mem_limit: 512m
     container_name: familhas-rabbitmq
     # Hostname fixo: o RabbitMQ guarda os dados por nome de nó, então ele precisa ser estável entre recriações.
     hostname: familhas-rabbitmq
@@ -49,6 +53,8 @@ services:
       context: ./keycloak
       dockerfile: Dockerfile
     image: familhas-keycloak:26.4.0-oracle
+    # Teto de memória (Etapa 6): um serviço com vazamento não derruba os outros nem a máquina.
+    mem_limit: 1g
     container_name: familhas-keycloak
     # Volta sozinho se o Docker reiniciar ou o processo morrer (ex.: falta de memória na VM do Docker Desktop).
     restart: unless-stopped
@@ -90,6 +96,8 @@ services:
       start_period: 90s
   mailhog:
     image: mailhog/mailhog:v1.0.1
+    # Teto de memória (Etapa 6): um serviço com vazamento não derruba os outros nem a máquina.
+    mem_limit: 128m
     container_name: familhas-mailhog
     restart: unless-stopped
     ports:
@@ -104,6 +112,8 @@ services:
     build:
       context: ../backend/familhas-email
     image: familhas-email:local
+    # Teto de memória (Etapa 6): um serviço com vazamento não derruba os outros nem a máquina.
+    mem_limit: 512m
     container_name: familhas-email
     # Consumidor de eventos (ADR 0005): RabbitMQ -> idempotência no Oracle -> SMTP (MailHog por padrão).
     environment:

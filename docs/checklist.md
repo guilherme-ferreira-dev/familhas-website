@@ -389,3 +389,30 @@ Decisões em [ADR 0014](adr/0014-fundacao-do-crm.md); contrato em [docs/api/crm.
 ### Pendências documentadas
 - [ ] Arquivo da logo oficial (sem fundo azul, sem slogan) e Instagram da agência
 - [ ] Antivírus de upload e criptografia do volume (Etapa 6)
+
+## CRM interno Voe Familhas, Etapa 3: Viagens
+
+Decisões em [ADR 0015](adr/0015-viagens-do-crm.md).
+
+### Backend
+- [x] V19 Voos Clientes, V20 Pesquisar Voos, V21 Vouchers (aplicadas em Oracle real: Testcontainers e schema descartável)
+- [x] Busca rápida sem acento, em qualquer ordem, no mesmo passageiro; localizador exato
+- [x] CPF validado e mascarado; mantido na edição; 409 `VERSION_CONFLICT` (inclusive no commit)
+- [x] Anexos de voo; excluir voo apaga os arquivos
+- [x] SerpApi: adapter testado por contrato, cache, teto de consultas, cota por hora, 503 sem chave, histórico das 5 com dedupe
+- [x] Voucher: número `VF-`, campos por tipo, origem `VOUCHER_SOURCE`, documento A4 auditado, cancelamento; extração por IA com 503
+- [x] Painel: voos próximos e por mês, vouchers do mês; blocos por permissão
+
+### Frontend
+- [x] Voos Clientes (lista, filtros, histórico, cadastro, detalhe, anexos), Pesquisar Voos, Vouchers (histórico, emissão, detalhe, WhatsApp, A4), Documentos (PDF.js), painel na visão geral
+- [x] PDF.js 6.4.299 com worker na mesma origem, carregado sob demanda
+
+### Testes e validação
+- [x] `./mvnw verify`: 623 testes, 0 falhas, 0 pulados
+- [x] Frontend: 83 testes, lint, Prettier e build
+- [x] Navegador real (Chrome headless + Keycloak real + API em schema Oracle descartável): 20 cenários (ADR 0015, Evidências)
+
+### Pendências
+- [ ] `SERPAPI_API_KEY` no servidor para a pesquisa funcionar de verdade
+- [ ] Provedor de IA para a extração dos vouchers
+- [ ] Botão para apagar um CPF já guardado (a API aceita `cpf: ""`)

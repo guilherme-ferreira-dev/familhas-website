@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Familhas API - CRM interno Voe Familhas
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Contrato do CRM interno (prompt mestre do CRM; ADR 0013 e ADR 0014): tudo o que o `familhas-admin` consome
     em `/api/crm/**`.
@@ -32,6 +32,14 @@ tags:
     description: Pesquisar Voos (SerpApi / Google Flights).
   - name: vouchers
     description: Emitir Voucher e histórico.
+  - name: brand
+    description: Logo oficial (composta nos posts, nunca recriada pela IA).
+  - name: instagram
+    description: Fila de posts do Instagram e publicação pela Meta.
+  - name: marketing
+    description: IA dos posts de cotação e de cruzeiros (503 sem provedor).
+  - name: itineraries
+    description: Gerar Roteiro (proposta comercial A4).
 security:
   - bearerAuth: []
 
@@ -646,6 +654,374 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/crm/brand:
+    get:
+      tags: [brand]
+      operationId: getBrand
+      summary: Logo oficial
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Brand' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/brand/logo:
+    put:
+      tags: [brand]
+      operationId: replaceLogo
+      summary: Troca a logo oficial (PNG ou WEBP)
+      description: "Exige `crm:dashboard:criar` (admin e gestor). A anterior é excluída."
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Brand' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '415': { $ref: '#/components/responses/Unprocessable' }
+        '413': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/instagram-posts:
+    get:
+      tags: [instagram]
+      operationId: listInstagramPosts
+      summary: Fila de posts, mais recentes primeiro
+      parameters:
+        - { name: status, in: query, schema: { type: array, items: { $ref: '#/components/schemas/PostStatus' } } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPostPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [instagram]
+      operationId: createInstagramPost
+      summary: Cria post (rascunho)
+      description: "Erros 422: `INVALID_POST_SHAPE`, `TOO_MANY_HASHTAGS`, `DUPLICATED_MEDIA`, `FILE_CATEGORY_MISMATCH`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstagramPostRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPost' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/instagram-posts/generate:
+    post:
+      tags: [instagram]
+      operationId: generateInstagramPost
+      summary: Gera post por IA (ideia, cidade, referências, inspiração)
+      description: "Valida tudo (inspiração só instagram.com, anti-SSRF) e então exige IA de texto e imagem (e vídeo no Reel): sem provedor, 503."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstagramGenerateRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPostRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/instagram-posts/{id}:
+    get:
+      tags: [instagram]
+      operationId: getInstagramPost
+      summary: Post com lâminas e mídia
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPost' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [instagram]
+      operationId: updateInstagramPost
+      summary: Edita (volta para rascunho)
+      description: "Só em DRAFT, READY ou FAILED (`POST_LOCKED`). Exige `version`."
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InstagramPostRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPost' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [instagram]
+      operationId: deleteInstagramPost
+      summary: Exclui post e mídias
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '204': { description: OK. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/crm/instagram-posts/{id}/ready:
+    post:
+      tags: [instagram]
+      operationId: markInstagramPostReady
+      summary: 'Revisado: pode publicar'
+      description: "Feed e Reel exigem legenda (`CAPTION_REQUIRED`)."
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPost' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/instagram-posts/{id}/publish:
+    post:
+      tags: [instagram]
+      operationId: publishInstagramPost
+      summary: Publica no Instagram (assíncrono)
+      description: |
+        Exige `crm:posts-insta:publicar` e a Meta configurada (503). Claim atômico: só um pedido passa de
+        READY/FAILED para PUBLISHING (`PUBLISH_NOT_ALLOWED`, 409). Imagens precisam ser JPEG (`IMAGE_NOT_JPEG`) e
+        o carrossel respeita o limite da Meta (`CAROUSEL_TOO_LARGE`). Falha antes do media_publish: FAILED (pode tentar
+        de novo). Depois: UNCERTAIN, sem reenvio automático.
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '202':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPost' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/instagram-posts/{id}/resolve:
+    post:
+      tags: [instagram]
+      operationId: resolveInstagramPost
+      summary: Resolve resultado incerto após conferir no Instagram
+      description: "Só em UNCERTAIN (`POST_NOT_UNCERTAIN`). published=false volta para READY."
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResolveRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InstagramPost' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /api/crm/marketing/extract-quote:
+    post:
+      tags: [marketing]
+      operationId: extractQuote
+      summary: Lê o orçamento (PDF ou link) por IA
+      description: "PDF da categoria POST_IMAGE; link passa pela política anti-SSRF. Sem provedor: 503."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuoteSource' }
+      responses:
+        '200': { description: OK. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/marketing/generate-image:
+    post:
+      tags: [marketing]
+      operationId: generateMarketingImage
+      summary: Imagem da cidade ou do navio por IA
+      description: "Sem provedor de imagem: 503. A tela oferece o upload."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImageRequest' }
+      responses:
+        '200': { description: OK. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/itineraries:
+    get:
+      tags: [itineraries]
+      operationId: searchItineraries
+      summary: Roteiros, mais recentes primeiro
+      parameters:
+        - { name: q, in: query, description: Destino ou cliente, schema: { type: string, maxLength: 100 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ItineraryPage' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [itineraries]
+      operationId: createItinerary
+      summary: Cria roteiro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItineraryRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Itinerary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/itineraries/generate:
+    post:
+      tags: [itineraries]
+      operationId: generateItinerary
+      summary: Gera roteiro por IA (cidade e dias, ou PDF)
+      description: "Sem provedor: 503."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItineraryAiRequest' }
+      responses:
+        '200': { description: OK. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/itineraries/{id}:
+    get:
+      tags: [itineraries]
+      operationId: getItinerary
+      summary: Roteiro com avisos do modelo mestre
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Itinerary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [itineraries]
+      operationId: updateItinerary
+      summary: Edita roteiro
+      description: "Exige `version`. `DAY_OUT_OF_RANGE` (422)."
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItineraryRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Itinerary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+    delete:
+      tags: [itineraries]
+      operationId: deleteItinerary
+      summary: Exclui roteiro e fotos
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      responses:
+        '204': { description: OK. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -763,9 +1139,10 @@ components:
       description: |
         Decide a permissão e os tipos aceitos:
         `DOCUMENT` (documentos; PDF e imagens), `FLIGHT_ATTACHMENT` (voos-clientes; PDF, JPG, PNG),
-        `VOUCHER_SOURCE` (vouchers; PDF, JPG, PNG), `POST_IMAGE` (posts-cotacao; imagens),
-        `INSTAGRAM_MEDIA` (posts-insta; imagens e MP4), `ITINERARY_PHOTO` (roteiros; imagens).
-      enum: [DOCUMENT, FLIGHT_ATTACHMENT, VOUCHER_SOURCE, POST_IMAGE, INSTAGRAM_MEDIA, ITINERARY_PHOTO]
+        `VOUCHER_SOURCE` (vouchers; PDF, JPG, PNG), `POST_IMAGE` (posts-cotacao; imagens e PDF de orçamento),
+        `INSTAGRAM_MEDIA` (posts-insta; imagens e MP4), `ITINERARY_PHOTO` (roteiros; fotos e PDF de orçamento),
+        `BRAND_ASSET` (dashboard; logo PNG/WEBP: todos leem, admin e gestor trocam).
+      enum: [DOCUMENT, FLIGHT_ATTACHMENT, VOUCHER_SOURCE, POST_IMAGE, INSTAGRAM_MEDIA, ITINERARY_PHOTO, BRAND_ASSET]
 
     CrmFile:
       type: object
@@ -1088,3 +1465,220 @@ components:
         company: { $ref: '#/components/schemas/Company' }
         voucher: { $ref: '#/components/schemas/Voucher' }
         clientCpfFormatted: { type: [string, 'null'], examples: ['529.982.247-25'] }
+
+    Brand:
+      type: object
+      required: [logo]
+      properties:
+        logo: { oneOf: [ { $ref: '#/components/schemas/CrmFile' }, { type: 'null' } ] }
+
+    PostFormat: { type: string, enum: [STORY, FEED, REEL] }
+    PostOrigin: { type: string, enum: [MANUAL, QUOTE_POST, CRUISE_POST, AI] }
+    PostStatus: { type: string, enum: [DRAFT, READY, PUBLISHING, PUBLISHED, FAILED, UNCERTAIN] }
+
+    InstagramSlideRequest:
+      type: object
+      required: [imageFileId]
+      properties:
+        imageFileId: { type: string, format: uuid, description: Imagem final com marca (INSTAGRAM_MEDIA) }
+        cleanFileId: { type: [string, 'null'], format: uuid, description: 'Cópia "-limpa", sem textos' }
+        hook: { type: [string, 'null'], maxLength: 120 }
+        title: { type: [string, 'null'], maxLength: 120 }
+        bullets: { type: [array, 'null'], maxItems: 5, items: { type: string, maxLength: 200 } }
+        caption: { type: [string, 'null'], maxLength: 1000 }
+
+    InstagramPostRequest:
+      type: object
+      required: [format, title]
+      description: 'STORY: 1 imagem. FEED: 1 a 20 imagens (2+ = carrossel). REEL: vídeo MP4 e capa opcional.'
+      properties:
+        format: { $ref: '#/components/schemas/PostFormat' }
+        origin: { oneOf: [ { $ref: '#/components/schemas/PostOrigin' }, { type: 'null' } ] }
+        title: { type: string, maxLength: 120 }
+        idea: { type: [string, 'null'], maxLength: 2000 }
+        caption: { type: [string, 'null'], maxLength: 2200 }
+        hashtags: { type: [string, 'null'], maxLength: 500, description: Até 30 hashtags }
+        slides: { type: [array, 'null'], maxItems: 20, items: { $ref: '#/components/schemas/InstagramSlideRequest' } }
+        videoFileId: { type: [string, 'null'], format: uuid }
+        version: { type: [integer, 'null'], format: int64 }
+
+    InstagramSlide:
+      type: object
+      required: [order, image, bullets]
+      properties:
+        order: { type: integer }
+        image: { $ref: '#/components/schemas/CrmFile' }
+        clean: { oneOf: [ { $ref: '#/components/schemas/CrmFile' }, { type: 'null' } ] }
+        hook: { type: [string, 'null'] }
+        title: { type: [string, 'null'] }
+        bullets: { type: array, items: { type: string } }
+        caption: { type: [string, 'null'] }
+
+    InstagramPost:
+      type: object
+      required: [id, format, origin, status, title, slides, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        format: { $ref: '#/components/schemas/PostFormat' }
+        origin: { $ref: '#/components/schemas/PostOrigin' }
+        status: { $ref: '#/components/schemas/PostStatus' }
+        title: { type: string }
+        idea: { type: [string, 'null'] }
+        caption: { type: [string, 'null'] }
+        hashtags: { type: [string, 'null'] }
+        slides: { type: array, items: { $ref: '#/components/schemas/InstagramSlide' } }
+        video: { oneOf: [ { $ref: '#/components/schemas/CrmFile' }, { type: 'null' } ] }
+        metaMediaId: { type: [string, 'null'] }
+        permalink: { type: [string, 'null'] }
+        lastError: { type: [string, 'null'] }
+        publishAttemptedAt: { type: [string, 'null'], format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        publishedBy: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64 }
+
+    InstagramPostSummary:
+      type: object
+      required: [id, format, origin, status, title, slideCount, hasVideo, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        format: { $ref: '#/components/schemas/PostFormat' }
+        origin: { $ref: '#/components/schemas/PostOrigin' }
+        status: { $ref: '#/components/schemas/PostStatus' }
+        title: { type: string }
+        slideCount: { type: integer }
+        hasVideo: { type: boolean }
+        permalink: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        publishedAt: { type: [string, 'null'], format: date-time }
+
+    InstagramPostPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/InstagramPostSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+
+    InstagramGenerateRequest:
+      type: object
+      required: [format]
+      properties:
+        format: { $ref: '#/components/schemas/PostFormat' }
+        idea: { type: [string, 'null'], maxLength: 2000, description: 'Com foco: 1 post. Sem foco: pauta semanal.' }
+        city: { type: [string, 'null'], maxLength: 80, description: 'Modo automático: carrossel de 7 lâminas' }
+        slides: { type: [integer, 'null'], minimum: 1, maximum: 20, description: 'Padrão 5' }
+        referenceFileIds: { type: [array, 'null'], maxItems: 10, items: { type: string, format: uuid } }
+        inspirationUrl: { type: [string, 'null'], maxLength: 300, description: 'Só instagram.com' }
+
+    ResolveRequest:
+      type: object
+      required: [published]
+      properties:
+        published: { type: boolean }
+        permalink: { type: [string, 'null'], maxLength: 300 }
+
+    QuoteSource:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [PACKAGE, CRUISE] }
+        fileId: { type: [string, 'null'], format: uuid }
+        url: { type: [string, 'null'], maxLength: 500 }
+
+    ImageRequest:
+      type: object
+      required: [subject, name]
+      properties:
+        subject: { type: string, enum: [CITY, SHIP] }
+        name: { type: string, maxLength: 120 }
+
+    ItineraryAiRequest:
+      type: object
+      properties:
+        city: { type: [string, 'null'], maxLength: 120 }
+        days: { type: [integer, 'null'], minimum: 1, maximum: 30 }
+        fileId: { type: [string, 'null'], format: uuid }
+
+    ItineraryDay:
+      type: object
+      required: [day]
+      properties:
+        day: { type: integer, minimum: 1, maximum: 30 }
+        title: { type: [string, 'null'], maxLength: 120 }
+        description: { type: [string, 'null'], maxLength: 800 }
+
+    ItinerarySections:
+      type: object
+      description: 'Modelo mestre: apresentação, dia a dia, inclusos confirmados e investimento.'
+      properties:
+        overview: { type: [string, 'null'], maxLength: 1500 }
+        days: { type: [array, 'null'], maxItems: 30, items: { $ref: '#/components/schemas/ItineraryDay' } }
+        included: { type: [array, 'null'], maxItems: 30, items: { type: string, maxLength: 200 } }
+        investmentNotes: { type: [string, 'null'], maxLength: 600 }
+
+    ItineraryRequest:
+      type: object
+      required: [destination, days, sections]
+      properties:
+        destination: { type: string, maxLength: 120, description: Cidade do hotel }
+        days: { type: integer, minimum: 1, maximum: 30 }
+        clientName: { type: [string, 'null'], maxLength: 150 }
+        clientPhone: { type: [string, 'null'], maxLength: 20 }
+        travelPeriod: { type: [string, 'null'], maxLength: 120 }
+        priceText: { type: [string, 'null'], maxLength: 200, description: 'Vale sobre qualquer valor do PDF' }
+        paymentTerms: { type: [string, 'null'], maxLength: 300 }
+        observations: { type: [string, 'null'], maxLength: 2000 }
+        sections: { $ref: '#/components/schemas/ItinerarySections' }
+        internalAlerts: { type: [string, 'null'], maxLength: 2000, description: Nunca sai na proposta }
+        photoIds: { type: [array, 'null'], maxItems: 4, items: { type: string, format: uuid } }
+        version: { type: [integer, 'null'], format: int64 }
+
+    Itinerary:
+      type: object
+      required: [id, destination, days, sections, photos, warnings, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        destination: { type: string }
+        days: { type: integer }
+        clientName: { type: [string, 'null'] }
+        clientPhone: { type: [string, 'null'] }
+        travelPeriod: { type: [string, 'null'] }
+        priceText: { type: [string, 'null'] }
+        paymentTerms: { type: [string, 'null'] }
+        observations: { type: [string, 'null'] }
+        sections: { $ref: '#/components/schemas/ItinerarySections' }
+        internalAlerts: { type: [string, 'null'] }
+        photos: { type: array, items: { $ref: '#/components/schemas/CrmFile' } }
+        warnings: { type: array, items: { type: string }, description: 'Horários, voos, companhias ou estrelas no texto' }
+        createdBy: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64 }
+
+    ItinerarySummary:
+      type: object
+      required: [id, destination, days, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        destination: { type: string }
+        days: { type: integer }
+        clientName: { type: [string, 'null'] }
+        travelPeriod: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'] }
+        updatedAt: { type: string, format: date-time }
+
+    ItineraryPage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/ItinerarySummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }

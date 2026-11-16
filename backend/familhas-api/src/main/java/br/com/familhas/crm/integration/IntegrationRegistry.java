@@ -24,7 +24,8 @@ public class IntegrationRegistry {
             case AI_IMAGE -> hasProvider(properties.aiImageProvider());
             case AI_VIDEO -> hasProvider(properties.aiVideoProvider());
             case FLIGHT_SEARCH -> !isBlank(properties.serpapiApiKey());
-            case INSTAGRAM -> !isBlank(properties.metaAccessToken()) && !isBlank(properties.metaInstagramUserId());
+            case INSTAGRAM -> !isBlank(properties.metaAccessToken()) && !isBlank(properties.metaInstagramUserId())
+                    && !isBlank(properties.metaPublicBaseUrl());
         };
     }
 
@@ -45,9 +46,9 @@ public class IntegrationRegistry {
             return "Configurada";
         }
         return switch (integration) {
-            case AI_TEXT, AI_IMAGE, AI_VIDEO -> "Provedor ainda nao definido. Os campos ficam para preenchimento manual.";
+            case AI_TEXT, AI_IMAGE, AI_VIDEO -> "Provedor ainda não definido. Os campos ficam para preenchimento manual.";
             case FLIGHT_SEARCH -> "Defina SERPAPI_API_KEY no servidor.";
-            case INSTAGRAM -> "Defina META_ACCESS_TOKEN e META_INSTAGRAM_USER_ID no servidor.";
+            case INSTAGRAM -> "Defina META_ACCESS_TOKEN, META_INSTAGRAM_USER_ID e META_PUBLIC_BASE_URL no servidor.";
         };
     }
 

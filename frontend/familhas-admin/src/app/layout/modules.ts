@@ -17,31 +17,11 @@ export const PENDING_MODULES = {
       'Exporta e restaura todas as tabelas de negócio num único arquivo, sem sobrescrever edições posteriores.',
     stage: 5,
   },
-  postsCotacao: {
-    title: 'Criar Posts de cotação',
-    summary: 'Posts de pacote a partir do PDF de orçamento, em 5 layouts com a logo oficial.',
-    stage: 4,
-  },
-  postsCruzeiros: {
-    title: 'Posts de Cruzeiros',
-    summary: 'Posts de cruzeiro nos layouts "Card no oceano" e "Oportunidade", Feed e Story.',
-    stage: 4,
-  },
   salvarImagens: {
     title: 'Salvar Imagens',
     summary: 'Ferramenta do app Story Image Saver para salvar e organizar imagens de stories.',
     stage: 4,
     blockedBy: 'código ou especificação do app original Story Image Saver',
-  },
-  postsInsta: {
-    title: 'Criar posts Insta',
-    summary: 'Fila de posts (Story, Feed, Reel e carrossel) com publicação pela Meta.',
-    stage: 4,
-  },
-  roteiros: {
-    title: 'Gerar Roteiro',
-    summary: 'Proposta comercial de roteiro em uma página A4 com a identidade da agência.',
-    stage: 4,
   },
   equipe: {
     title: 'Equipe',

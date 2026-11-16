@@ -9,7 +9,7 @@ class IntegrationRegistryTests {
 
     @Test
     void nothingIsConfiguredByDefaultAndRequireGives503Code() {
-        IntegrationRegistry registry = new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", ""));
+        IntegrationRegistry registry = new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", "", ""));
         assertThat(registry.statuses()).hasSize(CrmIntegration.values().length).noneMatch(IntegrationStatus::configured);
         assertThatThrownBy(() -> registry.require(CrmIntegration.AI_TEXT))
                 .isInstanceOfSatisfying(IntegrationNotConfiguredException.class, e -> {
@@ -21,7 +21,7 @@ class IntegrationRegistryTests {
     @Test
     void credentialsTurnIntegrationsOnWithoutExposingThem() {
         IntegrationRegistry registry = new IntegrationRegistry(
-                new IntegrationProperties("claude", " NONE ", "none", "serp-secret", "meta-token", ""));
+                new IntegrationProperties("claude", " NONE ", "none", "serp-secret", "meta-token", "", ""));
         assertThat(registry.isConfigured(CrmIntegration.AI_TEXT)).isTrue();
         assertThat(registry.isConfigured(CrmIntegration.AI_IMAGE)).isFalse();
         assertThat(registry.isConfigured(CrmIntegration.FLIGHT_SEARCH)).isTrue();

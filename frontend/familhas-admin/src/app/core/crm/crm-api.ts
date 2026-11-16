@@ -2,6 +2,15 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
+  Brand,
+  InstagramGenerateRequest,
+  InstagramPost,
+  InstagramPostPage,
+  InstagramPostRequest,
+  Itinerary,
+  ItineraryPage,
+  ItineraryRequest,
+  PostStatus,
   ClientFlight,
   ClientFlightPage,
   ClientFlightRequest,
@@ -192,5 +201,104 @@ export class CrmApi {
 
   extractVoucher(type: VoucherType, fileId: string): Observable<VoucherDetails> {
     return this.http.post<VoucherDetails>(`${this.api}/vouchers/extract`, { type, fileId });
+  }
+
+  // Identidade visual
+  brand(): Observable<Brand> {
+    return this.http.get<Brand>(`${this.api}/brand`);
+  }
+
+  replaceLogo(file: File): Observable<Brand> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.put<Brand>(`${this.api}/brand/logo`, form);
+  }
+
+  // Criar posts Insta
+  instagramPosts(status: readonly PostStatus[], page = 0): Observable<InstagramPostPage> {
+    return this.http.get<InstagramPostPage>(`${this.api}/instagram-posts`, {
+      params: queryParams({ status, page, size: 20 }),
+    });
+  }
+
+  instagramPost(id: string): Observable<InstagramPost> {
+    return this.http.get<InstagramPost>(`${this.api}/instagram-posts/${encodeURIComponent(id)}`);
+  }
+
+  createInstagramPost(body: InstagramPostRequest): Observable<InstagramPost> {
+    return this.http.post<InstagramPost>(`${this.api}/instagram-posts`, body);
+  }
+
+  updateInstagramPost(id: string, body: InstagramPostRequest): Observable<InstagramPost> {
+    return this.http.put<InstagramPost>(
+      `${this.api}/instagram-posts/${encodeURIComponent(id)}`,
+      body,
+    );
+  }
+
+  instagramPostAction(id: string, action: 'ready' | 'publish'): Observable<InstagramPost> {
+    return this.http.post<InstagramPost>(
+      `${this.api}/instagram-posts/${encodeURIComponent(id)}/${action}`,
+      null,
+    );
+  }
+
+  resolveInstagramPost(
+    id: string,
+    published: boolean,
+    permalink: string | null,
+  ): Observable<InstagramPost> {
+    return this.http.post<InstagramPost>(
+      `${this.api}/instagram-posts/${encodeURIComponent(id)}/resolve`,
+      { published, permalink },
+    );
+  }
+
+  deleteInstagramPost(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/instagram-posts/${encodeURIComponent(id)}`);
+  }
+
+  generateInstagramPost(body: InstagramGenerateRequest): Observable<InstagramPostRequest> {
+    return this.http.post<InstagramPostRequest>(`${this.api}/instagram-posts/generate`, body);
+  }
+
+  // IA dos posts de cotação e cruzeiros
+  extractQuote(
+    kind: 'PACKAGE' | 'CRUISE',
+    fileId: string | null,
+    url: string | null,
+  ): Observable<unknown> {
+    return this.http.post(`${this.api}/marketing/extract-quote`, { kind, fileId, url });
+  }
+
+  generateImage(subject: 'CITY' | 'SHIP', name: string): Observable<unknown> {
+    return this.http.post(`${this.api}/marketing/generate-image`, { subject, name });
+  }
+
+  // Gerar Roteiro
+  itineraries(q: string | null, page = 0): Observable<ItineraryPage> {
+    return this.http.get<ItineraryPage>(`${this.api}/itineraries`, {
+      params: queryParams({ q, page, size: 20 }),
+    });
+  }
+
+  itinerary(id: string): Observable<Itinerary> {
+    return this.http.get<Itinerary>(`${this.api}/itineraries/${encodeURIComponent(id)}`);
+  }
+
+  createItinerary(body: ItineraryRequest): Observable<Itinerary> {
+    return this.http.post<Itinerary>(`${this.api}/itineraries`, body);
+  }
+
+  updateItinerary(id: string, body: ItineraryRequest): Observable<Itinerary> {
+    return this.http.put<Itinerary>(`${this.api}/itineraries/${encodeURIComponent(id)}`, body);
+  }
+
+  deleteItinerary(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.api}/itineraries/${encodeURIComponent(id)}`);
+  }
+
+  generateItinerary(city: string, days: number): Observable<unknown> {
+    return this.http.post(`${this.api}/itineraries/generate`, { city, days });
   }
 }

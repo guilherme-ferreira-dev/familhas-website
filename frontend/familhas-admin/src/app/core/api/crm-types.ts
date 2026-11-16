@@ -42,7 +42,19 @@ export type CrmProblemCode =
   | 'ORIGIN_NOT_ALLOWED'
   | 'SAME_ORIGIN_DESTINATION'
   | 'DUPLICATED_DESTINATION'
-  | 'GROUP_NAME_TAKEN';
+  | 'GROUP_NAME_TAKEN'
+  | 'INVALID_POST_SHAPE'
+  | 'TOO_MANY_HASHTAGS'
+  | 'DUPLICATED_MEDIA'
+  | 'CAPTION_REQUIRED'
+  | 'POST_LOCKED'
+  | 'POST_NOT_UNCERTAIN'
+  | 'PUBLISH_NOT_ALLOWED'
+  | 'IMAGE_NOT_JPEG'
+  | 'CAROUSEL_TOO_LARGE'
+  | 'CAPTION_TOO_LONG'
+  | 'SOURCE_REQUIRED'
+  | 'DAY_OUT_OF_RANGE';
 
 export type CrmDashboard = Schemas['CrmDashboard'];
 export type MonthCount = Schemas['MonthCount'];
@@ -67,3 +79,20 @@ export type Voucher = Schemas['Voucher'];
 export type VoucherSummary = Schemas['VoucherSummary'];
 export type VoucherPage = Schemas['VoucherPage'];
 export type VoucherDocument = Schemas['VoucherDocument'];
+
+export type Brand = Schemas['Brand'];
+export type PostFormat = Schemas['PostFormat'];
+export type PostOrigin = Schemas['PostOrigin'];
+export type PostStatus = Schemas['PostStatus'];
+export type InstagramSlideRequest = Schemas['InstagramSlideRequest'];
+export type InstagramPostRequest = Schemas['InstagramPostRequest'];
+export type InstagramPost = Schemas['InstagramPost'];
+export type InstagramPostSummary = Schemas['InstagramPostSummary'];
+export type InstagramPostPage = Schemas['InstagramPostPage'];
+export type InstagramGenerateRequest = Schemas['InstagramGenerateRequest'];
+export type ItinerarySections = Schemas['ItinerarySections'];
+export type ItineraryDay = Schemas['ItineraryDay'];
+export type ItineraryRequest = Schemas['ItineraryRequest'];
+export type Itinerary = Schemas['Itinerary'];
+export type ItinerarySummary = Schemas['ItinerarySummary'];
+export type ItineraryPage = Schemas['ItineraryPage'];

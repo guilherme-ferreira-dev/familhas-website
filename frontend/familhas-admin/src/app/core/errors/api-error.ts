@@ -95,6 +95,19 @@ const CODE_MESSAGES: Record<ProblemCode | CrmProblemCode, string> = {
   SAME_ORIGIN_DESTINATION: 'O destino não pode ser igual à origem.',
   DUPLICATED_DESTINATION: 'Destino repetido.',
   GROUP_NAME_TAKEN: 'Já existe um grupo com esse nome.',
+  INVALID_POST_SHAPE:
+    'Formato incompleto: Story leva 1 imagem, Feed de 1 a 20 e Reel um vídeo MP4.',
+  TOO_MANY_HASHTAGS: 'O Instagram aceita no máximo 30 hashtags.',
+  DUPLICATED_MEDIA: 'A mesma imagem aparece em duas lâminas.',
+  CAPTION_REQUIRED: 'Escreva a legenda antes de marcar como pronto.',
+  POST_LOCKED: 'Post publicado, publicando ou em conferência não pode ser alterado.',
+  POST_NOT_UNCERTAIN: 'Este post não está aguardando conferência.',
+  PUBLISH_NOT_ALLOWED: 'Revise e marque o post como pronto. Se já foi enviado, aguarde ou confira.',
+  IMAGE_NOT_JPEG: 'A Meta só aceita JPEG. Gere as lâminas de novo nesta tela.',
+  CAROUSEL_TOO_LARGE: 'A Meta aceita menos lâminas por carrossel. Divida em dois posts.',
+  CAPTION_TOO_LONG: 'Legenda com hashtags passa de 2.200 caracteres.',
+  SOURCE_REQUIRED: 'Envie o PDF ou informe o link do orçamento.',
+  DAY_OUT_OF_RANGE: 'Há um dia do roteiro além da quantidade de dias.',
 };
 
 const KIND_MESSAGES: Record<ApiErrorKind, string> = {

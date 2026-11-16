@@ -45,8 +45,11 @@ A visão geral mostra o painel (voos nos próximos 7 e 30 dias, próximos voos, 
 | `/pesquisar-voos` | Grupos de até 7 destinos, datas exatas ou flexíveis, resultados por destino, 5 últimas pesquisas com "Refazer" |
 | `/vouchers` | Histórico; `/novo` com documento de origem e dados manuais; `/:id` com WhatsApp (sem CPF); `/:id/imprimir` em A4 |
 | `/documentos` | Busca por nome, envio, visualização com PDF.js (worker em `/pdfjs/`) |
+| `/posts-cotacao`, `/posts-cruzeiros` | Editores com prévia fixa, layouts, logo oficial composta, PNG e envio para a fila (ADR 0016) |
+| `/posts-insta` | Fila; `/novo` e `/:id` com lâminas (marca e cópia limpa), Reel com MP4, ZIP, revisão e publicação na Meta |
+| `/roteiros` | Lista; `/novo` e `/:id` com quatro seções e avisos do modelo mestre; `/:id/imprimir` em uma página A4 |
 
-Os módulos ainda sem tela (marketing, equipe, importação e backup) mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
+Os módulos ainda sem tela (Salvar Imagens, equipe, importação e backup) mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
 
 As telas da Loja (`/loja`, `/clientes`, `/reservas`, `/pagamentos`, `/cotacoes`, `/catalogo`) ficaram fora do menu e só abrem para o `crm-admin`.
 

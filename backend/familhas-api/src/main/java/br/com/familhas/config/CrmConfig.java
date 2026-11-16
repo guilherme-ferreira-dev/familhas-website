@@ -3,6 +3,8 @@ package br.com.familhas.config;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.nio.file.Path;
 import java.time.Clock;
 
@@ -13,8 +15,14 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import br.com.familhas.crm.company.CompanyProperties;
 import br.com.familhas.crm.flightsearch.FlightSearchGateway;
+import br.com.familhas.crm.instagram.GraphMetaGateway;
+import br.com.familhas.crm.instagram.MetaGateway;
+import br.com.familhas.crm.instagram.MetaProperties;
+import br.com.familhas.crm.instagram.PublishDispatcher;
 import br.com.familhas.crm.flightsearch.FlightSearchProperties;
 import br.com.familhas.crm.flightsearch.SerpApiFlightSearchGateway;
 import br.com.familhas.crm.file.FileLinkSigner;
@@ -27,7 +35,7 @@ import br.com.familhas.crm.outbound.OutboundUrlPolicy;
 /** Fundação do CRM interno (ADR 0014): dados da empresa, integrações, storage privado e saída para a internet. */
 @Configuration
 @EnableConfigurationProperties({ CompanyProperties.class, IntegrationProperties.class, StorageProperties.class,
-        FlightSearchProperties.class })
+        FlightSearchProperties.class, MetaProperties.class })
 public class CrmConfig {
 
     @Bean
@@ -48,6 +56,30 @@ public class CrmConfig {
         factory.setReadTimeout(properties.timeout());
         RestClient client = RestClient.builder().baseUrl(properties.serpapiBaseUrl()).requestFactory(factory).build();
         return new SerpApiFlightSearchGateway(client, integrations.serpapiApiKey(), properties);
+    }
+
+    /** Graph API da Meta com o token do servidor. Sem credenciais o registry barra antes (503). */
+    @Bean
+    MetaGateway metaGateway(MetaProperties properties, IntegrationProperties integrations, ObjectMapper objectMapper) {
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
+        factory.setReadTimeout(Duration.ofSeconds(60));
+        RestClient client = RestClient.builder().baseUrl(properties.graphBaseUrl()).requestFactory(factory).build();
+        return new GraphMetaGateway(client, integrations.metaInstagramUserId(), integrations.metaAccessToken(),
+                objectMapper);
+    }
+
+    /**
+     * Publicação em segundo plano (threads virtuais): vídeo do Reel leva minutos na Meta. Nos testes de integração,
+     * {@code familhas.meta.publish-async=false} roda na mesma thread.
+     */
+    @Bean
+    PublishDispatcher instagramPublishDispatcher(@Value("${familhas.meta.publish-async:true}") boolean async) {
+        if (!async) {
+            return Runnable::run;
+        }
+        ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+        return executor::execute;
     }
 
     @Bean

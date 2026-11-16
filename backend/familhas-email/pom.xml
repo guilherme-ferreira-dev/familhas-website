@@ -16,7 +16,7 @@
 
 	<properties>
 		<java.version>21</java.version>
-		<json-schema-validator.version>1.5.6</json-schema-validator.version>
+		<json-schema-validator.version>3.0.9</json-schema-validator.version>
 	</properties>
 
 	<dependencies>

@@ -108,6 +108,21 @@ const CODE_MESSAGES: Record<ProblemCode | CrmProblemCode, string> = {
   CAPTION_TOO_LONG: 'Legenda com hashtags passa de 2.200 caracteres.',
   SOURCE_REQUIRED: 'Envie o PDF ou informe o link do orçamento.',
   DAY_OUT_OF_RANGE: 'Há um dia do roteiro além da quantidade de dias.',
+  MEMBER_EXISTS: 'Já existe um usuário com esse e-mail.',
+  MEMBER_NOT_FOUND: 'Membro não encontrado na equipe.',
+  MEMBER_DISABLED: 'Reative o membro antes de reenviar o acesso.',
+  SELF_CHANGE_NOT_ALLOWED: 'Você não pode alterar a sua própria conta por aqui.',
+  LAST_ADMIN: 'Este é o último administrador ativo. Promova outra pessoa antes.',
+  INVITE_EMAIL_FAILED: 'O e-mail do Keycloak não saiu. Tente "Reenviar acesso" depois.',
+  TEAM_DIRECTORY_FAILED: 'O Keycloak não respondeu. Tente de novo em instantes.',
+  BACKUP_INVALID: 'O arquivo não é um backup do CRM.',
+  BACKUP_VERSION: 'Versão de backup não suportada.',
+  BACKUP_CHECKSUM: 'O arquivo foi alterado ou está corrompido. Use o arquivo original.',
+  BACKUP_TOO_LARGE: 'Arquivo maior que 50 MB.',
+  BACKUP_NOT_FOUND: 'Backup não encontrado ou vencido.',
+  BACKUP_KEY_NOT_CONFIGURED:
+    'Guardar backups exige a chave no servidor. O download direto funciona.',
+  BACKUP_EMAIL_FAILED: 'Backup guardado, mas o e-mail não saiu. Baixe por esta tela.',
 };
 
 const KIND_MESSAGES: Record<ApiErrorKind, string> = {

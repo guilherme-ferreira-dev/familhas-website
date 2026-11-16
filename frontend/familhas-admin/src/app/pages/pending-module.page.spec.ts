@@ -10,10 +10,10 @@ describe('PendingModulePage', () => {
     return (fixture.nativeElement as HTMLElement).textContent ?? '';
   }
 
-  it('diz em que etapa o módulo chega, sem botão de ação', () => {
-    const text = render(PENDING_MODULES.equipe);
-    expect(text).toContain('Equipe');
-    expect(text).toContain('Etapa 5');
+  it('módulo pendente diz o que falta, sem botão de ação', () => {
+    const text = render(PENDING_MODULES.importarDados);
+    expect(text).toContain('Importar dados');
+    expect(text).toContain('Bloqueado');
   });
 
   it('módulo bloqueado diz o que falta', () => {

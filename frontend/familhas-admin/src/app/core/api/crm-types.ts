@@ -54,7 +54,21 @@ export type CrmProblemCode =
   | 'CAROUSEL_TOO_LARGE'
   | 'CAPTION_TOO_LONG'
   | 'SOURCE_REQUIRED'
-  | 'DAY_OUT_OF_RANGE';
+  | 'DAY_OUT_OF_RANGE'
+  | 'MEMBER_EXISTS'
+  | 'MEMBER_NOT_FOUND'
+  | 'MEMBER_DISABLED'
+  | 'SELF_CHANGE_NOT_ALLOWED'
+  | 'LAST_ADMIN'
+  | 'INVITE_EMAIL_FAILED'
+  | 'TEAM_DIRECTORY_FAILED'
+  | 'BACKUP_INVALID'
+  | 'BACKUP_VERSION'
+  | 'BACKUP_CHECKSUM'
+  | 'BACKUP_TOO_LARGE'
+  | 'BACKUP_NOT_FOUND'
+  | 'BACKUP_KEY_NOT_CONFIGURED'
+  | 'BACKUP_EMAIL_FAILED';
 
 export type CrmDashboard = Schemas['CrmDashboard'];
 export type MonthCount = Schemas['MonthCount'];
@@ -96,3 +110,8 @@ export type ItineraryRequest = Schemas['ItineraryRequest'];
 export type Itinerary = Schemas['Itinerary'];
 export type ItinerarySummary = Schemas['ItinerarySummary'];
 export type ItineraryPage = Schemas['ItineraryPage'];
+
+export type TeamMember = Schemas['TeamMember'];
+export type InviteRequest = Schemas['InviteRequest'];
+export type StoredBackup = Schemas['StoredBackup'];
+export type RestoreReport = Schemas['RestoreReport'];

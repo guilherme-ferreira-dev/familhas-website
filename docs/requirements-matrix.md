@@ -24,7 +24,7 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | Funções de servidor para scraping, proxy de imagem, PDF, IA, SerpApi, Meta | `OutboundUrlPolicy` + `SafeHttpFetcher` (anti-SSRF); `IntegrationRegistry` com 503 `INTEGRATION_NOT_CONFIGURED` | implementado na fundação | Adapters concretos com os módulos | 2 ✔ / 3–4 |
 | Cache curto, mutações invalidam, logout limpa | Sem cache compartilhado: cada tela recarrega após salvar; `CrmSession` limpa no logout (ADR 0015, D6) | implementado | — | 2 ✔ / 3 ✔ |
 | Índices em voos e vouchers; preconnect | Índices em V19 (ida, localizador, nome) e V21 (emissão, tipo, cliente) | parcial | Preconnect: a URL da API vem do `config.json` em tempo de execução; avaliar na Etapa 6 | 3 ✔ / 6 |
-| PWA instalável | Sem manifest/service worker | ausente | `@angular/service-worker` sem cache de respostas autenticadas | 6 |
+| PWA instalável | Manifest, ícones e `@angular/service-worker` só com os arquivos do app (sem `dataGroups`); teste impede cache de JSON ou `/api` (ADR 0018) | implementado | — | 6 ✔ |
 
 ## Módulos
 
@@ -54,8 +54,9 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | Força bruta, sessão curta, refresh rotativo | implementado no realm do CRM | 1 ✔ |
 | Infra local fora da rede (portas em loopback) | implementado | 1 ✔ |
 | IDOR/BOLA nos recursos do CRM | permissão por recurso em toda rota e por categoria nos arquivos; testes por papel nas Etapas 2 e 3 | 2 ✔ / 3 ✔ / 4–5 |
-| Upload seguro e SSRF | implementado (ADR 0014); antivírus pendente | 2 ✔ / 6 |
+| Upload seguro e SSRF | implementado (ADR 0014); antivírus fora do escopo enquanto só a equipe envia arquivos (risco aceito em [security.md](security.md)) | 2 ✔ / 6 ✔ |
 | Auditoria de todo o CRM (escritas, exportações, downloads sensíveis, publicação Meta) | implementado para escritas e links de download; publicação Meta junto com o módulo | 2 ✔ / 4 |
-| LGPD: mascaramento de CPF, retenção, exportação/anonimização, minimização para a IA | CPF mascarado em toda resposta e fora do WhatsApp; inteiro só no A4 auditado; retenção e anonimização na Etapa 6 | 3 ✔ / 6 |
-| CI: SAST, varredura de imagens e segredos | parcial (Dependabot) | 6 |
-| Docs pedidos (`architecture`, `security`, `lgpd`, `keycloak`, `oracle-flyway`, `api`, `deployment`, `backup-recovery`, `incident-response`, `testing`) | parcial (ADRs existentes) | 6 |
+| LGPD: mascaramento de CPF, retenção, exportação/anonimização, minimização para a IA | CPF mascarado; relatório do titular e anonimização com prévia, identidade confirmada e prazo legal (`PRIVACY_VOUCHER_RETENTION`); registro de incidentes (V24); fluxos, bases legais e fornecedores em [lgpd.md](lgpd.md) (pendências organizacionais assinaladas) | 3 ✔ / 6 ✔ |
+| CI: SAST, varredura de imagens e segredos | `security.yml`: CodeQL, gitleaks, Trivy (dependências, configuração, imagem do `familhas-email` e jar da API); Boot 3.5.16 e patches de Tomcat, Jackson, amqp-client e Netty; 2 CVEs do Spring aceitos até a Boot 4 | 6 ✔ |
+| Docs pedidos (`architecture`, `security`, `lgpd`, `keycloak`, `oracle-flyway`, `api`, `deployment`, `backup-recovery`, `incident-response`, `testing`) | escritos, mais o roteiro [demo.md](demo.md) | 6 ✔ |
+| Produção segura e operação | perfil `prod` que recusa subir inseguro; `mem_limit` no compose; backup operacional com os arquivos do CRM; RPO/RTO a definir em [backup-recovery.md](backup-recovery.md) | 6 ✔ |

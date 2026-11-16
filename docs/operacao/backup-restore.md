@@ -12,6 +12,8 @@ Um único dump, consistente no mesmo instante (`FLASHBACK_TIME`), com os três s
 | `FAMILHAS_EMAIL` | familhas-email | `processed_event` (idempotência) e histórico do Flyway |
 | `KEYCLOAK` | Keycloak | Realm, usuários, senhas (hash), sessões e configuração dos clients |
 
+Junto do dump, o script gera `familhas-AAAAMMDD-HHMMSS-crm-files.tar.gz` com os arquivos do CRM (`CRM_FILES_DIR`, padrão `backend/familhas-api/var/crm-files`) e o `.sha256`. Restauração dos arquivos em [backup-recovery.md](../backup-recovery.md).
+
 Ficam de fora: mensagens em trânsito no RabbitMQ (o outbox reenvia o que não foi confirmado), e-mails do MailHog e o keystore do Keycloak (`infra/keycloak/keystore`, recriado sozinho no ambiente local).
 
 ## Backup

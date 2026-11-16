@@ -1,7 +1,7 @@
 # Imagem do familhas-email para o compose local (ADR 0005).
 # Build em dois estágios: Maven compila o jar; a imagem final só tem o JRE e o jar.
 
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /build
 COPY pom.xml .
 RUN mvn -B -ntp -q dependency:go-offline

@@ -434,3 +434,16 @@ Decisões em [ADR 0016](adr/0016-marketing-do-crm.md).
 - [ ] Provedor de IA (texto, imagem e vídeo) e credenciais da Meta (`META_ACCESS_TOKEN`, `META_INSTAGRAM_USER_ID`, `META_PUBLIC_BASE_URL`)
 - [ ] Salvar Imagens: aguardando o app Story Image Saver
 - [ ] Limpeza de mídias órfãs de lâminas abandonadas antes de salvar
+
+## CRM interno Voe Familhas, Etapa 5: Administração
+
+Decisões em [ADR 0017](adr/0017-administracao-do-crm.md).
+
+- [x] Equipe: conta de serviço `familhas-crm-team` (só view/query/manage-users), convite, papel, desativar/reativar, reenviar; travas de próprio usuário e último admin; auditoria
+- [x] V23: backups guardados criptografados (AES-256-GCM), 7 dias
+- [x] Backup lógico com hash; download direto; e-mail só com o link; restauração com prévia, sem sobrescrever, idempotente
+- [x] `./mvnw verify`: 652 testes; frontend 98 testes, lint e build; navegador real (convite de ponta a ponta com MailHog, backup e restauração)
+
+### Pendências
+- [ ] Importar dados: aguardando amostras do sistema antigo
+- [ ] Produção: `KEYCLOAK_CRM_TEAM_SECRET`, `BACKUP_ENCRYPTION_KEY` (guardada fora do servidor) e SMTP real

@@ -75,6 +75,10 @@ Importado de `infra/keycloak/data/import/voe-familhas-crm-realm.json`. Decisões
 
 Os uploads do CRM (vouchers, anexos, documentos, imagens) ficam em `STORAGE_LOCAL_ROOT`, por padrão `backend/familhas-api/var/crm-files`, que o Git ignora. Fora do ambiente local, use um volume privado com backup próprio e defina `STORAGE_LINK_SECRET` com 32 ou mais caracteres. Detalhes em [ADR 0014](../docs/adr/0014-fundacao-do-crm.md).
 
+### Conta de serviço da tela Equipe
+
+O client `familhas-crm-team` (confidencial, só `view-users`, `query-users` e `manage-users` do realm do CRM) é usado pela API na tela Equipe ([ADR 0017](../docs/adr/0017-administracao-do-crm.md)). O segredo é gerado pelo Keycloak: copie em **Clients → familhas-crm-team → Credentials** e exporte `KEYCLOAK_CRM_TEAM_SECRET` antes de subir a API. O e-mail do convite sai pelo SMTP do realm (MailHog no local).
+
 ### Criar membros da equipe fora do ambiente local
 
 Fora do ambiente local, importe o realm **sem** a lista `users`. Depois crie cada pessoa com o script:

@@ -40,9 +40,9 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | Salvar Imagens ("Story Image Saver") | — | **bloqueado** | Aguarda o código ou a especificação do app original | 4 |
 | Criar posts Insta (fila, STORY/FEED/REEL, carrossel, modo cidade, publicação Meta atômica) | V22; lâminas com marca e cópia "-limpa", Reel com MP4 próprio, ZIP, revisão humana, claim atômico e UNCERTAIN sem reenvio | implementado, **geração por IA e Meta não configuradas** | Provedor de IA; `META_*` e endereço público | 4 ✔ / integrações pendentes |
 | Gerar Roteiro (proposta A4, seções, observações, WhatsApp) | V22; quatro seções, avisos do modelo mestre, alertas internos fora da proposta, A4 em uma página, WhatsApp | implementado, **geração por IA não configurada** | Provedor de IA | 4 ✔ / IA pendente |
-| Equipe (só admin) | Papéis no Keycloak; script de provisionamento | parcial | Tela de membros e convites pela Admin API do Keycloak | 5 |
+| Equipe (só admin) | Admin API do Keycloak com conta de serviço mínima; convite por e-mail do Keycloak, troca de papel, desativar/reativar, reenviar; travas de próprio usuário e último admin (ADR 0017) | implementado (**precisa de `KEYCLOAK_CRM_TEAM_SECRET`**) | — | 5 ✔ |
 | Importar dados (adaptadores, IDs de origem, pular duplicados) | — | **bloqueado** | Aguarda amostras do formato legado | 5 |
-| Backup e restauração (um arquivo, validação, sem sobrescrever edições posteriores, envio) | Só backup físico (Data Pump) | ausente | Export/import lógico com versão por registro; envio por link temporário | 5 |
+| Backup e restauração (um arquivo, validação, sem sobrescrever edições posteriores, envio) | Arquivo versionado com hash; prévia e restauração sem sobrescrever; e-mail só com o link; backup guardado com AES-256-GCM por 7 dias (V23) | implementado (envio exige SMTP e `BACKUP_ENCRYPTION_KEY`) | — | 5 ✔ |
 
 ## Segurança, LGPD e operação
 

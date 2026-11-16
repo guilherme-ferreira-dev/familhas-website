@@ -1,5 +1,6 @@
 # Atualizações de dependências (guia, Fase 11; ADR 0012, D10). Um PR por ecossistema e semana, agrupando
-# minor e patch; major vem em PR separado para revisão com calma.
+# minor e patch. Versões major ficam de fora: são migrações planejadas (ex.: Spring Boot 4, TypeScript 7, Java 25),
+# não atualizações automáticas. As GitHub Actions vêm num PR só.
 version: 2
 updates:
   - package-ecosystem: maven
@@ -9,6 +10,9 @@ updates:
     groups:
       minor-e-patch: { update-types: [minor, patch] }
     commit-message: { prefix: chore(api) }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: maven
     directory: /backend/familhas-email
@@ -17,6 +21,9 @@ updates:
     groups:
       minor-e-patch: { update-types: [minor, patch] }
     commit-message: { prefix: chore(email) }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /frontend/familhas-web
@@ -26,6 +33,9 @@ updates:
       angular: { patterns: ["@angular/*", "@angular-devkit/*", "@schematics/angular"] }
       minor-e-patch: { update-types: [minor, patch] }
     commit-message: { prefix: chore(web) }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /frontend/familhas-admin
@@ -35,18 +45,32 @@ updates:
       angular: { patterns: ["@angular/*", "@angular-devkit/*", "@schematics/angular"] }
       minor-e-patch: { update-types: [minor, patch] }
     commit-message: { prefix: chore(admin) }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }
+    groups:
+      actions: { patterns: ["*"] }
     commit-message: { prefix: ci }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: /backend/familhas-email
     schedule: { interval: weekly, day: monday }
     commit-message: { prefix: chore(email) }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker
     directory: /infra/keycloak
     schedule: { interval: weekly, day: monday }
     commit-message: { prefix: chore(infra) }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]

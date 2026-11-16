@@ -17,5 +17,6 @@ public record IntegrationProperties(
         @DefaultValue("") String serpapiApiKey,
         @DefaultValue("") String metaAccessToken,
         @DefaultValue("") String metaInstagramUserId,
-        @DefaultValue("") String metaPublicBaseUrl) {
+        @DefaultValue("") String metaPublicBaseUrl,
+        @DefaultValue("") String keycloakTeamSecret) {
 }

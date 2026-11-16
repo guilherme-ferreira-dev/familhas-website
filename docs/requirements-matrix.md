@@ -14,15 +14,15 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 
 | Requisito do JSON | Código existente | Status | Ação | Etapa |
 |---|---|---|---|---|
-| Acesso só da equipe, sem cadastro público | Realm `voe-familhas-crm` sem registro, papéis do CRM, `/api/crm/**` só com `ROLE_CRM_*` | implementado (API) | Login do Angular no realm do CRM | 1 ✔ / 2 |
+| Acesso só da equipe, sem cadastro público | Realm `voe-familhas-crm` sem registro; `/api/crm/**` só com `ROLE_CRM_*`; Angular no realm do CRM com `teamGuard` | implementado | — | 1 ✔ / 2 ✔ |
 | "Primeiro cadastro vira admin" | Substituído por provisionamento controlado (`provision-crm-user.sh`) | implementado | — | 1 ✔ |
-| RLS `is_team()` | Autorização na API (URL + `@PreAuthorize` por `crm:<recurso>:<ação>`) | parcial | Aplicar em cada controller do CRM | 1 ✔ / 2+ |
-| Grupos Geral, Viagens, Marketing & Conteúdo, Administração | Shell do Admin com menu da Loja | ajuste | Novo shell do CRM; telas da Loja fora do menu | 2 |
-| Sem Cartões, Produtos, Finanças & Pedidos, caixa de e-mail | Admin tem Pagamentos/Reservas da Loja | ajuste | Ficam fora do menu do CRM (rotas preservadas, só `crm-admin`) | 2 |
-| Identidade: logo sem fundo azul e sem slogan, razão social e CNPJ abaixo da logo | Marca "Familhas"; arquivo da logo ausente | ausente | Dados da empresa centralizados; **logo oficial a receber** | 2 |
-| Armazenamento privado com URLs assinadas curtas | Não existe | ausente | `StorageService` (volume privado), URL assinada por HMAC, upload com MIME + assinatura | 2 |
-| Funções de servidor para scraping, proxy de imagem, PDF, IA, SerpApi, Meta | Padrão de adapter com Resilience4j | parcial | Interfaces + guarda SSRF; IA "não configurada" | 2 |
-| Cache curto, mutações invalidam, logout limpa | Signals por página | ausente | Cache por chave no Angular, limpo no logout | 2 |
+| RLS `is_team()` | Autorização na API (URL, `@PreAuthorize` e `CrmAccess` por `crm:<recurso>:<ação>`) | implementado na fundação | Aplicar em cada módulo novo | 1 ✔ / 2 ✔ / 3+ |
+| Grupos Geral, Viagens, Marketing & Conteúdo, Administração | Shell do CRM com os 4 grupos filtrados por permissão | implementado | — | 2 ✔ |
+| Sem Cartões, Produtos, Finanças & Pedidos, caixa de e-mail | Telas da Loja fora do menu, só `crm-admin` pelo endereço; teste garante que o menu não tem esses módulos | implementado | — | 2 ✔ |
+| Identidade: logo sem fundo azul e sem slogan, razão social e CNPJ abaixo da logo | `familhas.company.*`; razão social e CNPJ abaixo da marca na lateral | parcial | **Arquivo da logo oficial a receber**; Instagram a informar | 2 ✔ / pendente |
+| Armazenamento privado com URLs assinadas curtas | `crm_files` (V18), `FileStorage` local, link HMAC de 5 min, tipo pelos bytes | implementado | Adapter S3 se preciso | 2 ✔ |
+| Funções de servidor para scraping, proxy de imagem, PDF, IA, SerpApi, Meta | `OutboundUrlPolicy` + `SafeHttpFetcher` (anti-SSRF); `IntegrationRegistry` com 503 `INTEGRATION_NOT_CONFIGURED` | implementado na fundação | Adapters concretos com os módulos | 2 ✔ / 3–4 |
+| Cache curto, mutações invalidam, logout limpa | `CrmSession` limpa no logout; signals por página | parcial | Cache por chave com invalidação junto com os módulos de dados | 2 ✔ / 3 |
 | Índices em voos e vouchers; preconnect | — | ausente | Migrations com índices; preconnect no `index.html` | 3 |
 | PWA instalável | Sem manifest/service worker | ausente | `@angular/service-worker` sem cache de respostas autenticadas | 6 |
 
@@ -54,8 +54,8 @@ Decisões aprovadas (ADR 0013): Loja e pagamentos ficam intactos; `familhas-admi
 | Força bruta, sessão curta, refresh rotativo | implementado no realm do CRM | 1 ✔ |
 | Infra local fora da rede (portas em loopback) | implementado | 1 ✔ |
 | IDOR/BOLA nos recursos do CRM | a fazer em cada módulo (teste por rota) | 3–5 |
-| Upload seguro, SSRF, antivírus quando aplicável | ausente | 2 |
-| Auditoria de todo o CRM (escritas, exportações, downloads sensíveis, publicação Meta) | parcial (só `/api/admin`) | 2 |
+| Upload seguro e SSRF | implementado (ADR 0014); antivírus pendente | 2 ✔ / 6 |
+| Auditoria de todo o CRM (escritas, exportações, downloads sensíveis, publicação Meta) | implementado para escritas e links de download; publicação Meta junto com o módulo | 2 ✔ / 4 |
 | LGPD: mascaramento de CPF, retenção, exportação/anonimização, minimização para a IA | ausente | 3 / 6 |
 | CI: SAST, varredura de imagens e segredos | parcial (Dependabot) | 6 |
 | Docs pedidos (`architecture`, `security`, `lgpd`, `keycloak`, `oracle-flyway`, `api`, `deployment`, `backup-recovery`, `incident-response`, `testing`) | parcial (ADRs existentes) | 6 |

@@ -586,7 +586,8 @@ export interface components {
     /** @enum {string} */
     ClientSegment: 'NEW' | 'ACTIVE' | 'PAST';
     /** @enum {string} */
-    AuditAction: 'CREATE' | 'UPDATE' | 'DELETE' | 'EXPORT';
+    AuditAction:
+      'CREATE' | 'UPDATE' | 'DELETE' | 'EXPORT' | 'DOWNLOAD' | 'PUBLISH' | 'RESTORE' | 'IMPORT';
     /** @example BRL */
     Currency: string;
     /** @description BigDecimal, escala 2 */

@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import type { ProblemCode } from '../api/api-types';
+import type { CrmProblemCode } from '../api/crm-types';
 
 export type ApiErrorKind =
   | 'network'
@@ -63,16 +64,27 @@ export function kindOf(status: number): ApiErrorKind {
 
 const PROBLEM_FIELDS = new Set(['type', 'title', 'status', 'detail', 'instance', 'code', 'errors']);
 
-const CODE_MESSAGES: Record<ProblemCode, string> = {
+const CODE_MESSAGES: Record<ProblemCode | CrmProblemCode, string> = {
   QUOTE_BELOW_COST: 'O desconto deixaria a cotação abaixo do custo.',
   CLIENT_INACTIVE: 'Cliente inativo não pode receber cotação. Reative o cliente antes.',
+  INTEGRATION_NOT_CONFIGURED:
+    'Esta integração ainda não está configurada. Preencha os dados manualmente por enquanto.',
+  FILE_EMPTY: 'O arquivo está vazio.',
+  FILE_TOO_LARGE: 'Arquivo grande demais. Limites: PDF 15 MB, imagens 10 MB, vídeo 100 MB.',
+  FILE_TYPE_NOT_ALLOWED: 'Tipo de arquivo não aceito aqui.',
+  FILE_TYPE_MISMATCH: 'O conteúdo do arquivo não corresponde à extensão. Confira o arquivo.',
+  FILE_NOT_FOUND: 'Arquivo não encontrado. Pode ter sido excluído.',
+  FILE_LINK_INVALID: 'O link do arquivo venceu. Abra o arquivo de novo.',
+  URL_NOT_ALLOWED: 'Esse endereço não pode ser usado. Use um link público com https.',
+  REMOTE_UNAVAILABLE: 'Não foi possível abrir o endereço informado.',
+  REMOTE_CONTENT_TOO_LARGE: 'O conteúdo do endereço é grande demais.',
 };
 
 const KIND_MESSAGES: Record<ApiErrorKind, string> = {
   network: 'Não conseguimos falar com a API. Verifique a conexão e tente de novo.',
   validation: 'Alguns campos não estão corretos. Revise e tente de novo.',
   unauthorized: 'Sua sessão terminou. Entre de novo para continuar.',
-  forbidden: 'Sua conta não tem permissão de administrador.',
+  forbidden: 'Sua conta não tem permissão para esta ação.',
   'not-found': 'Registro não encontrado. Pode ter sido excluído.',
   conflict: 'Não foi possível concluir: o registro está ligado a outros dados ou já existe.',
   unprocessable: 'A operação não pode ser feita com esses dados.',
@@ -84,7 +96,10 @@ const KIND_MESSAGES: Record<ApiErrorKind, string> = {
 /** Mensagem em português para qualquer erro (ApiError ou não). */
 export function errorMessage(error: unknown): string {
   if (error instanceof ApiError) {
-    return (error.code && CODE_MESSAGES[error.code as ProblemCode]) || KIND_MESSAGES[error.kind];
+    return (
+      (error.code && CODE_MESSAGES[error.code as ProblemCode | CrmProblemCode]) ||
+      KIND_MESSAGES[error.kind]
+    );
   }
   return KIND_MESSAGES.server;
 }

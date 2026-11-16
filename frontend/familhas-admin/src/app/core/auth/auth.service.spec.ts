@@ -33,7 +33,7 @@ describe('safeReturnUrl', () => {
     rememberReturnUrl('/reservas', sessionStorage);
     expect(takeReturnUrl(sessionStorage)).toBe('/reservas');
     expect(takeReturnUrl(sessionStorage)).toBeNull();
-    sessionStorage.setItem('familhas-admin.returnUrl', 'https://evil.com');
+    sessionStorage.setItem('familhas-crm.returnUrl', 'https://evil.com');
     expect(takeReturnUrl(sessionStorage)).toBe('/');
   });
 });

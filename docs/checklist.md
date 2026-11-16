@@ -355,5 +355,37 @@ Prompt mestre do CRM e JSON funcional. Diagnóstico e plano em [requirements-mat
 - [x] Ponta a ponta com Keycloak e API locais (login PKCE real): os 4 papéis, MFA do admin (cadastro, código errado recusado, código certo aceito), usuário sem papel barrado, tokens da Loja com 403 no CRM, payload adulterado com 401, bloqueio depois de 5 senhas erradas, primeiro acesso de usuário provisionado exigindo TOTP e troca de senha
 
 ### Pendências documentadas (próximas etapas)
-- [ ] Etapa 2: `familhas-admin` logando no realm do CRM, shell com os 4 grupos, storage privado, upload seguro, guarda SSRF, auditoria do CRM, adapters "não configurados"
+- [x] Etapa 2: ver abaixo
 - [ ] Bloqueados: "Salvar Imagens" (app Story Image Saver) e "Importar dados" (amostras do legado)
+
+## CRM interno Voe Familhas, Etapa 2: fundação
+
+Decisões em [ADR 0014](adr/0014-fundacao-do-crm.md); contrato em [docs/api/crm.yaml](api/crm.yaml).
+
+### Frontend (`familhas-admin` vira o CRM)
+- [x] Login no realm `voe-familhas-crm` (client `familhas-crm`); `teamGuard`, `permissionGuard`, `crmAdminGuard`
+- [x] Menu com Geral, Viagens, Marketing & Conteúdo e Administração, filtrado por permissão; sem Cartões, Produtos ou Finanças
+- [x] Razão social e CNPJ abaixo da marca na lateral; visão geral com agência, integrações e etapas dos módulos
+- [x] Telas da Loja fora do menu, só `crm-admin`; módulos sem tela mostram a etapa ou o bloqueio
+- [x] Token só para `/api/crm/` e `/api/admin/`; logout limpa a sessão do CRM; 403 de ação não expulsa da tela
+- [x] Tipos gerados de `docs/api/crm.yaml`; lint do contrato no CI
+
+### Backend
+- [x] V18: `crm_files` e novas ações de auditoria (`DOWNLOAD`, `PUBLISH`, `RESTORE`, `IMPORT`)
+- [x] Storage privado com chave UUID, tipo pelos bytes, limite por tipo, SHA-256 e limpeza em rollback
+- [x] Link assinado de 5 min, única rota do CRM sem token, auditado como `DOWNLOAD`
+- [x] Anti-SSRF (`OutboundUrlPolicy`, `SafeHttpFetcher`)
+- [x] Dados da agência em `familhas.company.*`; integrações em `IntegrationRegistry` (503 `INTEGRATION_NOT_CONFIGURED`)
+- [x] Auditoria de `/api/crm/**`; negado = 403; `@AuditedManually`
+- [x] Gestor lê a auditoria (`crm:auditoria:ler`)
+
+### Testes e validação
+- [x] Unitários: tipos de arquivo, regras de upload, storage, links, anti-SSRF, integrações, interceptor
+- [x] `CrmFoundationIntegrationTests` (Oracle) e `CrmOpenApiContractTests`
+- [x] Frontend: guards, sessão, menu, módulo pendente e interceptors; lint, Prettier e build
+- [x] Ponta a ponta com Keycloak real e Oracle descartável (upload, permissões, link, exclusão, auditoria)
+- [ ] Navegação no navegador (login no CRM e menu por papel): não executada nesta sessão, sem browser automatizado
+
+### Pendências documentadas
+- [ ] Arquivo da logo oficial (sem fundo azul, sem slogan) e Instagram da agência
+- [ ] Antivírus de upload e criptografia do volume (Etapa 6)

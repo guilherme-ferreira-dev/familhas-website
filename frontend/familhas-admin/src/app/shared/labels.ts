@@ -56,6 +56,10 @@ export const AUDIT_ACTION: Record<AuditAction, string> = {
   UPDATE: 'Alterou',
   DELETE: 'Excluiu',
   EXPORT: 'Exportou',
+  DOWNLOAD: 'Gerou link de download',
+  PUBLISH: 'Publicou',
+  RESTORE: 'Restaurou',
+  IMPORT: 'Importou',
 };
 export const CITY_TYPE: Record<CityType, string> = { ORIGIN: 'Origem', DESTINATION: 'Destino' };
 export const BOARD_TYPE: Record<BoardType, string> = {

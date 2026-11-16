@@ -1,0 +1,320 @@
+openapi: 3.1.0
+info:
+  title: Familhas API - CRM interno Voe Familhas
+  version: 0.2.0
+  description: |
+    Contrato do CRM interno (prompt mestre do CRM; ADR 0013 e ADR 0014): tudo o que o `familhas-admin` consome
+    em `/api/crm/**`.
+
+    - Sempre com JWT do realm `voe-familhas-crm`, audiência `familhas-api` e um papel do CRM
+      (`crm-admin`, `crm-gestor`, `crm-atendente`, `crm-marketing`). Sem token: 401. Token da Loja ou sem papel: 403.
+    - Cada operação exige uma permissão `crm:<recurso>:<ação>` (matriz no ADR 0013). Sem ela: 403.
+    - Única rota sem token: `GET /api/crm/files/{id}/content`, só com link assinado (`expires` + `signature`)
+      emitido por `POST /api/crm/files/{id}/link`, válido por poucos minutos.
+    - Toda escrita fica no log de auditoria (recurso `crm/<segmento>`), assim como cada link de download emitido.
+    - Erros como Problem Details (RFC 7807); regras de negócio trazem `code`. Integração sem credencial:
+      503 com `code` `INTEGRATION_NOT_CONFIGURED`.
+servers:
+  - url: http://localhost:8080
+    description: familhas-api local
+tags:
+  - name: session
+    description: Quem está logado e o que pode fazer.
+  - name: settings
+    description: Dados da agência e situação das integrações.
+  - name: files
+    description: Arquivos privados (documentos, anexos, imagens, vídeos).
+security:
+  - bearerAuth: []
+
+paths:
+  /api/crm/me:
+    get:
+      tags: [session]
+      operationId: getCrmMe
+      summary: Perfil e permissões do membro da equipe
+      description: Só para montar menu e botões. A API confere a permissão em cada chamada.
+      responses:
+        '200':
+          description: Perfil.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrmMe' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/settings:
+    get:
+      tags: [settings]
+      operationId: getCrmSettings
+      summary: Dados da agência e integrações
+      description: "Exige `crm:dashboard:ler`. Nunca devolve credenciais."
+      responses:
+        '200':
+          description: Configuração visível para a equipe.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrmSettings' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/files:
+    get:
+      tags: [files]
+      operationId: searchCrmFiles
+      summary: Arquivos de uma categoria, mais recentes primeiro
+      description: "Exige `crm:<recurso da categoria>:ler`. `name` busca parte do nome, sem diferenciar maiúsculas."
+      parameters:
+        - { name: category, in: query, required: true, schema: { $ref: '#/components/schemas/FileCategory' } }
+        - { name: name, in: query, schema: { type: string, maxLength: 200 } }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Size'
+      responses:
+        '200':
+          description: Página de arquivos.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrmFilePage' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [files]
+      operationId: uploadCrmFile
+      summary: Envia um arquivo
+      description: |
+        Exige `crm:<recurso da categoria>:criar`. O tipo vem dos primeiros bytes, não do nome.
+        Limites: PDF 15 MB, imagens 10 MB, MP4 100 MB. Tipos por categoria em `FileCategory`.
+        Erros: `FILE_EMPTY` (400), `FILE_TOO_LARGE` (413), `FILE_TYPE_NOT_ALLOWED` e `FILE_TYPE_MISMATCH` (415).
+      parameters:
+        - { name: category, in: query, required: true, schema: { $ref: '#/components/schemas/FileCategory' } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Arquivo guardado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrmFile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { $ref: '#/components/responses/Unprocessable' }
+        '415': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/files/{id}:
+    get:
+      tags: [files]
+      operationId: getCrmFile
+      summary: Metadados de um arquivo
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Arquivo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CrmFile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [files]
+      operationId: deleteCrmFile
+      summary: Exclui um arquivo
+      description: "Exige `crm:<recurso da categoria>:excluir`."
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '204': { description: Excluído. }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/files/{id}/link:
+    post:
+      tags: [files]
+      operationId: createCrmFileLink
+      summary: Link de download assinado e de curta duração
+      description: "Exige `crm:<recurso da categoria>:ler`. Cada emissão vai para a auditoria (`DOWNLOAD`)."
+      parameters: [ { $ref: '#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Link.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FileLink' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/files/{id}/content:
+    get:
+      tags: [files]
+      operationId: getCrmFileContent
+      summary: Conteúdo por link assinado (sem token)
+      description: |
+        Use o `path` devolvido por `/link`. Link inválido, vencido ou de arquivo excluído: 403 `FILE_LINK_INVALID`.
+        A resposta vem com `Content-Security-Policy: default-src 'none'; sandbox` e `Cache-Control: private, no-store`.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+        - { name: expires, in: query, required: true, schema: { type: integer, format: int64 } }
+        - { name: signature, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Conteúdo do arquivo.
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            video/mp4: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token do Keycloak (realm `voe-familhas-crm`), emitido para o client público `familhas-crm`
+        (Authorization Code + PKCE S256), com audiência `familhas-api` e um papel do CRM em `realm_access.roles`.
+
+  parameters:
+    IdPath: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+    Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+
+  responses:
+    BadRequest:
+      description: Parâmetros ou corpo inválidos
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Unauthorized:
+      description: Sem token ou token inválido
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Forbidden:
+      description: Token sem o papel ou a permissão exigida (ou link de arquivo inválido)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    NotFound:
+      description: Não encontrado
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    Unprocessable:
+      description: Regra de negócio (`code` estável)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  schemas:
+    ProblemDetail:
+      type: object
+      required: [status, title]
+      properties:
+        type: { type: string, default: 'about:blank' }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string, description: 'Ex.: FILE_TYPE_MISMATCH, INTEGRATION_NOT_CONFIGURED' }
+        errors: { type: object, additionalProperties: { type: string } }
+
+    CrmRole: { type: string, enum: [ADMIN, GESTOR, ATENDENTE, MARKETING] }
+
+    CrmMe:
+      type: object
+      required: [subject, roles, permissions]
+      properties:
+        subject: { type: string }
+        username: { type: [string, 'null'] }
+        name: { type: [string, 'null'] }
+        email: { type: [string, 'null'] }
+        roles: { type: array, items: { $ref: '#/components/schemas/CrmRole' } }
+        permissions:
+          type: array
+          description: '`crm:<recurso>:<ação>`, ex.: `crm:vouchers:criar`'
+          items: { type: string }
+
+    Company:
+      type: object
+      description: Dados fixos da agência. String vazia = ainda não informado.
+      required: [legalName, tradeName, cnpj, site, whatsapp, email, instagram]
+      properties:
+        legalName: { type: string, examples: ['EEBPG Agência de Viagens LTDA'] }
+        tradeName: { type: string, examples: ['Voe Familhas'] }
+        cnpj: { type: string, examples: ['62.845.580/0001-75'] }
+        site: { type: string, examples: ['familhas.tur.br'] }
+        whatsapp: { type: string, examples: ['(61) 99990-9464'] }
+        email: { type: string }
+        instagram: { type: string }
+
+    IntegrationKey: { type: string, enum: [AI_TEXT, AI_IMAGE, AI_VIDEO, FLIGHT_SEARCH, INSTAGRAM] }
+
+    IntegrationStatus:
+      type: object
+      required: [key, label, configured, detail]
+      properties:
+        key: { $ref: '#/components/schemas/IntegrationKey' }
+        label: { type: string }
+        configured: { type: boolean }
+        detail: { type: string }
+
+    CrmSettings:
+      type: object
+      required: [company, integrations]
+      properties:
+        company: { $ref: '#/components/schemas/Company' }
+        integrations: { type: array, items: { $ref: '#/components/schemas/IntegrationStatus' } }
+
+    FileCategory:
+      type: string
+      description: |
+        Decide a permissão e os tipos aceitos:
+        `DOCUMENT` (documentos; PDF e imagens), `FLIGHT_ATTACHMENT` (voos-clientes; PDF, JPG, PNG),
+        `VOUCHER_SOURCE` (vouchers; PDF, JPG, PNG), `POST_IMAGE` (posts-cotacao; imagens),
+        `INSTAGRAM_MEDIA` (posts-insta; imagens e MP4), `ITINERARY_PHOTO` (roteiros; imagens).
+      enum: [DOCUMENT, FLIGHT_ATTACHMENT, VOUCHER_SOURCE, POST_IMAGE, INSTAGRAM_MEDIA, ITINERARY_PHOTO]
+
+    CrmFile:
+      type: object
+      required: [id, category, name, contentType, sizeBytes, sha256, uploadedBy, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/FileCategory' }
+        name: { type: string, description: 'Nome para exibição, já saneado e com a extensão do tipo real' }
+        contentType: { type: string, enum: [application/pdf, image/jpeg, image/png, image/webp, video/mp4] }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string }
+        uploadedBy: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    CrmFilePage:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content: { type: array, items: { $ref: '#/components/schemas/CrmFile' } }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+
+    FileLink:
+      type: object
+      required: [path, expiresAt]
+      properties:
+        path: { type: string, description: 'Relativo à API, ex.: /api/crm/files/{id}/content?expires=...&signature=...' }
+        expiresAt: { type: string, format: date-time }

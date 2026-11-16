@@ -81,6 +81,8 @@ public class SecurityConfig {
     static final String[] CRM_ROLES = java.util.Arrays.stream(CrmRole.values()).map(CrmRole::authority)
             .toArray(String[]::new);
     /** Administra a Loja: o admin do realm da Loja ou o admin do CRM (telas da Loja ficam no CRM, fora do menu). */
+    /** Unica rota do CRM sem token: conteudo de arquivo por link assinado. */
+    public static final String CRM_SIGNED_FILE_CONTENT = "/api/crm/files/{id}/content";
     static final String[] STORE_ADMIN_ROLES = { "ROLE_ADMIN", CrmRole.ADMIN.authority() };
 
     static final String[] DOCS_PATHS = { "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**" };
@@ -150,8 +152,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // Webhook do Stripe: sem JWT; a assinatura e validada no controller.
                         .requestMatchers(HttpMethod.POST, "/api/webhooks/stripe").permitAll()
+                        // Link assinado de arquivo (img, PDF.js): sem token, validado pela assinatura e prazo (ADR 0014).
+                        .requestMatchers(HttpMethod.GET, CRM_SIGNED_FILE_CONTENT).permitAll()
                         // CRM antes do GET publico: nenhuma rota do CRM pode cair no permitAll do catalogo.
                         .requestMatchers("/api/crm/**").hasAnyAuthority(CRM_ROLES)
+                        // Auditoria: tela do CRM para quem tem crm:auditoria:ler (gestor), alem dos admins.
+                        .requestMatchers(HttpMethod.GET, "/api/admin/audit-logs")
+                                .hasAnyAuthority("ROLE_ADMIN", CrmRole.ADMIN.authority(), "crm:auditoria:ler")
                         .requestMatchers("/api/admin/**").hasAnyAuthority(STORE_ADMIN_ROLES)
                         .requestMatchers("/api/me/**").hasAnyAuthority("ROLE_USER", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/**").permitAll()

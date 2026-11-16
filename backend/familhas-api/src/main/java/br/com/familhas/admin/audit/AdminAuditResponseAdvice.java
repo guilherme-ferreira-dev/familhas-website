@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 /**
- * Num POST de /api/admin/**, guarda o "id" do recurso criado (campo id do record da resposta) para o
+ * Num POST de /api/admin/** ou /api/crm/**, guarda o "id" do recurso criado (campo id do record da resposta) para o
  * {@link AdminAuditInterceptor}. Não altera a resposta.
  */
 @ControllerAdvice
@@ -31,7 +31,7 @@ public class AdminAuditResponseAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpResponse response) {
         if (body instanceof Record record && request instanceof ServletServerHttpRequest servletRequest
                 && "POST".equals(servletRequest.getServletRequest().getMethod())
-                && servletRequest.getServletRequest().getRequestURI().startsWith(AdminAuditInterceptor.ADMIN_PREFIX)) {
+                && AdminAuditInterceptor.prefixOf(servletRequest.getServletRequest().getRequestURI()) != null) {
             String id = idOf(record);
             if (id != null) {
                 servletRequest.getServletRequest().setAttribute(CREATED_ID_ATTRIBUTE, id);

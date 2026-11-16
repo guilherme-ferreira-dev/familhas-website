@@ -837,7 +837,7 @@ components:
     QuoteStatus: { type: string, enum: [OPEN, EXPIRED, BOOKED] }
     QuoteOrigin: { type: string, enum: [CUSTOMER, ADMIN] }
     ClientSegment: { type: string, enum: [NEW, ACTIVE, PAST] }
-    AuditAction: { type: string, enum: [CREATE, UPDATE, DELETE, EXPORT] }
+    AuditAction: { type: string, enum: [CREATE, UPDATE, DELETE, EXPORT, DOWNLOAD, PUBLISH, RESTORE, IMPORT] }
     Currency: { type: string, pattern: '^[A-Z]{3}$', examples: [BRL] }
     Money: { type: number, description: 'BigDecimal, escala 2' }
 

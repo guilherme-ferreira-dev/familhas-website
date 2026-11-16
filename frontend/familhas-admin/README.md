@@ -1,19 +1,19 @@
-# familhas-admin
+# familhas-admin: CRM interno Voe Familhas
 
-Admin da Familhas (Fase 10): painel interno do Enéas. Decisões em [ADR 0011](../../docs/adr/0011-admin.md) e contrato em [docs/api/admin.yaml](../../docs/api/admin.yaml).
+CRM interno da equipe da Voe Familhas (EEBPG Agência de Viagens LTDA), construído sobre o antigo Admin da Loja (Fase 10). Decisões em [ADR 0013](../../docs/adr/0013-crm-interno-identidade-e-acesso.md) (acesso) e [ADR 0014](../../docs/adr/0014-fundacao-do-crm.md) (fundação). Contratos em [docs/api/crm.yaml](../../docs/api/crm.yaml) e [docs/api/admin.yaml](../../docs/api/admin.yaml). Plano e status por módulo em [docs/requirements-matrix.md](../../docs/requirements-matrix.md).
 
 ## Rodando
 
-Pré-requisitos: Node 24 (`.nvmrc`), a `familhas-api` em `http://localhost:8080` e o Keycloak em `https://localhost:8443` (ver [infra/README](../../infra/README.md)).
+Pré-requisitos: Node 24 (`.nvmrc`), a `familhas-api` em `http://localhost:8080` e o Keycloak em `https://localhost:8443` com o realm `voe-familhas-crm` (ver [infra/README](../../infra/README.md)).
 
 ```bash
 npm ci
 npm start                 # http://localhost:4300
 ```
 
-Entre com `admin.familhas` / `admin1234`. Uma conta sem `ROLE_ADMIN` (ex.: `user.familhas`) é barrada pelo Keycloak e, se chegar ao Admin, vê "sem permissão"; a API responde 403 em `/api/admin/**` de qualquer forma.
+Entre com um usuário do realm do CRM, por exemplo `atendente.crm` / `AtendenteCrm.2026`. O `admin.crm` pede o TOTP (no primeiro acesso, o cadastro num app autenticador). Uma conta sem papel do CRM é barrada pelo Keycloak; tokens da Loja recebem 403 em `/api/crm/**`.
 
-`public/config.json` define a URL da API e o Keycloak (client `familhas-admin`). O mesmo build serve qualquer ambiente; só o arquivo muda no deploy. Nunca coloque segredos nele.
+`public/config.json` define a URL da API e o Keycloak (realm `voe-familhas-crm`, client `familhas-crm`). O mesmo build serve qualquer ambiente; só o arquivo muda no deploy. Nunca coloque segredos nele.
 
 ## Comandos
 
@@ -23,25 +23,28 @@ Entre com `admin.familhas` / `admin1234`. Uma conta sem `ROLE_ADMIN` (ex.: `user
 | `npm run format:check` | Prettier |
 | `npm run test:ci` | Vitest (jsdom) |
 | `npm run build` | Build de produção em `dist/` |
-| `npm run api:types` | Regera `src/app/core/api/schema.d.ts` a partir de `docs/api/admin.yaml` |
+| `npm run api:types` | Regera `schema.d.ts` (admin.yaml) e `crm-schema.d.ts` (crm.yaml) em `src/app/core/api` |
 | `npm run api:check` | Falha se os tipos estiverem desatualizados (CI) |
 
-## Telas
+## Menu
 
-| Rota | Tela |
+Grupos do JSON funcional. Cada item aparece só para quem tem a permissão de leitura do módulo (`crm:<recurso>:ler`, matriz no ADR 0013):
+
+| Grupo | Telas |
 |---|---|
-| `/` | Dashboard: receita líquida, reservas aguardando pagamento, cotações válidas, clientes novos e receita por dia |
-| `/clientes` | Abas novos, ativos, passados e todos, com busca; `/clientes/:id` com dados, reservas e pagamentos |
-| `/reservas` | Filtro por status e período; `/reservas/:id` com custo, margem e tentativas de pagamento |
-| `/pagamentos` | Planilha em tempo real (SSE + recarga a cada 30 s), filtros por período, status, método e parcelas, exportação XLSX/CSV |
-| `/cotacoes` | Cotações da Loja e manuais; `/cotacoes/nova` monta uma cotação para um cliente |
-| `/catalogo` | Voos, hotéis, quartos, carros, pacotes, promoções e margem/taxa |
-| `/auditoria` | Quem criou, alterou, excluiu ou exportou o quê |
+| Geral | Visão geral (`/`), Backup e restauração (`/backup`) |
+| Viagens | Voos Clientes, Pesquisar Voos, Emitir Voucher |
+| Marketing & Conteúdo | Criar Posts de cotação, Posts de Cruzeiros, Salvar Imagens, Criar posts Insta, Gerar Roteiro |
+| Administração | Equipe (só admin), Importar dados, Documentos, Auditoria |
+
+A visão geral mostra os dados da agência, a situação das integrações (IA, SerpApi e Meta aparecem como "Não configurada" até haver credencial) e em que etapa chega cada módulo. Os módulos ainda sem tela mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
+
+As telas da Loja (`/loja`, `/clientes`, `/reservas`, `/pagamentos`, `/cotacoes`, `/catalogo`) ficaram fora do menu e só abrem para o `crm-admin`.
 
 ## Segurança
 
-- Authorization Code + PKCE (S256) no Keycloak; renovação por refresh token, sem iframe.
-- O token só vai para `{apiBaseUrl}/api/admin/`. Keycloak, `config.json` e outras rotas da API nunca o recebem.
-- O stream da planilha usa `fetch` com o token no header (nunca na URL) e reconecta a cada 5 min com um token novo.
-- A exportação baixa pelo `HttpClient` e usa só o nome do arquivo do `Content-Disposition`.
+- Authorization Code + PKCE (S256) no Keycloak; renovação por refresh token, sem iframe. Tokens ficam no `sessionStorage` da biblioteca OIDC, nunca no `localStorage`.
+- O token só vai para `{apiBaseUrl}/api/crm/` e `{apiBaseUrl}/api/admin/`. Keycloak, `config.json`, links externos e outras rotas da API nunca o recebem.
+- Menu e guards são só experiência de uso: a API confere papel e permissão em toda chamada. Um 403 de quem é da equipe (ex.: atendente tentando excluir) mostra a mensagem na tela; um 403 de quem não tem papel no CRM leva a "sem permissão".
+- O logout limpa o perfil e os dados carregados (`CrmSession.clear()`).
 - `noindex` e `robots.txt` bloqueando tudo: ferramenta interna.

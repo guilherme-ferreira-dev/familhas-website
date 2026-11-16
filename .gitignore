@@ -44,3 +44,6 @@ infra/keycloak/keystore/*
 
 ### Backups locais do Oracle (infra/oracle/backup.sh) ###
 backups/
+
+# Storage local do CRM (arquivos enviados; ADR 0014)
+var/

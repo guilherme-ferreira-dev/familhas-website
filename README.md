@@ -8,7 +8,7 @@ Plataforma da agência de viagens Familhas: **Loja** (busca, cotação, compra e
 backend/familhas-api     API Spring Boot (Java 21), monólito modular, produtora de eventos (outbox)
 backend/familhas-email   Consumidor de eventos que envia e-mails transacionais (boas-vindas)
 frontend/familhas-web    Loja em Angular 22 (busca, pacote, cotação, checkout e WhatsApp)
-frontend/familhas-admin  Admin em Angular 22 (dashboard, clientes, reservas, pagamentos, cotações, catálogo)
+frontend/familhas-admin  CRM interno Voe Familhas em Angular 22 (ADR 0013/0014); telas do Admin da Loja só para crm-admin
 infra/                   Docker Compose: Oracle, RabbitMQ, Keycloak, MailHog e familhas-email
 docs/adr/                Registro de decisões de arquitetura
 docs/events/             Contratos versionados dos eventos (JSON Schema)
@@ -94,7 +94,7 @@ Usuários de teste do Keycloak:
 
 Sem backend, a Loja também roda com mocks: `npm run start:mock`.
 
-CRM interno (realm `voe-familhas-crm`, [ADR 0013](docs/adr/0013-crm-interno-identidade-e-acesso.md)): `admin.crm` / `AdminCrm.2026` (pede TOTP), `gestor.crm`, `atendente.crm` e `marketing.crm`. A lista completa está em [infra/README.md](infra/README.md#realm-do-crm-interno-voe-familhas-crm). O frontend do CRM chega na Etapa 2; até lá, a API do CRM fica em `/api/crm/**`.
+CRM interno (realm `voe-familhas-crm`, [ADR 0013](docs/adr/0013-crm-interno-identidade-e-acesso.md)): `admin.crm` / `AdminCrm.2026` (pede TOTP), `gestor.crm`, `atendente.crm` e `marketing.crm`. A lista completa está em [infra/README.md](infra/README.md#realm-do-crm-interno-voe-familhas-crm). O CRM roda no `familhas-admin` (`http://localhost:4300`), com login no realm do CRM; veja [frontend/familhas-admin/README.md](frontend/familhas-admin/README.md).
 
 ### 5. Explorar a API
 
@@ -145,6 +145,7 @@ cd backend/familhas-email && ./mvnw verify
 | `StripeMockGatewayIntegrationTests` | Adapter Stripe contra o `stripe-mock`: sessão de cartão e Pix, expirar, consultar, estornar | Sim (é pulado sem Docker) |
 | `AdminSecurityTests` | **Cliente comum recebe 403** (e anônimo 401) em toda rota `/api/admin/**` registrada; toda rota admin está em `docs/api/admin.yaml` | Não |
 | `CrmSecurityTests`, `JwtValidationTests`, `CrmRoleTests`, `Crm*ConverterTests`, `StoreJwtConverterTests`, `CrmPermissionLiteralsTests` | CRM (ADR 0013): toda rota `/api/crm` dá 401 sem token e 403 para cliente e admin da Loja; issuer escolhe decoder e papéis; assinatura, issuer, audiência e expiração reais; matriz papel × permissão | Não |
+| `CrmFoundationIntegrationTests`, `CrmOpenApiContractTests`, `StoredFileTypeTests`, `CrmFileRulesTests`, `LocalFileStorageTests`, `FileLinkSignerTests`, `OutboundUrlPolicyTests`, `IntegrationRegistryTests` | Fundação do CRM (ADR 0014): V18, upload pelo conteúdo, permissões por categoria, link assinado, anti-SSRF, integrações não configuradas, contrato `crm.yaml` | Só o de integração |
 | `AdminOpenApiContractTests` | `docs/api/admin.yaml` é um OpenAPI 3.1 válido, só com rotas admin e bearer token | Não |
 | `Admin*ControllerTests`, `AdminAuditInterceptorTests`, `PricingSettingsServiceTests`, `AdminDashboardServiceTests`, `PaymentExportWriterTests`, `PaymentFeedListenerTests` | Filtros e validação do Admin, auditoria, margem em cache, receita por dia, XLSX/CSV (injeção de fórmula), SSE e leitura dos eventos | Não |
 | `AdminIntegrationTests` | Oracle: V14..V16, filtros de reservas e pagamentos, abas de clientes, exportação auditada, dashboard, margem salva mudando a próxima cotação, cotação manual vista pelo cliente sem a nota interna | Sim (é pulado sem Docker) |

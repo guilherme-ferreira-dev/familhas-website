@@ -71,6 +71,10 @@ Importado de `infra/keycloak/data/import/voe-familhas-crm-realm.json`. Decisões
 | `marketing.crm` | `MarketingCrm.2026` | `crm-marketing` |
 | `semacesso.crm` | `SemAcesso.2026` | nenhum (deve ser barrado) |
 
+### Arquivos do CRM
+
+Os uploads do CRM (vouchers, anexos, documentos, imagens) ficam em `STORAGE_LOCAL_ROOT`, por padrão `backend/familhas-api/var/crm-files`, que o Git ignora. Fora do ambiente local, use um volume privado com backup próprio e defina `STORAGE_LINK_SECRET` com 32 ou mais caracteres. Detalhes em [ADR 0014](../docs/adr/0014-fundacao-do-crm.md).
+
 ### Criar membros da equipe fora do ambiente local
 
 Fora do ambiente local, importe o realm **sem** a lista `users`. Depois crie cada pessoa com o script:

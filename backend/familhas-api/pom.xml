@@ -33,7 +33,7 @@
 		<swagger-parser.version>2.1.22</swagger-parser.version>
 		<stripe-java.version>34.1.0</stripe-java.version>
 		<poi.version>5.4.1</poi.version>
-		<springdoc.version>2.8.17</springdoc.version>
+		<springdoc.version>3.2.0</springdoc.version>
 	</properties>
 	<dependencies>
 		<dependency>

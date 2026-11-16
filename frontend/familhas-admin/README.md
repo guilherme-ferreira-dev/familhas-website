@@ -35,7 +35,7 @@ Grupos do JSON funcional. Cada item aparece só para quem tem a permissão de le
 | Geral | Visão geral (`/`), Backup e restauração (`/backup`) |
 | Viagens | Voos Clientes, Pesquisar Voos, Emitir Voucher |
 | Marketing & Conteúdo | Criar Posts de cotação, Posts de Cruzeiros, Salvar Imagens, Criar posts Insta, Gerar Roteiro |
-| Administração | Equipe (só admin), Importar dados, Documentos, Auditoria |
+| Administração | Equipe (só admin), Importar dados, Documentos, Auditoria, Privacidade (só admin) |
 
 A visão geral mostra o painel (voos nos próximos 7 e 30 dias, próximos voos, voos por mês, vouchers do mês, com botão de olho), os dados da agência, a situação das integrações (IA, SerpApi e Meta aparecem como "Não configurada" até haver credencial) e em que etapa chega cada módulo.
 
@@ -50,6 +50,7 @@ A visão geral mostra o painel (voos nos próximos 7 e 30 dias, próximos voos, 
 | `/roteiros` | Lista; `/novo` e `/:id` com quatro seções e avisos do modelo mestre; `/:id/imprimir` em uma página A4 |
 | `/equipe` | Membros, convite, papel, desativar/reativar e reenviar acesso (só admin; ADR 0017) |
 | `/backup` | Baixar, enviar link por e-mail, backups guardados (`?baixar=<id>` vem do e-mail) e restauração com prévia |
+| `/privacidade` | LGPD (só admin; ADR 0018): relatório e anonimização de titular com prévia; registro de incidentes |
 
 Os módulos ainda sem tela (Salvar Imagens e Importar dados, ambos bloqueados) mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
 
@@ -62,3 +63,4 @@ As telas da Loja (`/loja`, `/clientes`, `/reservas`, `/pagamentos`, `/cotacoes`,
 - Menu e guards são só experiência de uso: a API confere papel e permissão em toda chamada. Um 403 de quem é da equipe (ex.: atendente tentando excluir) mostra a mensagem na tela; um 403 de quem não tem papel no CRM leva a "sem permissão".
 - O logout limpa o perfil e os dados carregados (`CrmSession.clear()`).
 - `noindex` e `robots.txt` bloqueando tudo: ferramenta interna.
+- PWA instalável só no build de produção. O service worker (`ngsw-config.json`) guarda apenas os arquivos do app; respostas da API, documentos e o `config.json` nunca ficam em cache (`pwa.spec.ts`).

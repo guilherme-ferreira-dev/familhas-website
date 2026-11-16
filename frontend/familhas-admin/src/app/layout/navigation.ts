@@ -57,6 +57,7 @@ export const NAVIGATION: readonly NavGroup[] = [
       { path: '/importar-dados', label: 'Importar dados', permission: 'crm:importacao:ler' },
       { path: '/documentos', label: 'Documentos', permission: 'crm:documentos:ler' },
       { path: '/auditoria', label: 'Auditoria', permission: 'crm:auditoria:ler' },
+      { path: '/privacidade', label: 'Privacidade (LGPD)', permission: 'crm:privacidade:ler' },
     ],
   },
 ];

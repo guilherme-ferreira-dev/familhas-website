@@ -99,7 +99,8 @@ Legenda: **OK** = controle implementado e coberto por teste; **Fase 11** = corri
 
 - OK: coleta mínima (nome, e-mail e telefone), logs sem dado pessoal, cartão fora da Familhas, auditoria sem corpo de requisição.
 - OK (Fase 11): retenção por idade das tabelas técnicas (ADR 0012, D8).
-- **Pendente:** registro de consentimento, exportação dos dados do cliente e exclusão ou anonimização a pedido. O guia pede os três e nenhuma fase os detalhou. Precisa de decisão de produto (o que fica por obrigação fiscal, como anonimizar reservas pagas) antes do código.
+- CRM (Etapa 6): relatório e anonimização de titular, registro de incidentes e documentação do tratamento em [../lgpd.md](../lgpd.md).
+- **Pendente (Loja):** registro de consentimento, exportação dos dados do cliente e exclusão ou anonimização a pedido. O guia pede os três e nenhuma fase os detalhou. Precisa de decisão de produto (o que fica por obrigação fiscal, como anonimizar reservas pagas) antes do código.
 
 ## CSP recomendada para os frontends (hospedagem)
 

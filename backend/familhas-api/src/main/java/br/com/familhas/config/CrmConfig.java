@@ -32,6 +32,7 @@ import br.com.familhas.crm.file.LocalFileStorage;
 import br.com.familhas.crm.file.StorageProperties;
 import br.com.familhas.crm.integration.IntegrationProperties;
 import br.com.familhas.crm.outbound.OutboundUrlPolicy;
+import br.com.familhas.crm.privacy.PrivacyProperties;
 import br.com.familhas.crm.team.KeycloakTeamDirectory;
 import br.com.familhas.crm.team.TeamDirectory;
 import br.com.familhas.crm.team.TeamProperties;
@@ -40,7 +41,7 @@ import br.com.familhas.crm.team.TeamProperties;
 @Configuration
 @EnableConfigurationProperties({ CompanyProperties.class, IntegrationProperties.class, StorageProperties.class,
         FlightSearchProperties.class, MetaProperties.class, TeamProperties.class,
-        BackupProperties.class })
+        BackupProperties.class, PrivacyProperties.class })
 public class CrmConfig {
 
     @Bean

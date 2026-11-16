@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Familhas API - CRM interno Voe Familhas
-  version: 0.5.0
+  version: 0.6.0
   description: |
     Contrato do CRM interno (prompt mestre do CRM; ADR 0013 e ADR 0014): tudo o que o `familhas-admin` consome
     em `/api/crm/**`.
@@ -44,6 +44,8 @@ tags:
     description: Equipe (Admin API do Keycloak; só admin altera).
   - name: backups
     description: Backup lógico e restauração.
+  - name: privacy
+    description: LGPD (pedidos de titular e registro de incidentes; só admin).
 security:
   - bearerAuth: []
 
@@ -1260,6 +1262,114 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/Unprocessable' }
 
+  /api/crm/privacy/subject-report:
+    post:
+      tags: [privacy]
+      operationId: subjectReport
+      summary: Dados do titular pelo CPF (pedido de acesso)
+      description: "Exige `crm:privacidade:exportar` e identidade confirmada. Auditado com o protocolo e o CPF mascarado."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubjectRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SubjectReport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/privacy/anonymize:
+    post:
+      tags: [privacy]
+      operationId: anonymizeSubject
+      summary: Prévia (padrão) ou anonimização do titular
+      description: |
+        Exige `crm:privacidade:excluir`. Mantém voos que não terminaram e vouchers dentro do prazo legal
+        (`PRIVACY_VOUCHER_RETENTION`, padrão 5 anos). Nada é apagado: nome, CPF, telefone, observações e outros
+        passageiros do voucher saem.
+      parameters:
+        - { name: apply, in: query, schema: { type: boolean, default: false } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SubjectRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnonymizationReport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/privacy/incidents:
+    get:
+      tags: [privacy]
+      operationId: listIncidents
+      summary: Registro de incidentes, mais recentes primeiro
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Incident' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [privacy]
+      operationId: createIncident
+      summary: Registra incidente
+      description: "Erros 422: `CONTAINED_AT_REQUIRED`, `CLOSED_AT_REQUIRED`, `INCIDENT_DATES_INVALID`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
+  /api/crm/privacy/incidents/{id}:
+    put:
+      tags: [privacy]
+      operationId: updateIncident
+      summary: Atualiza incidente (exige version)
+      parameters:
+        - { $ref: '#/components/parameters/IdPath' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IncidentRequest' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Incident' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1988,3 +2098,98 @@ components:
               restored: { type: integer }
               kept: { type: integer, description: Já existe e fica como está }
               conflicts: { type: integer, description: Outro registro usa o mesmo número ou nome }
+
+    SubjectRequest:
+      type: object
+      required: [cpf, identityVerified, reference]
+      properties:
+        cpf: { type: string, maxLength: 14 }
+        identityVerified: { type: boolean, description: 'A equipe confirmou que quem pede é o titular (precisa ser true)' }
+        reference: { type: string, maxLength: 120, description: Protocolo ou canal do pedido }
+
+    SubjectReport:
+      type: object
+      required: [cpf, generatedAt, flights, vouchers]
+      properties:
+        cpf: { type: string }
+        generatedAt: { type: string, format: date-time }
+        generatedBy: { type: [string, 'null'] }
+        flights:
+          type: array
+          items:
+            type: object
+            properties:
+              flightId: { type: string, format: uuid }
+              fullName: { type: string }
+              phone: { type: [string, 'null'] }
+              airline: { type: string }
+              origin: { type: string }
+              destination: { type: string }
+              outboundAt: { $ref: '#/components/schemas/LocalDateTime' }
+              returnAt: { oneOf: [ { $ref: '#/components/schemas/LocalDateTime' }, { type: 'null' } ] }
+              archived: { type: boolean }
+        vouchers:
+          type: array
+          items:
+            type: object
+            properties:
+              voucherId: { type: string, format: uuid }
+              number: { type: string }
+              type: { $ref: '#/components/schemas/VoucherType' }
+              status: { $ref: '#/components/schemas/VoucherStatus' }
+              clientName: { type: string }
+              clientPhone: { type: [string, 'null'] }
+              serviceDate: { type: [string, 'null'], format: date }
+              issuedAt: { type: string, format: date-time }
+
+    AnonymizationReport:
+      type: object
+      required: [applied, travelersAnonymized, vouchersAnonymized, kept]
+      properties:
+        applied: { type: boolean }
+        travelersAnonymized: { type: integer }
+        vouchersAnonymized: { type: integer }
+        kept:
+          type: array
+          items:
+            type: object
+            required: [kind, reference, reason]
+            properties:
+              kind: { type: string }
+              reference: { type: string }
+              reason: { type: string }
+              until: { type: [string, 'null'], format: date }
+
+    IncidentSeverity: { type: string, enum: [BAIXA, MEDIA, ALTA] }
+    IncidentStatus: { type: string, enum: [ABERTO, CONTIDO, ENCERRADO] }
+
+    IncidentRequest:
+      type: object
+      required: [title, description, severity, status, personalData, detectedAt]
+      description: Sem dados pessoais na descrição; só categorias e estimativa de titulares.
+      properties:
+        title: { type: string, maxLength: 150 }
+        description: { type: string, maxLength: 4000 }
+        severity: { $ref: '#/components/schemas/IncidentSeverity' }
+        status: { $ref: '#/components/schemas/IncidentStatus' }
+        personalData: { type: boolean }
+        dataCategories: { type: [string, 'null'], maxLength: 300 }
+        affectedEstimate: { type: [integer, 'null'], minimum: 0 }
+        actionsTaken: { type: [string, 'null'], maxLength: 4000 }
+        detectedAt: { type: string, format: date-time }
+        containedAt: { type: [string, 'null'], format: date-time }
+        closedAt: { type: [string, 'null'], format: date-time }
+        anpdNotifiedAt: { type: [string, 'null'], format: date-time }
+        holdersNotifiedAt: { type: [string, 'null'], format: date-time }
+        version: { type: [integer, 'null'], format: int64 }
+
+    Incident:
+      allOf:
+        - $ref: '#/components/schemas/IncidentRequest'
+        - type: object
+          required: [id, version]
+          properties:
+            id: { type: string, format: uuid }
+            createdBy: { type: [string, 'null'] }
+            updatedAt: { type: string, format: date-time }
+            version: { type: integer, format: int64 }

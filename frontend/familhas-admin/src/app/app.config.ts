@@ -1,5 +1,11 @@
 import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
-import { ApplicationConfig, ErrorHandler, provideBrowserGlobalErrorListeners } from '@angular/core';
+import {
+  ApplicationConfig,
+  ErrorHandler,
+  isDevMode,
+  provideBrowserGlobalErrorListeners,
+} from '@angular/core';
+import { provideServiceWorker } from '@angular/service-worker';
 import { provideRouter, TitleStrategy, withComponentInputBinding } from '@angular/router';
 import { routes } from './app.routes';
 import { jwtInterceptor } from './core/auth/jwt.interceptor';
@@ -18,5 +24,11 @@ export const appConfig: ApplicationConfig = {
     { provide: ErrorHandler, useClass: GlobalErrorHandler },
     provideLocale(),
     { provide: TitleStrategy, useClass: AdminTitleStrategy },
+    // PWA instalável (ADR 0018): o service worker guarda só os arquivos do app (ngsw-config.json, sem dataGroups).
+    // Respostas da API, documentos e o config.json nunca ficam em cache.
+    provideServiceWorker('ngsw-worker.js', {
+      enabled: !isDevMode(),
+      registrationStrategy: 'registerWhenStable:30000',
+    }),
   ],
 };

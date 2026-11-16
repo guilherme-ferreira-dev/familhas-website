@@ -193,9 +193,13 @@ O usuário `FAMILHAS_EMAIL` é criado por `oracle/init/02-create-familhas-email-
 - Swagger UI da API: `http://localhost:8080/swagger-ui.html`
 - Métricas da API: `http://localhost:8080/actuator/prometheus` (token com `ROLE_ADMIN`)
 
+## Limites de memória
+
+Cada serviço do compose tem `mem_limit` (Oracle 3 GB, Keycloak 1 GB, RabbitMQ e `familhas-email` 512 MB, MailHog 128 MB): um vazamento num serviço não derruba os outros. Depois de mudar os limites, `docker compose up -d` recria os containers (os dados ficam nos volumes).
+
 ## Backup e restore do Oracle
 
-`infra/oracle/backup.sh` e `infra/oracle/restore.sh` (Data Pump, com modo `--verify`). Passo a passo em [docs/operacao/backup-restore.md](../docs/operacao/backup-restore.md).
+`infra/oracle/backup.sh` e `infra/oracle/restore.sh` (Data Pump, com modo `--verify`). O `backup.sh` também gera o `.tar.gz` dos arquivos do CRM. Passo a passo em [docs/operacao/backup-restore.md](../docs/operacao/backup-restore.md); visão geral, RPO/RTO e alertas em [docs/backup-recovery.md](../docs/backup-recovery.md).
 
 ## Observação sobre Oracle
 

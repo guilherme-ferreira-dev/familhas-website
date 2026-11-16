@@ -7,13 +7,16 @@
 #   infra/oracle/backup.sh [pasta-de-destino]
 #
 # Variáveis: ORACLE_CONTAINER (familhas-oracle), ORACLE_DATABASE (FAMILHASPDB),
-#            BACKUP_SCHEMAS (FAMILHAS,FAMILHAS_EMAIL,KEYCLOAK)
+#            BACKUP_SCHEMAS (FAMILHAS,FAMILHAS_EMAIL,KEYCLOAK),
+#            CRM_FILES_DIR (backend/familhas-api/var/crm-files): arquivos do CRM (documentos, anexos, mídias), que não
+#            ficam no banco. Vão num .tar.gz ao lado do dump; pasta ausente é avisada e pulada.
 set -euo pipefail
 
 CONTAINER="${ORACLE_CONTAINER:-familhas-oracle}"
 PDB="${ORACLE_DATABASE:-FAMILHASPDB}"
 SCHEMAS="${BACKUP_SCHEMAS:-FAMILHAS,FAMILHAS_EMAIL,KEYCLOAK}"
 OUT_DIR="${1:-backups}"
+FILES_DIR="${CRM_FILES_DIR:-backend/familhas-api/var/crm-files}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 NAME="familhas-${STAMP}"
 REMOTE_DIR=/opt/oracle/backup
@@ -52,3 +55,12 @@ fi
 
 ( cd "$OUT_DIR" && shasum -a 256 "${NAME}.dmp" > "${NAME}.dmp.sha256" )
 echo "Backup pronto: ${OUT_DIR}/${NAME}.dmp ($(du -h "${OUT_DIR}/${NAME}.dmp" | cut -f1))"
+
+# Arquivos do CRM (ADR 0018): o banco guarda só as referências; sem eles, um restore traz registros sem documento.
+if [ -d "$FILES_DIR" ]; then
+  tar -czf "${OUT_DIR}/${NAME}-crm-files.tar.gz" -C "$FILES_DIR" .
+  ( cd "$OUT_DIR" && shasum -a 256 "${NAME}-crm-files.tar.gz" > "${NAME}-crm-files.tar.gz.sha256" )
+  echo "Arquivos do CRM: ${OUT_DIR}/${NAME}-crm-files.tar.gz ($(du -h "${OUT_DIR}/${NAME}-crm-files.tar.gz" | cut -f1))"
+else
+  echo "Aviso: ${FILES_DIR} não existe; arquivos do CRM não entraram no backup (defina CRM_FILES_DIR)." >&2
+fi

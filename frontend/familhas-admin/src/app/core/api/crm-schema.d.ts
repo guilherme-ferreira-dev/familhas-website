@@ -932,6 +932,86 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/crm/privacy/subject-report': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Dados do titular pelo CPF (pedido de acesso)
+     * @description Exige `crm:privacidade:exportar` e identidade confirmada. Auditado com o protocolo e o CPF mascarado.
+     */
+    post: operations['subjectReport'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/privacy/anonymize': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Prévia (padrão) ou anonimização do titular
+     * @description Exige `crm:privacidade:excluir`. Mantém voos que não terminaram e vouchers dentro do prazo legal
+     *     (`PRIVACY_VOUCHER_RETENTION`, padrão 5 anos). Nada é apagado: nome, CPF, telefone, observações e outros
+     *     passageiros do voucher saem.
+     */
+    post: operations['anonymizeSubject'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/privacy/incidents': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Registro de incidentes, mais recentes primeiro */
+    get: operations['listIncidents'];
+    put?: never;
+    /**
+     * Registra incidente
+     * @description Erros 422: `CONTAINED_AT_REQUIRED`, `CLOSED_AT_REQUIRED`, `INCIDENT_DATES_INVALID`.
+     */
+    post: operations['createIncident'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/privacy/incidents/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** Atualiza incidente (exige version) */
+    put: operations['updateIncident'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1604,6 +1684,92 @@ export interface components {
         /** @description Outro registro usa o mesmo número ou nome */
         conflicts: number;
       }[];
+    };
+    SubjectRequest: {
+      cpf: string;
+      /** @description A equipe confirmou que quem pede é o titular (precisa ser true) */
+      identityVerified: boolean;
+      /** @description Protocolo ou canal do pedido */
+      reference: string;
+    };
+    SubjectReport: {
+      cpf: string;
+      /** Format: date-time */
+      generatedAt: string;
+      generatedBy?: string | null;
+      flights: {
+        /** Format: uuid */
+        flightId?: string;
+        fullName?: string;
+        phone?: string | null;
+        airline?: string;
+        origin?: string;
+        destination?: string;
+        outboundAt?: components['schemas']['LocalDateTime'];
+        returnAt?: components['schemas']['LocalDateTime'] | null;
+        archived?: boolean;
+      }[];
+      vouchers: {
+        /** Format: uuid */
+        voucherId?: string;
+        number?: string;
+        type?: components['schemas']['VoucherType'];
+        status?: components['schemas']['VoucherStatus'];
+        clientName?: string;
+        clientPhone?: string | null;
+        /** Format: date */
+        serviceDate?: string | null;
+        /** Format: date-time */
+        issuedAt?: string;
+      }[];
+    };
+    AnonymizationReport: {
+      applied: boolean;
+      travelersAnonymized: number;
+      vouchersAnonymized: number;
+      kept: {
+        kind: string;
+        reference: string;
+        reason: string;
+        /** Format: date */
+        until?: string | null;
+      }[];
+    };
+    /** @enum {string} */
+    IncidentSeverity: 'BAIXA' | 'MEDIA' | 'ALTA';
+    /** @enum {string} */
+    IncidentStatus: 'ABERTO' | 'CONTIDO' | 'ENCERRADO';
+    /** @description Sem dados pessoais na descrição; só categorias e estimativa de titulares. */
+    IncidentRequest: {
+      title: string;
+      description: string;
+      severity: components['schemas']['IncidentSeverity'];
+      status: components['schemas']['IncidentStatus'];
+      personalData: boolean;
+      dataCategories?: string | null;
+      affectedEstimate?: number | null;
+      actionsTaken?: string | null;
+      /** Format: date-time */
+      detectedAt: string;
+      /** Format: date-time */
+      containedAt?: string | null;
+      /** Format: date-time */
+      closedAt?: string | null;
+      /** Format: date-time */
+      anpdNotifiedAt?: string | null;
+      /** Format: date-time */
+      holdersNotifiedAt?: string | null;
+      /** Format: int64 */
+      version?: number | null;
+    };
+    Incident: components['schemas']['IncidentRequest'] & {
+      /** Format: uuid */
+      id: string;
+      createdBy?: string | null;
+      /** Format: date-time */
+      updatedAt?: string;
+      /** Format: int64 */
+      version: number;
     };
   };
   responses: {
@@ -3369,6 +3535,146 @@ export interface operations {
       };
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  subjectReport: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SubjectRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SubjectReport'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  anonymizeSubject: {
+    parameters: {
+      query?: {
+        apply?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SubjectRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AnonymizationReport'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  listIncidents: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Incident'][];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  createIncident: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['IncidentRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Incident'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  updateIncident: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['IncidentRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Incident'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
       422: components['responses']['Unprocessable'];
     };
   };

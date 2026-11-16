@@ -1,0 +1,6 @@
+# Vulnerabilidades aceitas, revisadas uma a uma (ADR 0018). Cada linha vence na data do "exp" e volta a falhar o CI.
+
+# Spring Framework 6.2.19 (último da linha 6.2; correção só na 7.0.9, que exige Spring Boot 4, PR do Dependabot em revisão).
+# Não se aplicam: não usamos XsltView (47884) nem fragmentos de view em SSE; o SSE dos pagamentos manda JSON (47890).
+CVE-2026-47884 exp:2027-02-28
+CVE-2026-47890 exp:2027-02-28

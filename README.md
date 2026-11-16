@@ -19,7 +19,9 @@ docs/operacao/           Backup e restore do Oracle
 docs/e2e-checklist.md    Checklist E2E local
 docs/checklist.md        Checklist das fases
 docs/requirements-matrix.md  Matriz JSON do CRM interno -> código -> lacuna -> ação
-.github/workflows/       CI (build e testes de cada aplicação)
+docs/*.md                Entrega do CRM: architecture, security, lgpd, keycloak, oracle-flyway, api,
+                         deployment, backup-recovery, incident-response, testing e demo
+.github/workflows/       CI (build e testes) e Segurança (CodeQL, gitleaks, Trivy)
 ```
 
 ## Pré-requisitos
@@ -149,6 +151,7 @@ cd backend/familhas-email && ./mvnw verify
 | `CrmTravelIntegrationTests`, `FlightSearchServiceTests`, `SerpApiFlightSearchGatewayTests`, `SearchTextAndCpfTests`, `VoucherDetailsTests` | Viagens do CRM (ADR 0015): V19..V21, busca sem acento, CPF mascarado, 409, vouchers por tipo e A4 auditado, pesquisa com teto/cota/cache e contrato da SerpApi, painel por papel | Só o de integração |
 | `CrmMarketingIntegrationTests`, `GraphMetaGatewayTests`, `ItineraryRulesTests` | Marketing do CRM (ADR 0016): V22, logo, fila do Instagram com claim atômico e sem reenvio após `media_publish`, contrato da Graph API, roteiros e IA com 503 | Só o de integração |
 | `CrmAdministrationIntegrationTests`, `TeamServiceTests`, `KeycloakTeamDirectoryTests`, `BackupCipherTests` | Administração do CRM (ADR 0017): V23, backup com hash, restauração sem sobrescrever, e-mail só com link, equipe pela Admin API do Keycloak | Só o de integração |
+| `CrmPrivacyIntegrationTests`, `ProductionReadinessCheckTests` | LGPD e produção (ADR 0018): V24, relatório e anonimização do titular respeitando viagem e prazo legal, incidentes, perfil `prod` que recusa configuração insegura | Só o de integração |
 | `AdminOpenApiContractTests` | `docs/api/admin.yaml` é um OpenAPI 3.1 válido, só com rotas admin e bearer token | Não |
 | `Admin*ControllerTests`, `AdminAuditInterceptorTests`, `PricingSettingsServiceTests`, `AdminDashboardServiceTests`, `PaymentExportWriterTests`, `PaymentFeedListenerTests` | Filtros e validação do Admin, auditoria, margem em cache, receita por dia, XLSX/CSV (injeção de fórmula), SSE e leitura dos eventos | Não |
 | `AdminIntegrationTests` | Oracle: V14..V16, filtros de reservas e pagamentos, abas de clientes, exportação auditada, dashboard, margem salva mudando a próxima cotação, cotação manual vista pelo cliente sem a nota interna | Sim (é pulado sem Docker) |
@@ -345,6 +348,9 @@ Detalhes em [ADR 0012](docs/adr/0012-qualidade-final.md).
 - Headers: CSP restrita, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, HSTS em HTTPS.
 - Swagger só no perfil local (`SPRINGDOC_ENABLED`). Health público só com o status; detalhes só para ADMIN.
 - Dependabot semanal para Maven, npm, Actions e Docker.
+- Workflow Segurança: CodeQL, gitleaks e Trivy em todo PR e toda segunda ([docs/security.md](docs/security.md)).
+- Produção: `SPRING_PROFILES_ACTIVE=prod` recusa subir com segredo faltando ou endereço inseguro ([docs/deployment.md](docs/deployment.md)).
+- LGPD do CRM: [docs/lgpd.md](docs/lgpd.md); incidentes: [docs/incident-response.md](docs/incident-response.md).
 
 ## Backup e restore
 

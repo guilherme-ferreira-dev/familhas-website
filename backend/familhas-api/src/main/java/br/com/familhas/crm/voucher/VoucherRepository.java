@@ -11,6 +11,9 @@ import org.springframework.data.repository.query.Param;
 
 public interface VoucherRepository extends JpaRepository<VoucherEntity, UUID>, JpaSpecificationExecutor<VoucherEntity> {
 
+    /** Vouchers do CPF (LGPD: pedidos de titular). */
+    List<VoucherEntity> findByClientCpf(String clientCpf);
+
     @Query(value = "select seq_voucher_number.nextval from dual", nativeQuery = true)
     long nextNumber();
 

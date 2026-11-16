@@ -6,6 +6,11 @@ import type {
   InviteRequest,
   RestoreReport,
   StoredBackup,
+  SubjectRequest,
+  SubjectReport,
+  AnonymizationReport,
+  IncidentRequest,
+  Incident,
   TeamMember,
   Brand,
   InstagramGenerateRequest,
@@ -353,5 +358,26 @@ export class CrmApi {
     return this.http.post<RestoreReport>(`${this.api}/backups/restore`, form, {
       params: queryParams({ apply }),
     });
+  }
+
+  // Privacidade (LGPD)
+  subjectReport(request: SubjectRequest): Observable<SubjectReport> {
+    return this.http.post<SubjectReport>(`${this.api}/privacy/subject-report`, request);
+  }
+
+  anonymizeSubject(request: SubjectRequest, apply: boolean): Observable<AnonymizationReport> {
+    return this.http.post<AnonymizationReport>(`${this.api}/privacy/anonymize`, request, {
+      params: { apply },
+    });
+  }
+
+  incidents(): Observable<Incident[]> {
+    return this.http.get<Incident[]>(`${this.api}/privacy/incidents`);
+  }
+
+  saveIncident(id: string | null, request: IncidentRequest): Observable<Incident> {
+    return id
+      ? this.http.put<Incident>(`${this.api}/privacy/incidents/${encodeURIComponent(id)}`, request)
+      : this.http.post<Incident>(`${this.api}/privacy/incidents`, request);
   }
 }

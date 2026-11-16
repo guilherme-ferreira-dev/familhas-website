@@ -447,3 +447,20 @@ Decisões em [ADR 0017](adr/0017-administracao-do-crm.md).
 ### Pendências
 - [ ] Importar dados: aguardando amostras do sistema antigo
 - [ ] Produção: `KEYCLOAK_CRM_TEAM_SECRET`, `BACKUP_ENCRYPTION_KEY` (guardada fora do servidor) e SMTP real
+
+## CRM interno Voe Familhas, Etapa 6: LGPD, operação e entrega
+
+Decisões em [ADR 0018](adr/0018-lgpd-operacao-e-entrega.md).
+
+- [x] Privacidade (só admin): relatório do titular, anonimização com prévia (viagem em andamento e prazo legal preservados), auditoria com CPF mascarado
+- [x] V24: registro de incidentes com as fases do plano
+- [x] PWA instalável sem cache de API, documentos ou `config.json`
+- [x] Perfil `prod` com `ProductionReadinessCheck`; `mem_limit` no compose; backup operacional com os arquivos do CRM
+- [x] CI de segurança: CodeQL, gitleaks, Trivy (arquivos e imagem); Spring Boot 3.5.16
+- [x] Documentos de entrega e roteiro de demonstração
+
+### Pendências
+- [ ] Organizacionais da LGPD ([lgpd.md](lgpd.md#pendências-organizacionais)): encarregado, prazos de guarda, bases legais, contratos com fornecedores
+- [ ] RPO/RTO e retenção dos backups com a agência
+- [ ] Pipeline de deploy e imagem Docker da API
+- [ ] Importar dados e Salvar Imagens (bloqueados por insumos externos)

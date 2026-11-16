@@ -13,9 +13,17 @@ import org.springframework.stereotype.Component;
 public class IntegrationRegistry {
 
     private final IntegrationProperties properties;
+    private final String mailHost;
 
     public IntegrationRegistry(IntegrationProperties properties) {
+        this(properties, "");
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public IntegrationRegistry(IntegrationProperties properties,
+            @org.springframework.beans.factory.annotation.Value("${spring.mail.host:}") String mailHost) {
         this.properties = properties;
+        this.mailHost = mailHost;
     }
 
     public boolean isConfigured(CrmIntegration integration) {
@@ -26,6 +34,8 @@ public class IntegrationRegistry {
             case FLIGHT_SEARCH -> !isBlank(properties.serpapiApiKey());
             case INSTAGRAM -> !isBlank(properties.metaAccessToken()) && !isBlank(properties.metaInstagramUserId())
                     && !isBlank(properties.metaPublicBaseUrl());
+            case TEAM_DIRECTORY -> !isBlank(properties.keycloakTeamSecret());
+            case EMAIL -> !isBlank(mailHost);
         };
     }
 
@@ -49,6 +59,8 @@ public class IntegrationRegistry {
             case AI_TEXT, AI_IMAGE, AI_VIDEO -> "Provedor ainda não definido. Os campos ficam para preenchimento manual.";
             case FLIGHT_SEARCH -> "Defina SERPAPI_API_KEY no servidor.";
             case INSTAGRAM -> "Defina META_ACCESS_TOKEN, META_INSTAGRAM_USER_ID e META_PUBLIC_BASE_URL no servidor.";
+            case TEAM_DIRECTORY -> "Defina KEYCLOAK_CRM_TEAM_SECRET (conta de serviço do realm do CRM) no servidor.";
+            case EMAIL -> "Defina MAIL_HOST (servidor SMTP) no servidor.";
         };
     }
 

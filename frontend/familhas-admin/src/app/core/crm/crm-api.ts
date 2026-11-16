@@ -1,7 +1,12 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import type {
+  CrmRole,
+  InviteRequest,
+  RestoreReport,
+  StoredBackup,
+  TeamMember,
   Brand,
   InstagramGenerateRequest,
   InstagramPost,
@@ -300,5 +305,53 @@ export class CrmApi {
 
   generateItinerary(city: string, days: number): Observable<unknown> {
     return this.http.post(`${this.api}/itineraries/generate`, { city, days });
+  }
+
+  // Equipe
+  team(): Observable<TeamMember[]> {
+    return this.http.get<TeamMember[]>(`${this.api}/team`);
+  }
+
+  invite(body: InviteRequest): Observable<TeamMember> {
+    return this.http.post<TeamMember>(`${this.api}/team`, body);
+  }
+
+  changeRole(id: string, role: CrmRole): Observable<TeamMember> {
+    return this.http.put<TeamMember>(`${this.api}/team/${encodeURIComponent(id)}/role`, { role });
+  }
+
+  memberAction(id: string, action: 'disable' | 'enable' | 'resend'): Observable<TeamMember> {
+    return this.http.post<TeamMember>(`${this.api}/team/${encodeURIComponent(id)}/${action}`, null);
+  }
+
+  // Backup
+  storedBackups(): Observable<StoredBackup[]> {
+    return this.http.get<StoredBackup[]>(`${this.api}/backups`);
+  }
+
+  exportBackup(): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${this.api}/backups/export`, {
+      observe: 'response',
+      responseType: 'blob',
+    });
+  }
+
+  downloadStoredBackup(id: string): Observable<HttpResponse<Blob>> {
+    return this.http.get(`${this.api}/backups/${encodeURIComponent(id)}/download`, {
+      observe: 'response',
+      responseType: 'blob',
+    });
+  }
+
+  emailBackup(to: string | null): Observable<StoredBackup> {
+    return this.http.post<StoredBackup>(`${this.api}/backups/email`, { to });
+  }
+
+  restoreBackup(file: File, apply: boolean): Observable<RestoreReport> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<RestoreReport>(`${this.api}/backups/restore`, form, {
+      params: queryParams({ apply }),
+    });
   }
 }

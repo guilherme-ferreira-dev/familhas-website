@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Familhas API - CRM interno Voe Familhas
-  version: 0.4.0
+  version: 0.5.0
   description: |
     Contrato do CRM interno (prompt mestre do CRM; ADR 0013 e ADR 0014): tudo o que o `familhas-admin` consome
     em `/api/crm/**`.
@@ -40,6 +40,10 @@ tags:
     description: IA dos posts de cotação e de cruzeiros (503 sem provedor).
   - name: itineraries
     description: Gerar Roteiro (proposta comercial A4).
+  - name: team
+    description: Equipe (Admin API do Keycloak; só admin altera).
+  - name: backups
+    description: Backup lógico e restauração.
 security:
   - bearerAuth: []
 
@@ -1022,6 +1026,240 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/crm/team:
+    get:
+      tags: [team]
+      operationId: listTeam
+      summary: Membros da equipe (admin e gestor)
+      description: "Sem a conta de serviço do Keycloak configurada: 503."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/TeamMember' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '502': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    post:
+      tags: [team]
+      operationId: inviteMember
+      summary: Convida (só admin)
+      description: "O Keycloak manda o e-mail para definir a senha (e cadastrar TOTP, se admin). `MEMBER_EXISTS` (409), `INVITE_EMAIL_FAILED` (502)."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/InviteRequest' }
+      responses:
+        '201':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '502': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/team/{id}/role:
+    put:
+      tags: [team]
+      operationId: changeMemberRole
+      summary: Troca o papel (só admin)
+      description: "Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: '#/components/schemas/CrmRole' }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/team/{id}/disable:
+    post:
+      tags: [team]
+      operationId: disableMember
+      summary: Desativa e encerra as sessões
+      description: "Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/team/{id}/enable:
+    post:
+      tags: [team]
+      operationId: enableMember
+      summary: Reativa
+      description: "Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/team/{id}/resend:
+    post:
+      tags: [team]
+      operationId: resendMemberAccess
+      summary: Reenvia o link de acesso
+      description: "Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`."
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TeamMember' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/backups:
+    get:
+      tags: [backups]
+      operationId: listStoredBackups
+      summary: Backups guardados ainda válidos
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/StoredBackup' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/backups/export:
+    get:
+      tags: [backups]
+      operationId: exportBackup
+      summary: Baixa o backup completo (não guarda nada)
+      description: "Exige `crm:backup:exportar`. Auditado como EXPORT. Contém dados pessoais (CPF)."
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BackupFile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/crm/backups/email:
+    post:
+      tags: [backups]
+      operationId: emailBackup
+      summary: Guarda o backup criptografado e manda o link por e-mail
+      description: "Destino padrão voefamilhas@gmail.com. O e-mail leva só o link para baixar no CRM (exige login). Sem SMTP ou sem `BACKUP_ENCRYPTION_KEY`: 503."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to: { type: [string, 'null'], format: email, maxLength: 180 }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StoredBackup' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '502': { $ref: '#/components/responses/Unprocessable' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+
+  /api/crm/backups/{id}/download:
+    get:
+      tags: [backups]
+      operationId: downloadStoredBackup
+      summary: Baixa um backup guardado
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BackupFile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/crm/backups/restore:
+    post:
+      tags: [backups]
+      operationId: restoreBackup
+      summary: Prévia (padrão) ou restauração
+      description: |
+        Exige `crm:backup:restaurar` (admin). Nunca sobrescreve: registro que existe fica como está; só volta o que
+        foi apagado. Tudo numa transação. Erros 422: `BACKUP_INVALID`, `BACKUP_VERSION`, `BACKUP_CHECKSUM`,
+        `BACKUP_TOO_LARGE`.
+      parameters:
+        - { name: apply, in: query, schema: { type: boolean, default: false } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: OK.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RestoreReport' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1116,7 +1354,7 @@ components:
         email: { type: string }
         instagram: { type: string }
 
-    IntegrationKey: { type: string, enum: [AI_TEXT, AI_IMAGE, AI_VIDEO, FLIGHT_SEARCH, INSTAGRAM] }
+    IntegrationKey: { type: string, enum: [AI_TEXT, AI_IMAGE, AI_VIDEO, FLIGHT_SEARCH, INSTAGRAM, TEAM_DIRECTORY, EMAIL] }
 
     IntegrationStatus:
       type: object
@@ -1682,3 +1920,71 @@ components:
         size: { type: integer }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
+
+    TeamMember:
+      type: object
+      required: [id, role, enabled, totpConfigured, pendingActions, self]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: [string, 'null'] }
+        email: { type: [string, 'null'] }
+        firstName: { type: [string, 'null'] }
+        lastName: { type: [string, 'null'] }
+        role: { $ref: '#/components/schemas/CrmRole' }
+        enabled: { type: boolean }
+        totpConfigured: { type: boolean }
+        pendingActions: { type: array, items: { type: string }, description: 'Ex.: UPDATE_PASSWORD, CONFIGURE_TOTP' }
+        createdAt: { type: [string, 'null'], format: date-time }
+        self: { type: boolean, description: É quem está logado }
+
+    InviteRequest:
+      type: object
+      required: [email, firstName, lastName, role]
+      properties:
+        email: { type: string, format: email, maxLength: 180 }
+        firstName: { type: string, maxLength: 80 }
+        lastName: { type: string, maxLength: 80 }
+        role: { $ref: '#/components/schemas/CrmRole' }
+
+    StoredBackup:
+      type: object
+      required: [id, sizeBytes, recordCount, createdBy, createdAt, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        sizeBytes: { type: integer, format: int64 }
+        recordCount: { type: integer }
+        createdBy: { type: string }
+        emailedTo: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+
+    BackupFile:
+      type: object
+      description: 'Arquivo de backup v1 (formato voe-familhas-crm-backup). `sha256` cobre `tables`.'
+      required: [format, version, createdAt, tables, sha256]
+      properties:
+        format: { type: string, const: voe-familhas-crm-backup }
+        version: { type: integer, const: 1 }
+        createdAt: { type: string, format: date-time }
+        createdBy: { type: string }
+        tables: { type: object, additionalProperties: true }
+        sha256: { type: string }
+
+    RestoreReport:
+      type: object
+      required: [applied, tables]
+      properties:
+        applied: { type: boolean }
+        backupCreatedAt: { type: [string, 'null'], format: date-time }
+        backupCreatedBy: { type: [string, 'null'] }
+        tables:
+          type: array
+          items:
+            type: object
+            required: [table, inBackup, restored, kept, conflicts]
+            properties:
+              table: { type: string }
+              inBackup: { type: integer }
+              restored: { type: integer }
+              kept: { type: integer, description: Já existe e fica como está }
+              conflicts: { type: integer, description: Outro registro usa o mesmo número ou nome }

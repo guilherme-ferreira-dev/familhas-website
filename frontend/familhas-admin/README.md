@@ -48,8 +48,10 @@ A visão geral mostra o painel (voos nos próximos 7 e 30 dias, próximos voos, 
 | `/posts-cotacao`, `/posts-cruzeiros` | Editores com prévia fixa, layouts, logo oficial composta, PNG e envio para a fila (ADR 0016) |
 | `/posts-insta` | Fila; `/novo` e `/:id` com lâminas (marca e cópia limpa), Reel com MP4, ZIP, revisão e publicação na Meta |
 | `/roteiros` | Lista; `/novo` e `/:id` com quatro seções e avisos do modelo mestre; `/:id/imprimir` em uma página A4 |
+| `/equipe` | Membros, convite, papel, desativar/reativar e reenviar acesso (só admin; ADR 0017) |
+| `/backup` | Baixar, enviar link por e-mail, backups guardados (`?baixar=<id>` vem do e-mail) e restauração com prévia |
 
-Os módulos ainda sem tela (Salvar Imagens, equipe, importação e backup) mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
+Os módulos ainda sem tela (Salvar Imagens e Importar dados, ambos bloqueados) mostram a etapa prevista, ou o que os bloqueia; nenhum botão finge funcionar.
 
 As telas da Loja (`/loja`, `/clientes`, `/reservas`, `/pagamentos`, `/cotacoes`, `/catalogo`) ficaram fora do menu e só abrem para o `crm-admin`.
 

@@ -41,7 +41,9 @@ export const routes: Routes = [
         canActivate: [permissionGuard],
         loadComponent: () => import('./pages/overview/overview.page').then((m) => m.OverviewPage),
       },
-      pending('backup', 'crm:backup:ler', PENDING_MODULES.backup),
+      crm('backup', 'Backup e restauração', 'crm:backup:ler', () =>
+        import('./pages/backup/backup.page').then((m) => m.BackupPage),
+      ),
       crm('voos-clientes', 'Voos Clientes', 'crm:voos-clientes:ler', () =>
         import('./pages/client-flights/client-flights.page').then((m) => m.ClientFlightsPage),
       ),
@@ -100,7 +102,9 @@ export const routes: Routes = [
       crm('roteiros/:id', 'Roteiro', 'crm:roteiros:ler', () =>
         import('./pages/itineraries/itinerary.page').then((m) => m.ItineraryPage),
       ),
-      pending('equipe', 'crm:equipe:criar', PENDING_MODULES.equipe),
+      crm('equipe', 'Equipe', 'crm:equipe:criar', () =>
+        import('./pages/team/team.page').then((m) => m.TeamPage),
+      ),
       pending('importar-dados', 'crm:importacao:ler', PENDING_MODULES.importarDados),
       crm('documentos', 'Documentos', 'crm:documentos:ler', () =>
         import('./pages/documents/documents.page').then((m) => m.DocumentsPage),

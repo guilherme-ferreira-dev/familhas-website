@@ -11,22 +11,11 @@ export interface PendingModule {
 }
 
 export const PENDING_MODULES = {
-  backup: {
-    title: 'Backup e restauração',
-    summary:
-      'Exporta e restaura todas as tabelas de negócio num único arquivo, sem sobrescrever edições posteriores.',
-    stage: 5,
-  },
   salvarImagens: {
     title: 'Salvar Imagens',
     summary: 'Ferramenta do app Story Image Saver para salvar e organizar imagens de stories.',
     stage: 4,
     blockedBy: 'código ou especificação do app original Story Image Saver',
-  },
-  equipe: {
-    title: 'Equipe',
-    summary: 'Membros e convites da equipe pelo Keycloak (somente administrador).',
-    stage: 5,
   },
   importarDados: {
     title: 'Importar dados',

@@ -165,7 +165,7 @@ class CrmFoundationIntegrationTests {
                 .andExpect(jsonPath("$.company.legalName").value("EEBPG Agência de Viagens LTDA"))
                 .andExpect(jsonPath("$.company.cnpj").value("62.845.580/0001-75"))
                 .andExpect(jsonPath("$.company.tradeName").value("Voe Familhas"))
-                .andExpect(jsonPath("$.integrations.length()").value(5))
+                .andExpect(jsonPath("$.integrations.length()").value(7))
                 .andExpect(jsonPath("$.integrations[?(@.configured == true)]").isEmpty());
     }
 

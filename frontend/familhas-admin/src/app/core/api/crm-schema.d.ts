@@ -732,6 +732,206 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/crm/team': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Membros da equipe (admin e gestor)
+     * @description Sem a conta de serviço do Keycloak configurada: 503.
+     */
+    get: operations['listTeam'];
+    put?: never;
+    /**
+     * Convida (só admin)
+     * @description O Keycloak manda o e-mail para definir a senha (e cadastrar TOTP, se admin). `MEMBER_EXISTS` (409), `INVITE_EMAIL_FAILED` (502).
+     */
+    post: operations['inviteMember'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/team/{id}/role': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Troca o papel (só admin)
+     * @description Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`.
+     */
+    put: operations['changeMemberRole'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/team/{id}/disable': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Desativa e encerra as sessões
+     * @description Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`.
+     */
+    post: operations['disableMember'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/team/{id}/enable': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reativa
+     * @description Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`.
+     */
+    post: operations['enableMember'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/team/{id}/resend': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Reenvia o link de acesso
+     * @description Ninguém altera a si mesmo (`SELF_CHANGE_NOT_ALLOWED`) nem o último admin ativo (`LAST_ADMIN`). Fora da equipe: 404 `MEMBER_NOT_FOUND`.
+     */
+    post: operations['resendMemberAccess'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/backups': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Backups guardados ainda válidos */
+    get: operations['listStoredBackups'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/backups/export': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Baixa o backup completo (não guarda nada)
+     * @description Exige `crm:backup:exportar`. Auditado como EXPORT. Contém dados pessoais (CPF).
+     */
+    get: operations['exportBackup'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/backups/email': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Guarda o backup criptografado e manda o link por e-mail
+     * @description Destino padrão voefamilhas@gmail.com. O e-mail leva só o link para baixar no CRM (exige login). Sem SMTP ou sem `BACKUP_ENCRYPTION_KEY`: 503.
+     */
+    post: operations['emailBackup'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/backups/{id}/download': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Baixa um backup guardado */
+    get: operations['downloadStoredBackup'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/backups/restore': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Prévia (padrão) ou restauração
+     * @description Exige `crm:backup:restaurar` (admin). Nunca sobrescreve: registro que existe fica como está; só volta o que
+     *     foi apagado. Tudo numa transação. Erros 422: `BACKUP_INVALID`, `BACKUP_VERSION`, `BACKUP_CHECKSUM`,
+     *     `BACKUP_TOO_LARGE`.
+     */
+    post: operations['restoreBackup'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -776,7 +976,14 @@ export interface components {
       instagram: string;
     };
     /** @enum {string} */
-    IntegrationKey: 'AI_TEXT' | 'AI_IMAGE' | 'AI_VIDEO' | 'FLIGHT_SEARCH' | 'INSTAGRAM';
+    IntegrationKey:
+      | 'AI_TEXT'
+      | 'AI_IMAGE'
+      | 'AI_VIDEO'
+      | 'FLIGHT_SEARCH'
+      | 'INSTAGRAM'
+      | 'TEAM_DIRECTORY'
+      | 'EMAIL';
     IntegrationStatus: {
       key: components['schemas']['IntegrationKey'];
       label: string;
@@ -1331,6 +1538,72 @@ export interface components {
       /** Format: int64 */
       totalElements: number;
       totalPages: number;
+    };
+    TeamMember: {
+      /** Format: uuid */
+      id: string;
+      username?: string | null;
+      email?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      role: components['schemas']['CrmRole'];
+      enabled: boolean;
+      totpConfigured: boolean;
+      /** @description Ex.: UPDATE_PASSWORD, CONFIGURE_TOTP */
+      pendingActions: string[];
+      /** Format: date-time */
+      createdAt?: string | null;
+      /** @description É quem está logado */
+      self: boolean;
+    };
+    InviteRequest: {
+      /** Format: email */
+      email: string;
+      firstName: string;
+      lastName: string;
+      role: components['schemas']['CrmRole'];
+    };
+    StoredBackup: {
+      /** Format: uuid */
+      id: string;
+      /** Format: int64 */
+      sizeBytes: number;
+      recordCount: number;
+      createdBy: string;
+      emailedTo?: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      expiresAt: string;
+    };
+    /** @description Arquivo de backup v1 (formato voe-familhas-crm-backup). `sha256` cobre `tables`. */
+    BackupFile: {
+      /** @constant */
+      format: 'voe-familhas-crm-backup';
+      /** @constant */
+      version: 1;
+      /** Format: date-time */
+      createdAt: string;
+      createdBy?: string;
+      tables: {
+        [key: string]: unknown;
+      };
+      sha256: string;
+    };
+    RestoreReport: {
+      applied: boolean;
+      /** Format: date-time */
+      backupCreatedAt?: string | null;
+      backupCreatedBy?: string | null;
+      tables: {
+        table: string;
+        inBackup: number;
+        restored: number;
+        /** @description Já existe e fica como está */
+        kept: number;
+        /** @description Outro registro usa o mesmo número ou nome */
+        conflicts: number;
+      }[];
     };
   };
   responses: {
@@ -2792,6 +3065,311 @@ export interface operations {
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
       404: components['responses']['NotFound'];
+    };
+  };
+  listTeam: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamMember'][];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      502: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  inviteMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InviteRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamMember'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      409: components['responses']['Conflict'];
+      502: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  changeMemberRole: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          role: components['schemas']['CrmRole'];
+        };
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamMember'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  disableMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamMember'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  enableMember: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamMember'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  resendMemberAccess: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TeamMember'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  listStoredBackups: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StoredBackup'][];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  exportBackup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BackupFile'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  emailBackup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Format: email */
+          to?: string | null;
+        };
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['StoredBackup'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      502: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  downloadStoredBackup: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['BackupFile'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  restoreBackup: {
+    parameters: {
+      query?: {
+        apply?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['RestoreReport'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
     };
   };
 }

@@ -17,24 +17,6 @@ export const PENDING_MODULES = {
       'Exporta e restaura todas as tabelas de negócio num único arquivo, sem sobrescrever edições posteriores.',
     stage: 5,
   },
-  voosClientes: {
-    title: 'Voos Clientes',
-    summary:
-      'Voos dos clientes por data de ida, busca rápida por passageiro sem acento, arquivados e anexos.',
-    stage: 3,
-  },
-  pesquisarVoos: {
-    title: 'Pesquisar Voos',
-    summary:
-      'Cotação no Google Flights (SerpApi) por grupos de até 7 destinos, datas exatas ou flexíveis.',
-    stage: 3,
-  },
-  vouchers: {
-    title: 'Emitir Voucher',
-    summary:
-      'Vouchers de voo, hotel, transfer e passeio em A4, com histórico e envio por WhatsApp.',
-    stage: 3,
-  },
   postsCotacao: {
     title: 'Criar Posts de cotação',
     summary: 'Posts de pacote a partir do PDF de orçamento, em 5 layouts com a logo oficial.',
@@ -71,11 +53,5 @@ export const PENDING_MODULES = {
     summary: 'Importação dos dados legados com IDs de origem únicos e pulo de duplicados.',
     stage: 5,
     blockedBy: 'amostras do formato dos dados legados',
-  },
-  documentos: {
-    title: 'Documentos',
-    summary:
-      'Repositório privado de documentos e imagens com busca por nome e visualização de PDF.',
-    stage: 3,
   },
 } satisfies Record<string, PendingModule>;

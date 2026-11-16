@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
+import { BrandStore } from '../../core/crm/brand-store';
 import { CrmSession } from '../../core/crm/crm-session';
+import { errorMessage } from '../../core/errors/api-error';
+import { NotificationService } from '../../core/notifications/notification.service';
 import { PENDING_MODULES, PendingModule } from '../../layout/modules';
 import { DashboardPanel } from './dashboard-panel';
 
@@ -32,6 +35,27 @@ import { DashboardPanel } from './dashboard-panel';
       <div class="grid">
         <section class="card" aria-labelledby="empresa">
           <h2 id="empresa">Agência</h2>
+          <div class="logo-box">
+            @if (brand.logoUrl(); as logo) {
+              <img [src]="logo" alt="Logo oficial da Voe Familhas" />
+            } @else {
+              <p class="muted">Logo oficial ainda não enviada: os posts usam a marca em texto.</p>
+            }
+            @if (session.can('crm:dashboard:criar')) {
+              <label class="btn btn--small upload">
+                {{ brand.logoUrl() ? 'Trocar logo oficial' : 'Enviar logo oficial' }}
+                <input
+                  type="file"
+                  accept="image/png,image/webp"
+                  class="visually-hidden"
+                  (change)="uploadLogo($event)"
+                />
+              </label>
+              <small class="muted"
+                >PNG ou WEBP com fundo transparente, sem fundo azul e sem slogan.</small
+              >
+            }
+          </div>
           @if (session.company(); as company) {
             <dl>
               <dt>Razão social</dt>
@@ -146,6 +170,22 @@ import { DashboardPanel } from './dashboard-panel';
       display: block;
       font-size: 0.875rem;
     }
+    .logo-box {
+      display: grid;
+      gap: var(--space-2);
+      justify-items: start;
+      margin-bottom: var(--space-3);
+    }
+    .logo-box img {
+      max-width: 14rem;
+      max-height: 6rem;
+      background: var(--color-night);
+      padding: var(--space-2);
+      border-radius: var(--radius-sm);
+    }
+    .upload {
+      cursor: pointer;
+    }
     .badge {
       display: inline-block;
       padding: 0.125rem var(--space-2);
@@ -168,9 +208,26 @@ import { DashboardPanel } from './dashboard-panel';
 export class OverviewPage {
   protected readonly auth = inject(AuthService);
   protected readonly session = inject(CrmSession);
+  protected readonly brand = inject(BrandStore);
+  private readonly notices = inject(NotificationService);
   protected readonly modules: readonly PendingModule[] = Object.values(PENDING_MODULES);
 
   constructor() {
     void this.session.ready();
+    void this.brand.ready();
+  }
+
+  protected async uploadLogo(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    try {
+      await this.brand.replace(file);
+      this.notices.info('Logo oficial atualizada.');
+    } catch (error) {
+      this.notices.error(errorMessage(error));
+    } finally {
+      input.value = '';
+    }
   }
 }

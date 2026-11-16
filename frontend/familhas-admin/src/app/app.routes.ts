@@ -9,6 +9,15 @@ import { NotFoundPage } from './pages/not-found.page';
 export const routes: Routes = [
   { path: 'sem-permissao', component: NoPermissionPage, title: 'Sem permissão' },
   { path: 'login-indisponivel', component: LoginUnavailablePage, title: 'Login indisponível' },
+  // Roteiro A4 (uma página) fora do layout do CRM.
+  {
+    path: 'roteiros/:id/imprimir',
+    title: 'Roteiro para impressão',
+    canActivate: [teamGuard, permissionGuard],
+    data: { permission: 'crm:roteiros:ler' },
+    loadComponent: () =>
+      import('./pages/itineraries/itinerary-print.page').then((m) => m.ItineraryPrintPage),
+  },
   // Voucher A4 fora do layout do CRM (sem menu na impressão).
   {
     path: 'vouchers/:id/imprimir',
@@ -66,11 +75,31 @@ export const routes: Routes = [
       crm('vouchers/:id/editar', 'Corrigir voucher', 'crm:vouchers:editar', () =>
         import('./pages/vouchers/voucher-form.page').then((m) => m.VoucherFormPage),
       ),
-      pending('posts-cotacao', 'crm:posts-cotacao:ler', PENDING_MODULES.postsCotacao),
-      pending('posts-cruzeiros', 'crm:posts-cruzeiros:ler', PENDING_MODULES.postsCruzeiros),
+      crm('posts-cotacao', 'Criar Posts de cotação', 'crm:posts-cotacao:ler', () =>
+        import('./pages/marketing/quote-post.page').then((m) => m.QuotePostPage),
+      ),
+      crm('posts-cruzeiros', 'Posts de Cruzeiros', 'crm:posts-cruzeiros:ler', () =>
+        import('./pages/marketing/cruise-post.page').then((m) => m.CruisePostPage),
+      ),
       pending('salvar-imagens', 'crm:imagens:ler', PENDING_MODULES.salvarImagens),
-      pending('posts-insta', 'crm:posts-insta:ler', PENDING_MODULES.postsInsta),
-      pending('roteiros', 'crm:roteiros:ler', PENDING_MODULES.roteiros),
+      crm('posts-insta', 'Criar posts Insta', 'crm:posts-insta:ler', () =>
+        import('./pages/marketing/instagram-posts.page').then((m) => m.InstagramPostsPage),
+      ),
+      crm('posts-insta/novo', 'Novo post', 'crm:posts-insta:criar', () =>
+        import('./pages/marketing/instagram-post.page').then((m) => m.InstagramPostPage),
+      ),
+      crm('posts-insta/:id', 'Post do Instagram', 'crm:posts-insta:ler', () =>
+        import('./pages/marketing/instagram-post.page').then((m) => m.InstagramPostPage),
+      ),
+      crm('roteiros', 'Gerar Roteiro', 'crm:roteiros:ler', () =>
+        import('./pages/itineraries/itineraries.page').then((m) => m.ItinerariesPage),
+      ),
+      crm('roteiros/novo', 'Novo roteiro', 'crm:roteiros:criar', () =>
+        import('./pages/itineraries/itinerary.page').then((m) => m.ItineraryPage),
+      ),
+      crm('roteiros/:id', 'Roteiro', 'crm:roteiros:ler', () =>
+        import('./pages/itineraries/itinerary.page').then((m) => m.ItineraryPage),
+      ),
       pending('equipe', 'crm:equipe:criar', PENDING_MODULES.equipe),
       pending('importar-dados', 'crm:importacao:ler', PENDING_MODULES.importarDados),
       crm('documentos', 'Documentos', 'crm:documentos:ler', () =>

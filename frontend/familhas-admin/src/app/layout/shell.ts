@@ -10,13 +10,14 @@ import {
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from '../core/auth/auth.service';
+import { BrandStore } from '../core/crm/brand-store';
 import { CrmSession } from '../core/crm/crm-session';
 import { visibleNavigation } from './navigation';
 
 /**
  * Layout do CRM: marca com razão social e CNPJ abaixo (JSON, identidade visual), menu nos grupos do JSON filtrado
- * pelas permissões, usuário e conteúdo. A logo oficial (arquivo) ainda não está no repositório: até lá, a marca é
- * a palavra "Voe Familhas" em texto, sem recriar o desenho.
+ * pelas permissões, usuário e conteúdo. A logo oficial é a enviada em Visão geral → Agência (ADR 0016); sem ela, a
+ * marca aparece em texto, sem recriar o desenho.
  */
 @Component({
   selector: 'app-shell',
@@ -28,8 +29,12 @@ import { visibleNavigation } from './navigation';
       <header class="sidebar">
         <div class="brand">
           <a class="wordmark" routerLink="/" aria-label="Voe Familhas CRM, visão geral">
-            <span class="voe">Voe</span>
-            <span class="name">Familhas</span>
+            @if (brand.logoUrl(); as logo) {
+              <img class="logo-img" [src]="logo" alt="" />
+            } @else {
+              <span class="voe">Voe</span>
+              <span class="name">Familhas</span>
+            }
           </a>
           <button
             type="button"
@@ -113,6 +118,11 @@ import { visibleNavigation } from './navigation';
       color: #ffffff;
       text-decoration: none;
       font-weight: 800;
+    }
+    .logo-img {
+      display: block;
+      max-width: 10rem;
+      max-height: 3.5rem;
     }
     .wordmark .voe {
       color: var(--color-yellow);
@@ -234,6 +244,7 @@ import { visibleNavigation } from './navigation';
 export class Shell {
   protected readonly auth = inject(AuthService);
   protected readonly session = inject(CrmSession);
+  protected readonly brand = inject(BrandStore);
   protected readonly nav = computed(() => {
     // Recalcula quando o perfil chega.
     this.session.profile();
@@ -244,6 +255,7 @@ export class Shell {
 
   constructor() {
     void this.session.ready();
+    void this.brand.ready();
     let first = true;
     inject(Router)
       .events.pipe(filter((e) => e instanceof NavigationEnd))

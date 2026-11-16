@@ -469,6 +469,269 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/crm/brand': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Logo oficial */
+    get: operations['getBrand'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/brand/logo': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /**
+     * Troca a logo oficial (PNG ou WEBP)
+     * @description Exige `crm:dashboard:criar` (admin e gestor). A anterior é excluída.
+     */
+    put: operations['replaceLogo'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/instagram-posts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Fila de posts, mais recentes primeiro */
+    get: operations['listInstagramPosts'];
+    put?: never;
+    /**
+     * Cria post (rascunho)
+     * @description Erros 422: `INVALID_POST_SHAPE`, `TOO_MANY_HASHTAGS`, `DUPLICATED_MEDIA`, `FILE_CATEGORY_MISMATCH`.
+     */
+    post: operations['createInstagramPost'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/instagram-posts/generate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Gera post por IA (ideia, cidade, referências, inspiração)
+     * @description Valida tudo (inspiração só instagram.com, anti-SSRF) e então exige IA de texto e imagem (e vídeo no Reel): sem provedor, 503.
+     */
+    post: operations['generateInstagramPost'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/instagram-posts/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Post com lâminas e mídia */
+    get: operations['getInstagramPost'];
+    /**
+     * Edita (volta para rascunho)
+     * @description Só em DRAFT, READY ou FAILED (`POST_LOCKED`). Exige `version`.
+     */
+    put: operations['updateInstagramPost'];
+    post?: never;
+    /** Exclui post e mídias */
+    delete: operations['deleteInstagramPost'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/instagram-posts/{id}/ready': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Revisado: pode publicar
+     * @description Feed e Reel exigem legenda (`CAPTION_REQUIRED`).
+     */
+    post: operations['markInstagramPostReady'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/instagram-posts/{id}/publish': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Publica no Instagram (assíncrono)
+     * @description Exige `crm:posts-insta:publicar` e a Meta configurada (503). Claim atômico: só um pedido passa de
+     *     READY/FAILED para PUBLISHING (`PUBLISH_NOT_ALLOWED`, 409). Imagens precisam ser JPEG (`IMAGE_NOT_JPEG`) e
+     *     o carrossel respeita o limite da Meta (`CAROUSEL_TOO_LARGE`). Falha antes do media_publish: FAILED (pode tentar
+     *     de novo). Depois: UNCERTAIN, sem reenvio automático.
+     */
+    post: operations['publishInstagramPost'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/instagram-posts/{id}/resolve': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Resolve resultado incerto após conferir no Instagram
+     * @description Só em UNCERTAIN (`POST_NOT_UNCERTAIN`). published=false volta para READY.
+     */
+    post: operations['resolveInstagramPost'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/marketing/extract-quote': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Lê o orçamento (PDF ou link) por IA
+     * @description PDF da categoria POST_IMAGE; link passa pela política anti-SSRF. Sem provedor: 503.
+     */
+    post: operations['extractQuote'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/marketing/generate-image': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Imagem da cidade ou do navio por IA
+     * @description Sem provedor de imagem: 503. A tela oferece o upload.
+     */
+    post: operations['generateMarketingImage'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/itineraries': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Roteiros, mais recentes primeiro */
+    get: operations['searchItineraries'];
+    put?: never;
+    /** Cria roteiro */
+    post: operations['createItinerary'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/itineraries/generate': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Gera roteiro por IA (cidade e dias, ou PDF)
+     * @description Sem provedor: 503.
+     */
+    post: operations['generateItinerary'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/crm/itineraries/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Roteiro com avisos do modelo mestre */
+    get: operations['getItinerary'];
+    /**
+     * Edita roteiro
+     * @description Exige `version`. `DAY_OUT_OF_RANGE` (422).
+     */
+    put: operations['updateItinerary'];
+    post?: never;
+    /** Exclui roteiro e fotos */
+    delete: operations['deleteItinerary'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -527,8 +790,9 @@ export interface components {
     /**
      * @description Decide a permissão e os tipos aceitos:
      *     `DOCUMENT` (documentos; PDF e imagens), `FLIGHT_ATTACHMENT` (voos-clientes; PDF, JPG, PNG),
-     *     `VOUCHER_SOURCE` (vouchers; PDF, JPG, PNG), `POST_IMAGE` (posts-cotacao; imagens),
-     *     `INSTAGRAM_MEDIA` (posts-insta; imagens e MP4), `ITINERARY_PHOTO` (roteiros; imagens).
+     *     `VOUCHER_SOURCE` (vouchers; PDF, JPG, PNG), `POST_IMAGE` (posts-cotacao; imagens e PDF de orçamento),
+     *     `INSTAGRAM_MEDIA` (posts-insta; imagens e MP4), `ITINERARY_PHOTO` (roteiros; fotos e PDF de orçamento),
+     *     `BRAND_ASSET` (dashboard; logo PNG/WEBP: todos leem, admin e gestor trocam).
      * @enum {string}
      */
     FileCategory:
@@ -537,7 +801,8 @@ export interface components {
       | 'VOUCHER_SOURCE'
       | 'POST_IMAGE'
       | 'INSTAGRAM_MEDIA'
-      | 'ITINERARY_PHOTO';
+      | 'ITINERARY_PHOTO'
+      | 'BRAND_ASSET';
     CrmFile: {
       /** Format: uuid */
       id: string;
@@ -858,6 +1123,214 @@ export interface components {
       voucher: components['schemas']['Voucher'];
       /** @example 529.982.247-25 */
       clientCpfFormatted?: string | null;
+    };
+    Brand: {
+      logo: components['schemas']['CrmFile'] | null;
+    };
+    /** @enum {string} */
+    PostFormat: 'STORY' | 'FEED' | 'REEL';
+    /** @enum {string} */
+    PostOrigin: 'MANUAL' | 'QUOTE_POST' | 'CRUISE_POST' | 'AI';
+    /** @enum {string} */
+    PostStatus: 'DRAFT' | 'READY' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'UNCERTAIN';
+    InstagramSlideRequest: {
+      /**
+       * Format: uuid
+       * @description Imagem final com marca (INSTAGRAM_MEDIA)
+       */
+      imageFileId: string;
+      /**
+       * Format: uuid
+       * @description Cópia "-limpa", sem textos
+       */
+      cleanFileId?: string | null;
+      hook?: string | null;
+      title?: string | null;
+      bullets?: string[] | null;
+      caption?: string | null;
+    };
+    /** @description STORY: 1 imagem. FEED: 1 a 20 imagens (2+ = carrossel). REEL: vídeo MP4 e capa opcional. */
+    InstagramPostRequest: {
+      format: components['schemas']['PostFormat'];
+      origin?: components['schemas']['PostOrigin'] | null;
+      title: string;
+      idea?: string | null;
+      caption?: string | null;
+      /** @description Até 30 hashtags */
+      hashtags?: string | null;
+      slides?: components['schemas']['InstagramSlideRequest'][] | null;
+      /** Format: uuid */
+      videoFileId?: string | null;
+      /** Format: int64 */
+      version?: number | null;
+    };
+    InstagramSlide: {
+      order: number;
+      image: components['schemas']['CrmFile'];
+      clean?: components['schemas']['CrmFile'] | null;
+      hook?: string | null;
+      title?: string | null;
+      bullets: string[];
+      caption?: string | null;
+    };
+    InstagramPost: {
+      /** Format: uuid */
+      id: string;
+      format: components['schemas']['PostFormat'];
+      origin: components['schemas']['PostOrigin'];
+      status: components['schemas']['PostStatus'];
+      title: string;
+      idea?: string | null;
+      caption?: string | null;
+      hashtags?: string | null;
+      slides: components['schemas']['InstagramSlide'][];
+      video?: components['schemas']['CrmFile'] | null;
+      metaMediaId?: string | null;
+      permalink?: string | null;
+      lastError?: string | null;
+      /** Format: date-time */
+      publishAttemptedAt?: string | null;
+      /** Format: date-time */
+      publishedAt?: string | null;
+      publishedBy?: string | null;
+      createdBy?: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: int64 */
+      version: number;
+    };
+    InstagramPostSummary: {
+      /** Format: uuid */
+      id: string;
+      format: components['schemas']['PostFormat'];
+      origin: components['schemas']['PostOrigin'];
+      status: components['schemas']['PostStatus'];
+      title: string;
+      slideCount: number;
+      hasVideo: boolean;
+      permalink?: string | null;
+      createdBy?: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      publishedAt?: string | null;
+    };
+    InstagramPostPage: {
+      content: components['schemas']['InstagramPostSummary'][];
+      page: number;
+      size: number;
+      /** Format: int64 */
+      totalElements: number;
+      totalPages: number;
+    };
+    InstagramGenerateRequest: {
+      format: components['schemas']['PostFormat'];
+      /** @description Com foco: 1 post. Sem foco: pauta semanal. */
+      idea?: string | null;
+      /** @description Modo automático: carrossel de 7 lâminas */
+      city?: string | null;
+      /** @description Padrão 5 */
+      slides?: number | null;
+      referenceFileIds?: string[] | null;
+      /** @description Só instagram.com */
+      inspirationUrl?: string | null;
+    };
+    ResolveRequest: {
+      published: boolean;
+      permalink?: string | null;
+    };
+    QuoteSource: {
+      /** @enum {string} */
+      kind: 'PACKAGE' | 'CRUISE';
+      /** Format: uuid */
+      fileId?: string | null;
+      url?: string | null;
+    };
+    ImageRequest: {
+      /** @enum {string} */
+      subject: 'CITY' | 'SHIP';
+      name: string;
+    };
+    ItineraryAiRequest: {
+      city?: string | null;
+      days?: number | null;
+      /** Format: uuid */
+      fileId?: string | null;
+    };
+    ItineraryDay: {
+      day: number;
+      title?: string | null;
+      description?: string | null;
+    };
+    /** @description Modelo mestre: apresentação, dia a dia, inclusos confirmados e investimento. */
+    ItinerarySections: {
+      overview?: string | null;
+      days?: components['schemas']['ItineraryDay'][] | null;
+      included?: string[] | null;
+      investmentNotes?: string | null;
+    };
+    ItineraryRequest: {
+      /** @description Cidade do hotel */
+      destination: string;
+      days: number;
+      clientName?: string | null;
+      clientPhone?: string | null;
+      travelPeriod?: string | null;
+      /** @description Vale sobre qualquer valor do PDF */
+      priceText?: string | null;
+      paymentTerms?: string | null;
+      observations?: string | null;
+      sections: components['schemas']['ItinerarySections'];
+      /** @description Nunca sai na proposta */
+      internalAlerts?: string | null;
+      photoIds?: string[] | null;
+      /** Format: int64 */
+      version?: number | null;
+    };
+    Itinerary: {
+      /** Format: uuid */
+      id: string;
+      destination: string;
+      days: number;
+      clientName?: string | null;
+      clientPhone?: string | null;
+      travelPeriod?: string | null;
+      priceText?: string | null;
+      paymentTerms?: string | null;
+      observations?: string | null;
+      sections: components['schemas']['ItinerarySections'];
+      internalAlerts?: string | null;
+      photos: components['schemas']['CrmFile'][];
+      /** @description Horários, voos, companhias ou estrelas no texto */
+      warnings: string[];
+      createdBy?: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: int64 */
+      version: number;
+    };
+    ItinerarySummary: {
+      /** Format: uuid */
+      id: string;
+      destination: string;
+      days: number;
+      clientName?: string | null;
+      travelPeriod?: string | null;
+      createdBy?: string | null;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    ItineraryPage: {
+      content: components['schemas']['ItinerarySummary'][];
+      page: number;
+      size: number;
+      /** Format: int64 */
+      totalElements: number;
+      totalPages: number;
     };
   };
   responses: {
@@ -1798,6 +2271,523 @@ export interface operations {
         content: {
           'application/json': components['schemas']['VoucherDocument'];
         };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  getBrand: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Brand'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  replaceLogo: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Brand'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      413: components['responses']['Unprocessable'];
+      415: components['responses']['Unprocessable'];
+    };
+  };
+  listInstagramPosts: {
+    parameters: {
+      query?: {
+        status?: components['schemas']['PostStatus'][];
+        page?: components['parameters']['Page'];
+        size?: components['parameters']['Size'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPostPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  createInstagramPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InstagramPostRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPost'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  generateInstagramPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InstagramGenerateRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPostRequest'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  getInstagramPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPost'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  updateInstagramPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['InstagramPostRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPost'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  deleteInstagramPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+    };
+  };
+  markInstagramPostReady: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPost'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  publishInstagramPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPost'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  resolveInstagramPost: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ResolveRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['InstagramPost'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+    };
+  };
+  extractQuote: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['QuoteSource'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  generateMarketingImage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ImageRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  searchItineraries: {
+    parameters: {
+      query?: {
+        /** @description Destino ou cliente */
+        q?: string;
+        page?: components['parameters']['Page'];
+        size?: components['parameters']['Size'];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ItineraryPage'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+    };
+  };
+  createItinerary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ItineraryRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Itinerary'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  generateItinerary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ItineraryAiRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+      503: components['responses']['ServiceUnavailable'];
+    };
+  };
+  getItinerary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Itinerary'];
+        };
+      };
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+    };
+  };
+  updateItinerary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ItineraryRequest'];
+      };
+    };
+    responses: {
+      /** @description OK. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['Itinerary'];
+        };
+      };
+      400: components['responses']['BadRequest'];
+      401: components['responses']['Unauthorized'];
+      403: components['responses']['Forbidden'];
+      404: components['responses']['NotFound'];
+      409: components['responses']['Conflict'];
+      422: components['responses']['Unprocessable'];
+    };
+  };
+  deleteItinerary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components['parameters']['IdPath'];
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];

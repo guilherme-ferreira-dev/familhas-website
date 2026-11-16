@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { OidcSecurityService } from 'angular-auth-oidc-client';
 import { firstValueFrom } from 'rxjs';
+import { BrandStore } from '../crm/brand-store';
 import { CrmSession } from '../crm/crm-session';
 import {
   AuthService,
@@ -19,6 +20,7 @@ export class OidcAuthService extends AuthService {
   private readonly oidc = inject(OidcSecurityService);
   private readonly router = inject(Router);
   private readonly session = inject(CrmSession);
+  private readonly brand = inject(BrandStore);
   private readonly roles = signal<readonly string[]>([]);
   private readonly unreachable = signal(false);
   readonly unavailable = this.unreachable.asReadonly();
@@ -73,6 +75,7 @@ export class OidcAuthService extends AuthService {
     this.roles.set([]);
     // Perfil e dados carregados da sessão anterior não podem sobrar para o próximo login.
     this.session.clear();
+    this.brand.clear();
   }
 
   async getAccessToken(): Promise<string | null> {

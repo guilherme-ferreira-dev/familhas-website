@@ -1,12 +1,19 @@
 package br.com.familhas.crm.marketing;
 
+import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
+import br.com.familhas.admin.audit.AuditActor;
 import br.com.familhas.api.BusinessException;
+import br.com.familhas.crm.file.CrmFileResponse;
 import br.com.familhas.crm.file.CrmFileService;
 import br.com.familhas.crm.file.FileCategory;
 import br.com.familhas.crm.instagram.InstagramGenerateRequest;
@@ -20,7 +27,7 @@ import br.com.familhas.crm.outbound.OutboundUrlPolicy;
 /**
  * Pontos de IA do marketing (ADR 0016, D5). Valida a entrada inteira (arquivos e links, com a política anti-SSRF)
  * e só então exige o provedor: sem ele, 503 INTEGRATION_NOT_CONFIGURED e a tela segue no modo manual. Nada é
- * simulado; nenhum provedor está implementado.
+ * simulado. Só a imagem tem provedor (OpenAI gpt-image-1, ADR 0019); texto e vídeo continuam sem.
  *
  * Quando houver provedor, as regras do JSON entram no prompt e na conferência da resposta: destino pela cidade da
  * hospedagem, datas "29 de Jan a 04 de Fev", nunca reaproveitar preço/data/condição do post de inspiração, nunca
@@ -32,11 +39,18 @@ public class MarketingAiService {
     private final IntegrationRegistry integrations;
     private final CrmFileService files;
     private final OutboundUrlPolicy urls;
+    private final ImageGenerator images;
+    private final OpenAiProperties openAi;
+    private final Cache<String, AtomicInteger> imageQuota;
 
-    public MarketingAiService(IntegrationRegistry integrations, CrmFileService files, OutboundUrlPolicy urls) {
+    public MarketingAiService(IntegrationRegistry integrations, CrmFileService files, OutboundUrlPolicy urls,
+            ImageGenerator images, OpenAiProperties openAi) {
         this.integrations = integrations;
         this.files = files;
         this.urls = urls;
+        this.images = images;
+        this.openAi = openAi;
+        this.imageQuota = Caffeine.newBuilder().expireAfterWrite(Duration.ofHours(1)).build();
     }
 
     public InstagramPostRequest generateInstagramPost(InstagramGenerateRequest request) {
@@ -75,10 +89,29 @@ public class MarketingAiService {
         throw notImplemented(CrmIntegration.AI_TEXT);
     }
 
-    /** Imagem da cidade da hospedagem ou do navio (sempre substituível por upload). */
-    public void generateImage(ImageRequest request) {
+    /**
+     * Imagem da cidade da hospedagem ou do navio (sempre substituível por upload). Vira um arquivo POST_IMAGE do
+     * CRM: a tela pega o link assinado e compõe o post no canvas. Só o nome da cidade ou do navio vai à OpenAI.
+     */
+    public CrmFileResponse generateImage(ImageRequest request) {
+        String name = MarketingImagePrompt.clean(request.name());
+        if (name.isEmpty()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "NAME_REQUIRED", "Informe a cidade ou o navio.");
+        }
         integrations.require(CrmIntegration.AI_IMAGE);
-        throw notImplemented(CrmIntegration.AI_IMAGE);
+        takeImageQuota();
+        byte[] image = images.generate(MarketingImagePrompt.of(request));
+        return files.store(FileCategory.POST_IMAGE, "ia-" + name + ".jpg", image);
+    }
+
+    /** Cada imagem custa: teto por pessoa por hora, contado antes de chamar a OpenAI. */
+    private void takeImageQuota() {
+        String who = AuditActor.current().subject();
+        int used = imageQuota.get(who, k -> new AtomicInteger()).incrementAndGet();
+        if (used > openAi.imagesPerHour()) {
+            throw new BusinessException(HttpStatus.TOO_MANY_REQUESTS, "AI_IMAGE_QUOTA",
+                    "Limite de " + openAi.imagesPerHour() + " imagens por hora atingido. Envie uma foto.");
+        }
     }
 
     /** Roteiro a partir de cidade e dias, ou do PDF do orçamento (ITINERARY_PHOTO). */

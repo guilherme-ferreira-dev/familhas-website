@@ -58,10 +58,12 @@ import br.com.familhas.crm.instagram.InstagramPublishRecovery;
 import br.com.familhas.crm.instagram.MetaApiException;
 import br.com.familhas.crm.instagram.MetaGateway;
 import br.com.familhas.crm.instagram.PostStatus;
+import br.com.familhas.crm.marketing.ImageGenerator;
 
 /**
  * Marketing com Oracle real (prompt mestre, Etapa 4; ADR 0016): V22, logo oficial, fila do Instagram com
- * publicação pela Meta (dublê do gateway, publicação síncrona), roteiros e IA não configurada.
+ * publicação pela Meta (dublê do gateway, publicação síncrona), roteiros, IA de imagem (dublê da OpenAI, ADR 0019)
+ * e IA de texto e vídeo não configuradas.
  */
 @SpringBootTest(properties = {
         "familhas.outbox.publisher-enabled=false",
@@ -72,6 +74,9 @@ import br.com.familhas.crm.instagram.PostStatus;
         "familhas.integrations.meta-public-base-url=https://crm.exemplo.com.br",
         "familhas.meta.publish-async=false",
         "familhas.meta.recovery-delay=PT10H",
+        "familhas.integrations.ai-image-provider=openai",
+        "familhas.integrations.openai-api-key=sk-teste",
+        "familhas.openai.images-per-hour=3",
         "familhas.storage.local-root=${java.io.tmpdir}/familhas-crm-it4" })
 @AutoConfigureMockMvc
 @Testcontainers(disabledWithoutDocker = true)
@@ -93,6 +98,7 @@ class CrmMarketingIntegrationTests {
     @Autowired private InstagramPublishRecovery recovery;
     @Autowired private TransactionTemplate tx;
     @MockitoBean private MetaGateway meta;
+    @MockitoBean private ImageGenerator images;
 
     @BeforeEach
     void metaWorks() {
@@ -259,11 +265,62 @@ class CrmMarketingIntegrationTests {
         send(post("/api/crm/marketing/extract-quote").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"kind\":\"CRUISE\",\"url\":\"https://169.254.169.254/latest\"}"), CrmRole.MARKETING)
                 .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.code").value("URL_NOT_ALLOWED"));
-        send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"subject\":\"CITY\",\"name\":\"Maceió\"}"), CrmRole.MARKETING)
-                .andExpect(status().isServiceUnavailable());
         send(post("/api/crm/itineraries/generate").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"city\":\"Maceió\",\"days\":5}"), CrmRole.ATENDENTE).andExpect(status().isServiceUnavailable());
+    }
+
+    // ---------- IA de imagem (OpenAI, ADR 0019) ----------
+
+    @Test
+    void generatedImageBecomesAPostImageFileOfTheCrm() throws Exception {
+        when(images.generate(anyString())).thenReturn(JPEG);
+
+        JsonNode file = json(send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"subject\":\"CITY\",\"name\":\"Maceió\"}"), CrmRole.MARKETING)
+                .andExpect(status().isOk()));
+        assertThat(file.get("category").asText()).isEqualTo("POST_IMAGE");
+        assertThat(file.get("contentType").asText()).isEqualTo("image/jpeg");
+        assertThat(file.get("name").asText()).isEqualTo("ia-Maceió.jpg");
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(images).generate(prompt.capture());
+        assertThat(prompt.getValue()).contains("Maceió").contains("no text");
+
+        String id = file.get("id").asText();
+        send(post("/api/crm/files/{id}/link", id), CrmRole.MARKETING).andExpect(status().isOk());
+        assertThat(auditLogRepository.findAll()).anySatisfy(row -> {
+            assertThat(row.getAction()).isEqualTo(AuditAction.CREATE);
+            assertThat(row.getResource()).isEqualTo("crm/marketing");
+            assertThat(row.getStatus()).isEqualTo(200);
+        });
+
+        // Atendimento não cria posts: barrado antes de gastar com a OpenAI.
+        reset(images);
+        send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"subject\":\"SHIP\",\"name\":\"MSC Seaview\"}"), CrmRole.ATENDENTE)
+                .andExpect(status().isForbidden());
+        send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"subject\":\"SHIP\",\"name\":\"\\\"\\\"\"}"), CrmRole.MARKETING)
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("NAME_REQUIRED"));
+        verify(images, never()).generate(anyString());
+    }
+
+    @Test
+    void imageRefusalAndHourlyQuotaReachTheScreen() throws Exception {
+        when(images.generate(anyString())).thenThrow(new br.com.familhas.api.BusinessException(
+                org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY, "AI_IMAGE_REFUSED", "Recusada."));
+        String ship = "{\"subject\":\"SHIP\",\"name\":\"MSC Seaview\"}";
+        send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON).content(ship),
+                CrmRole.GESTOR).andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("AI_IMAGE_REFUSED"));
+        send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON).content(ship),
+                CrmRole.GESTOR).andExpect(status().isUnprocessableEntity());
+        send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON).content(ship),
+                CrmRole.GESTOR).andExpect(status().isUnprocessableEntity());
+        // Teto de 3 por hora neste teste: a quarta nem chama a OpenAI.
+        send(post("/api/crm/marketing/generate-image").contentType(MediaType.APPLICATION_JSON).content(ship),
+                CrmRole.GESTOR).andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("AI_IMAGE_QUOTA"));
+        verify(images, times(3)).generate(anyString());
     }
 
     // ---------- Roteiros ----------

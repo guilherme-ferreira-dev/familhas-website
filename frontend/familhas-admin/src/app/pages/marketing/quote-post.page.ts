@@ -15,6 +15,7 @@ import { CrmApi } from '../../core/crm/crm-api';
 import { CrmSession } from '../../core/crm/crm-session';
 import { errorMessage } from '../../core/errors/api-error';
 import { NotificationService } from '../../core/notifications/notification.service';
+import { generatePostImage } from '../../shared/marketing/ai-image';
 import { download, fileToImage, slug, toBlob } from '../../shared/marketing/canvas';
 import {
   brl,
@@ -179,7 +180,23 @@ import { sendToInstagramQueue } from './publish-to-queue';
               accept="image/jpeg,image/png,image/webp"
               (change)="pickImage($event)"
             />
-            @if (!aiImage()) {
+            @if (aiImage()) {
+              <button
+                type="button"
+                class="btn"
+                [disabled]="generating() || !f.destination.trim()"
+                (click)="generateImage()"
+              >
+                {{ generating() ? 'Gerando imagem…' : 'Gerar com IA' }}
+              </button>
+              <small class="muted" aria-live="polite">
+                {{
+                  f.destination.trim()
+                    ? 'A IA cria uma foto da cidade sem texto; o post é montado aqui. Leva até um minuto.'
+                    : 'Preencha o destino para gerar a foto.'
+                }}
+              </small>
+            } @else {
               <small class="muted">Imagem por IA não configurada: envie uma foto.</small>
             }
           </div>
@@ -280,6 +297,7 @@ export class QuotePostPage {
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   protected readonly aiText = computed(() => this.configured('AI_TEXT'));
   protected readonly aiImage = computed(() => this.configured('AI_IMAGE'));
+  protected readonly generating = signal(false);
 
   protected f = {
     destination: '',
@@ -329,6 +347,17 @@ export class QuotePostPage {
       this.image.set(await fileToImage(file));
     } catch (error) {
       this.notices.error(errorMessage(error));
+    }
+  }
+
+  protected async generateImage(): Promise<void> {
+    this.generating.set(true);
+    try {
+      this.image.set(await generatePostImage(this.api, 'CITY', this.f.destination));
+    } catch (error) {
+      this.notices.error(errorMessage(error));
+    } finally {
+      this.generating.set(false);
     }
   }
 

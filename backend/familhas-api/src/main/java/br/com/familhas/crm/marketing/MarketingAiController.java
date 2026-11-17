@@ -7,9 +7,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import br.com.familhas.admin.audit.AuditedManually;
+import br.com.familhas.crm.file.CrmFileResponse;
 import jakarta.validation.Valid;
 
-/** IA dos posts de cotação e de cruzeiros: {@code /api/crm/marketing} (ADR 0016). Consultas, não gravam. */
+/**
+ * IA dos posts de cotação e de cruzeiros: {@code /api/crm/marketing} (ADR 0016). A extração é consulta e não grava;
+ * a imagem gerada vira arquivo do CRM (ADR 0019) e entra na auditoria como CREATE pelo interceptor.
+ */
 @RestController
 @RequestMapping("/api/crm/marketing")
 public class MarketingAiController {
@@ -28,9 +32,8 @@ public class MarketingAiController {
     }
 
     @PostMapping("/generate-image")
-    @AuditedManually
     @PreAuthorize("hasAuthority('crm:posts-cotacao:criar') or hasAuthority('crm:posts-cruzeiros:criar')")
-    public void generateImage(@Valid @RequestBody ImageRequest request) {
-        service.generateImage(request);
+    public CrmFileResponse generateImage(@Valid @RequestBody ImageRequest request) {
+        return service.generateImage(request);
     }
 }

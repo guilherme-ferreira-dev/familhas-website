@@ -1,6 +1,7 @@
 package br.com.familhas.crm.file;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -71,12 +72,38 @@ public class CrmFileService {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "Arquivo vazio.");
         }
         try (InputStream raw = file.getInputStream()) {
+            return save(category, file.getContentType(), file.getOriginalFilename(), file.getSize(), raw);
+        } catch (IOException e) {
+            throw new IllegalStateException("Falha ao gravar o arquivo no storage", e);
+        }
+    }
+
+    /**
+     * Arquivo produzido no servidor (ex.: imagem gerada por IA, ADR 0019). Mesmas regras do upload: permissão da
+     * categoria, tipo pelos primeiros bytes e limite de tamanho.
+     */
+    @Transactional
+    public CrmFileResponse store(FileCategory category, String name, byte[] content) {
+        CrmAccess.require(category.resource(), CrmAction.CREATE);
+        if (content == null || content.length == 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "FILE_EMPTY", "Arquivo vazio.");
+        }
+        try (InputStream raw = new ByteArrayInputStream(content)) {
+            return save(category, null, name, content.length, raw);
+        } catch (IOException e) {
+            throw new IllegalStateException("Falha ao gravar o arquivo no storage", e);
+        }
+    }
+
+    private CrmFileResponse save(FileCategory category, String declaredContentType, String originalName,
+            long declaredSize, InputStream raw) throws IOException {
+        try {
             BufferedInputStream in = new BufferedInputStream(raw);
             in.mark(StoredFileType.HEADER_BYTES);
             byte[] header = in.readNBytes(StoredFileType.HEADER_BYTES);
             in.reset();
-            StoredFileType type = checkType(category, file.getContentType(), header);
-            if (file.getSize() > type.maxBytes()) {
+            StoredFileType type = checkType(category, declaredContentType, header);
+            if (declaredSize > type.maxBytes()) {
                 throw new BusinessException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE",
                         "Arquivo maior que o permitido para " + type.extension().toUpperCase() + ".");
             }
@@ -91,7 +118,7 @@ public class CrmFileService {
             CrmFileEntity entity = new CrmFileEntity();
             entity.setCategory(category);
             entity.setStorageKey(key);
-            entity.setOriginalName(safeName(file.getOriginalFilename(), type));
+            entity.setOriginalName(safeName(originalName, type));
             entity.setContentType(type.contentType());
             entity.setSizeBytes(limited.count());
             entity.setSha256(HexFormat.of().formatHex(sha256.digest()));
@@ -100,8 +127,6 @@ public class CrmFileService {
             return CrmFileResponse.of(repository.save(entity));
         } catch (LimitExceededException e) {
             throw new BusinessException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Arquivo maior que o permitido.");
-        } catch (IOException e) {
-            throw new IllegalStateException("Falha ao gravar o arquivo no storage", e);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);
         }

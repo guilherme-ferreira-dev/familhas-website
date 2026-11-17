@@ -35,7 +35,7 @@ class TeamServiceTests {
 
     private final TeamDirectory directory = mock(TeamDirectory.class);
     private final TeamService service = new TeamService(directory,
-            new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", "", "", "segredo")));
+            new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", "", "", "segredo", "")));
 
     @BeforeEach
     void loggedInAsAdmin() {
@@ -130,7 +130,7 @@ class TeamServiceTests {
     @Test
     void withoutSecretTheTeamIsNotConfigured() {
         TeamService off = new TeamService(directory,
-                new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", "", "", "")));
+                new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", "", "", "", "")));
         assertThatThrownBy(off::members).isInstanceOf(IntegrationNotConfiguredException.class);
     }
 

@@ -281,8 +281,9 @@ export class CrmApi {
     return this.http.post(`${this.api}/marketing/extract-quote`, { kind, fileId, url });
   }
 
-  generateImage(subject: 'CITY' | 'SHIP', name: string): Observable<unknown> {
-    return this.http.post(`${this.api}/marketing/generate-image`, { subject, name });
+  /** Gera a imagem na OpenAI e devolve o arquivo POST_IMAGE já guardado no CRM (ADR 0019). */
+  generateImage(subject: 'CITY' | 'SHIP', name: string): Observable<CrmFile> {
+    return this.http.post<CrmFile>(`${this.api}/marketing/generate-image`, { subject, name });
   }
 
   // Gerar Roteiro

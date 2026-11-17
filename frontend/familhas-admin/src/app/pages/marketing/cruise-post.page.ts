@@ -15,6 +15,7 @@ import { CrmApi } from '../../core/crm/crm-api';
 import { CrmSession } from '../../core/crm/crm-session';
 import { errorMessage } from '../../core/errors/api-error';
 import { NotificationService } from '../../core/notifications/notification.service';
+import { generatePostImage } from '../../shared/marketing/ai-image';
 import { download, fileToImage, slug, toBlob } from '../../shared/marketing/canvas';
 import {
   CRUISE_LAYOUTS,
@@ -146,7 +147,23 @@ export function cruiseCaption(input: {
               accept="image/jpeg,image/png,image/webp"
               (change)="pickImage($event)"
             />
-            @if (!aiImage()) {
+            @if (aiImage()) {
+              <button
+                type="button"
+                class="btn"
+                [disabled]="generating() || !f.ship.trim()"
+                (click)="generateImage()"
+              >
+                {{ generating() ? 'Gerando imagem…' : 'Gerar com IA' }}
+              </button>
+              <small class="muted" aria-live="polite">
+                {{
+                  f.ship.trim()
+                    ? 'A IA cria um navio ilustrativo, sem nome no casco; para o navio real, envie uma foto.'
+                    : 'Preencha o navio para gerar a imagem.'
+                }}
+              </small>
+            } @else {
               <small class="muted">Imagem do navio por IA não configurada: envie uma foto.</small>
             }
           </div>
@@ -256,6 +273,7 @@ export class CruisePostPage {
   private readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
   protected readonly aiText = computed(() => this.configured('AI_TEXT'));
   protected readonly aiImage = computed(() => this.configured('AI_IMAGE'));
+  protected readonly generating = signal(false);
   protected readonly dims = computed(() => {
     this.version();
     return cruiseSize(this.f.format);
@@ -297,6 +315,17 @@ export class CruisePostPage {
       this.image.set(await fileToImage(file));
     } catch (error) {
       this.notices.error(errorMessage(error));
+    }
+  }
+
+  protected async generateImage(): Promise<void> {
+    this.generating.set(true);
+    try {
+      this.image.set(await generatePostImage(this.api, 'SHIP', this.f.ship));
+    } catch (error) {
+      this.notices.error(errorMessage(error));
+    } finally {
+      this.generating.set(false);
     }
   }
 

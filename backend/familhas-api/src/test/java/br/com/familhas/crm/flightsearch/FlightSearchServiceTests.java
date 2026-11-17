@@ -46,7 +46,7 @@ class FlightSearchServiceTests {
 
     private FlightSearchService service(boolean configured) {
         IntegrationRegistry registry = new IntegrationRegistry(
-                new IntegrationProperties("none", "none", "none", configured ? "chave" : "", "", "", "", ""));
+                new IntegrationProperties("none", "none", "none", configured ? "chave" : "", "", "", "", "", ""));
         when(history.findByParamsHash(any())).thenReturn(Optional.empty());
         return new FlightSearchService(gateway, registry, properties, history, mapper, CLOCK);
     }

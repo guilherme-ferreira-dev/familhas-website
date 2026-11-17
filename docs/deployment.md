@@ -35,7 +35,7 @@ Lista completa em [.env.example](../.env.example). Obrigatórias em produção:
 | `KEYCLOAK_CRM_TEAM_SECRET` | tela Equipe |
 | `BACKUP_ENCRYPTION_KEY`, `MAIL_*` | backup por e-mail (guarde a chave também fora do servidor) |
 
-Opcionais (aparecem como "não configuradas"): `SERPAPI_API_KEY`, `META_*`, chaves de IA. `PRIVACY_VOUCHER_RETENTION` (padrão `P5Y`) depende da decisão jurídica.
+Opcionais (aparecem como "não configuradas"): `SERPAPI_API_KEY`, `META_*`, chaves de IA. IA de imagem: `AI_IMAGE_PROVIDER=openai` e `OPENAI_API_KEY` ([ADR 0019](adr/0019-ia-de-imagem-openai.md)). `PRIVACY_VOUCHER_RETENTION` (padrão `P5Y`) depende da decisão jurídica.
 
 Gere segredos com `openssl rand -base64 32` e guarde num cofre (variáveis do provedor, Vault), nunca no repositório.
 

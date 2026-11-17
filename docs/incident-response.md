@@ -33,7 +33,7 @@ Para incidentes de segurança e de dados pessoais no CRM, na Loja e na infraestr
 | `STORAGE_LINK_SECRET` | API | gere outro (32+ caracteres) e reinicie; links antigos deixam de valer |
 | `KEYCLOAK_CRM_TEAM_SECRET` | Keycloak → Clients → familhas-crm-team → Credentials → Regenerate | atualize a variável e reinicie a API |
 | `BACKUP_ENCRYPTION_KEY` | API | nova chave só vale para backups novos; guarde a antiga até os guardados vencerem (7 dias) |
-| `SERPAPI_API_KEY`, `META_ACCESS_TOKEN`, chaves de IA | painel do fornecedor | revogue lá, gere outra, atualize e reinicie |
+| `SERPAPI_API_KEY`, `META_ACCESS_TOKEN`, `OPENAI_API_KEY` e outras chaves de IA | painel do fornecedor | revogue lá, gere outra, atualize e reinicie |
 | SMTP (`MAIL_PASSWORD`) | provedor de e-mail | troque a senha de app |
 | Senha do Oracle | banco | troque no banco e nas variáveis dos serviços |
 | Admin do Keycloak | Keycloak master | troque e revise sessões |

@@ -57,7 +57,8 @@ Dados de crianças e adolescentes (art. 14): aparecem como passageiros e em docu
 | SMTP (Gmail ou outro) | convites e link de backup | e-mail da equipe | _pendência_: escolher provedor e revisar termos |
 | SerpApi | preços de voos | nenhum (só destinos e datas) | não configurado |
 | Meta (Instagram) | publicação de posts | nenhum de cliente | não configurado; transferência internacional (EUA) |
-| Provedor de IA | extração e geração de texto/imagem | **não configurado**. Antes de ligar: pseudonimizar PDFs (sem CPF/passaporte), contrato sem uso para treinamento, avaliar retenção e transferência internacional | não configurado |
+| OpenAI (gpt-image-1) | imagem de fundo dos posts ([ADR 0019](adr/0019-ia-de-imagem-openai.md)) | nenhum: só o nome da cidade ou do navio | ligado por `OPENAI_API_KEY`; transferência internacional (EUA); _pendência_: revisar termos de retenção da OpenAI |
+| Provedor de IA de texto e vídeo | extração e geração de texto/vídeo | **não configurado**. Antes de ligar: pseudonimizar PDFs (sem CPF/passaporte), contrato sem uso para treinamento, avaliar retenção e transferência internacional | não configurado |
 | Stripe (Loja) | pagamentos da Loja | dados do comprador; cartão fica no Stripe | fora do CRM |
 
 ## Pendências organizacionais

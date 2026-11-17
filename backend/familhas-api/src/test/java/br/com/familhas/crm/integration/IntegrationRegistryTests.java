@@ -9,7 +9,7 @@ class IntegrationRegistryTests {
 
     @Test
     void nothingIsConfiguredByDefaultAndRequireGives503Code() {
-        IntegrationRegistry registry = new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", "", "", ""));
+        IntegrationRegistry registry = new IntegrationRegistry(new IntegrationProperties("none", "none", "none", "", "", "", "", "", ""));
         assertThat(registry.statuses()).hasSize(CrmIntegration.values().length).noneMatch(IntegrationStatus::configured);
         assertThatThrownBy(() -> registry.require(CrmIntegration.AI_TEXT))
                 .isInstanceOfSatisfying(IntegrationNotConfiguredException.class, e -> {
@@ -21,11 +21,24 @@ class IntegrationRegistryTests {
     @Test
     void credentialsTurnIntegrationsOnWithoutExposingThem() {
         IntegrationRegistry registry = new IntegrationRegistry(
-                new IntegrationProperties("claude", " NONE ", "none", "serp-secret", "meta-token", "", "", ""));
+                new IntegrationProperties("claude", " NONE ", "none", "serp-secret", "meta-token", "", "", "", ""));
         assertThat(registry.isConfigured(CrmIntegration.AI_TEXT)).isTrue();
         assertThat(registry.isConfigured(CrmIntegration.AI_IMAGE)).isFalse();
         assertThat(registry.isConfigured(CrmIntegration.FLIGHT_SEARCH)).isTrue();
         assertThat(registry.isConfigured(CrmIntegration.INSTAGRAM)).as("falta o usuario do Instagram").isFalse();
         assertThat(registry.statuses().toString()).doesNotContain("serp-secret", "meta-token");
+    }
+
+    @Test
+    void imageNeedsOpenAiAndItsKey() {
+        assertThat(new IntegrationRegistry(new IntegrationProperties("none", "openai", "none", "", "", "", "", "", ""))
+                .isConfigured(CrmIntegration.AI_IMAGE)).as("sem chave").isFalse();
+        assertThat(new IntegrationRegistry(new IntegrationProperties("none", "dall-e", "none", "", "", "", "", "", "sk"))
+                .isConfigured(CrmIntegration.AI_IMAGE)).as("provedor sem adapter").isFalse();
+        IntegrationRegistry registry = new IntegrationRegistry(
+                new IntegrationProperties("none", " OpenAI ", "none", "", "", "", "", "", "sk-segredo"));
+        assertThat(registry.isConfigured(CrmIntegration.AI_IMAGE)).isTrue();
+        assertThat(registry.isConfigured(CrmIntegration.AI_TEXT)).isFalse();
+        assertThat(registry.statuses().toString()).doesNotContain("sk-segredo");
     }
 }

@@ -31,6 +31,9 @@ import br.com.familhas.crm.file.FileStorage;
 import br.com.familhas.crm.file.LocalFileStorage;
 import br.com.familhas.crm.file.StorageProperties;
 import br.com.familhas.crm.integration.IntegrationProperties;
+import br.com.familhas.crm.marketing.ImageGenerator;
+import br.com.familhas.crm.marketing.OpenAiImageGenerator;
+import br.com.familhas.crm.marketing.OpenAiProperties;
 import br.com.familhas.crm.outbound.OutboundUrlPolicy;
 import br.com.familhas.crm.privacy.PrivacyProperties;
 import br.com.familhas.crm.team.KeycloakTeamDirectory;
@@ -41,7 +44,7 @@ import br.com.familhas.crm.team.TeamProperties;
 @Configuration
 @EnableConfigurationProperties({ CompanyProperties.class, IntegrationProperties.class, StorageProperties.class,
         FlightSearchProperties.class, MetaProperties.class, TeamProperties.class,
-        BackupProperties.class, PrivacyProperties.class })
+        BackupProperties.class, PrivacyProperties.class, OpenAiProperties.class })
 public class CrmConfig {
 
     @Bean
@@ -62,6 +65,17 @@ public class CrmConfig {
         factory.setReadTimeout(properties.timeout());
         RestClient client = RestClient.builder().baseUrl(properties.serpapiBaseUrl()).requestFactory(factory).build();
         return new SerpApiFlightSearchGateway(client, integrations.serpapiApiKey(), properties);
+    }
+
+    /** OpenAI (gpt-image-1) com a chave do servidor. Sem provedor ou chave o registry barra antes (503). */
+    @Bean
+    ImageGenerator imageGenerator(OpenAiProperties properties, IntegrationProperties integrations,
+            ObjectMapper objectMapper) {
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
+        factory.setReadTimeout(properties.timeout());
+        RestClient client = RestClient.builder().baseUrl(properties.baseUrl()).requestFactory(factory).build();
+        return new OpenAiImageGenerator(client, integrations.openaiApiKey(), properties, objectMapper);
     }
 
     /** Graph API da Meta com o token do servidor. Sem credenciais o registry barra antes (503). */

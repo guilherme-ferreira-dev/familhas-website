@@ -431,7 +431,8 @@ Decisões em [ADR 0016](adr/0016-marketing-do-crm.md).
 - [x] `./mvnw verify`: 635 testes; frontend 96 testes, lint e build; navegador real com 17 cenários
 
 ### Pendências
-- [ ] Provedor de IA (texto, imagem e vídeo) e credenciais da Meta (`META_ACCESS_TOKEN`, `META_INSTAGRAM_USER_ID`, `META_PUBLIC_BASE_URL`)
+- [x] IA de imagem: OpenAI gpt-image-1 ([ADR 0019](adr/0019-ia-de-imagem-openai.md)); falta `OPENAI_API_KEY` no servidor
+- [ ] Provedor de IA (texto e vídeo) e credenciais da Meta (`META_ACCESS_TOKEN`, `META_INSTAGRAM_USER_ID`, `META_PUBLIC_BASE_URL`)
 - [ ] Salvar Imagens: aguardando o app Story Image Saver
 - [ ] Limpeza de mídias órfãs de lâminas abandonadas antes de salvar
 

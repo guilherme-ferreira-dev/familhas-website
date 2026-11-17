@@ -663,7 +663,7 @@ export interface paths {
     put?: never;
     /**
      * Imagem da cidade ou do navio por IA
-     * @description Sem provedor de imagem: 503. A tela oferece o upload.
+     * @description OpenAI gpt-image-1 (ADR 0019): a imagem vira arquivo `POST_IMAGE` do CRM; a tela pede o link assinado e compõe o post no canvas. Só o nome da cidade ou do navio vai à OpenAI. `NAME_REQUIRED` (400), `AI_IMAGE_REFUSED` (422, recusa da moderação), `AI_IMAGE_QUOTA` (429, teto por pessoa por hora), `AI_IMAGE_FAILED` (502). Sem provedor ou chave: 503, e a tela oferece o upload.
      */
     post: operations['generateMarketingImage'];
     delete?: never;
@@ -3058,16 +3058,21 @@ export interface operations {
       };
     };
     responses: {
-      /** @description OK. */
+      /** @description Imagem gerada e guardada. */
       200: {
         headers: {
           [name: string]: unknown;
         };
-        content?: never;
+        content: {
+          'application/json': components['schemas']['CrmFile'];
+        };
       };
       400: components['responses']['BadRequest'];
       401: components['responses']['Unauthorized'];
       403: components['responses']['Forbidden'];
+      422: components['responses']['Unprocessable'];
+      429: components['responses']['Unprocessable'];
+      502: components['responses']['Unprocessable'];
       503: components['responses']['ServiceUnavailable'];
     };
   };

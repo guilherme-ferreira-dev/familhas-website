@@ -29,7 +29,7 @@ public class IntegrationRegistry {
     public boolean isConfigured(CrmIntegration integration) {
         return switch (integration) {
             case AI_TEXT -> hasProvider(properties.aiTextProvider());
-            case AI_IMAGE -> hasProvider(properties.aiImageProvider());
+            case AI_IMAGE -> isOpenAi(properties.aiImageProvider()) && !isBlank(properties.openaiApiKey());
             case AI_VIDEO -> hasProvider(properties.aiVideoProvider());
             case FLIGHT_SEARCH -> !isBlank(properties.serpapiApiKey());
             case INSTAGRAM -> !isBlank(properties.metaAccessToken()) && !isBlank(properties.metaInstagramUserId())
@@ -56,12 +56,21 @@ public class IntegrationRegistry {
             return "Configurada";
         }
         return switch (integration) {
-            case AI_TEXT, AI_IMAGE, AI_VIDEO -> "Provedor ainda não definido. Os campos ficam para preenchimento manual.";
+            case AI_TEXT, AI_VIDEO -> "Provedor ainda não definido. Os campos ficam para preenchimento manual.";
+            case AI_IMAGE -> isOpenAi(properties.aiImageProvider()) ? "Defina OPENAI_API_KEY no servidor."
+                    : "Defina AI_IMAGE_PROVIDER=openai e OPENAI_API_KEY no servidor. Enquanto isso, envie uma foto.";
             case FLIGHT_SEARCH -> "Defina SERPAPI_API_KEY no servidor.";
             case INSTAGRAM -> "Defina META_ACCESS_TOKEN, META_INSTAGRAM_USER_ID e META_PUBLIC_BASE_URL no servidor.";
             case TEAM_DIRECTORY -> "Defina KEYCLOAK_CRM_TEAM_SECRET (conta de serviço do realm do CRM) no servidor.";
             case EMAIL -> "Defina MAIL_HOST (servidor SMTP) no servidor.";
         };
+    }
+
+    /** Imagem só tem adapter da OpenAI (gpt-image-1, ADR 0019): outro nome continua "não configurado". */
+    static final String OPENAI = "openai";
+
+    private static boolean isOpenAi(String provider) {
+        return provider != null && OPENAI.equalsIgnoreCase(provider.trim());
     }
 
     private static boolean hasProvider(String provider) {

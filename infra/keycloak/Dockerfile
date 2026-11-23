@@ -1,4 +1,4 @@
-FROM quay.io/keycloak/keycloak:26.4.0
+FROM quay.io/keycloak/keycloak:26.8.2-3
 
 # Opções de build ficam fixas na imagem; o container usa `start --optimized`.
 # health-enabled expõe /health/ready na porta de gerenciamento 9000.

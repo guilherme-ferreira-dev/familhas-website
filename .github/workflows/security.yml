@@ -125,7 +125,7 @@ jobs:
 
       # A API ainda não tem imagem: varre o jar, que traz as dependências transitivas que o pom.xml não mostra.
       - name: Configurar Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
